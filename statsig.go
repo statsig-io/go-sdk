@@ -19,7 +19,7 @@ type StatsigUser struct {
 
 type StatsigMetadata struct {
     SdkType string `json:"sdkType"`
-	SdkVersion string `json:"sdkVersion"`
+    SdkVersion string `json:"sdkVersion"`
 }
 
 type GateResponse struct {
@@ -34,15 +34,15 @@ type ConfigResponse struct {
 }
 
 type CheckGateInput struct {
-	GateName string `json:"gateName"`
-	User StatsigUser `json:"user"`
-	StatsigMetadata StatsigMetadata `json:"statsigMetadata"`
+    GateName string `json:"gateName"`
+    User StatsigUser `json:"user"`
+    StatsigMetadata StatsigMetadata `json:"statsigMetadata"`
 }
 
 type GetConfigInput struct {
-	ConfigName string `json:"configName"`
-	User StatsigUser `json:"user"`
-	StatsigMetadata StatsigMetadata `json:"statsigMetadata"`
+    ConfigName string `json:"configName"`
+    User StatsigUser `json:"user"`
+    StatsigMetadata StatsigMetadata `json:"statsigMetadata"`
 }
 
 var sdkKey string
@@ -50,31 +50,31 @@ var sdkMetadata *StatsigMetadata
 var client *http.Client
 
 func init() {
-	client = &http.Client{}
+    client = &http.Client{}
 }
 
 func Initialize(secretKey string) {
     sdkKey = secretKey
-	sdkMetadata = &StatsigMetadata{SdkType: "go-sdk", SdkVersion: "0.0.1"}
+    sdkMetadata = &StatsigMetadata{SdkType: "go-sdk", SdkVersion: "0.0.1"}
 }
 
 func CheckGate(user StatsigUser, gateName string) bool {    
-	input := &CheckGateInput{GateName: gateName, User: user, StatsigMetadata: *sdkMetadata}
-	jsonStr, _ := json.Marshal(input)
-	serverResponse := postRequest("check_gate", jsonStr)
+    input := &CheckGateInput{GateName: gateName, User: user, StatsigMetadata: *sdkMetadata}
+    jsonStr, _ := json.Marshal(input)
+    serverResponse := postRequest("check_gate", jsonStr)
 
-	// TODO abstract json parsing and handle errors
+    // TODO abstract json parsing and handle errors
     decoder := json.NewDecoder(serverResponse.Body)
     var gateResponse GateResponse
     decoder.Decode(&gateResponse)
-	// TODO handle errors
+    // TODO handle errors
 
     return gateResponse.Value
 }
 
 func GetConfig(user StatsigUser, configName string) map[string]interface{} {
-	input := &GetConfigInput{ConfigName: configName, User: user, StatsigMetadata: *sdkMetadata}
-	jsonStr, _ := json.Marshal(input)
+    input := &GetConfigInput{ConfigName: configName, User: user, StatsigMetadata: *sdkMetadata}
+    jsonStr, _ := json.Marshal(input)
     serverResponse := postRequest("get_config", jsonStr)
 
     decoder := json.NewDecoder(serverResponse.Body)
@@ -85,9 +85,9 @@ func GetConfig(user StatsigUser, configName string) map[string]interface{} {
 }
 
 func postRequest(endpoint string, body []byte) *http.Response {
-	req, _ := http.NewRequest("POST", "https://api.statsig.com/v1/" + endpoint, bytes.NewBuffer(body))
-	req.Header.Add("STATSIG-API-KEY", sdkKey)
-	req.Header.Set("Content-Type", "application/json")
-	http_response, _ := client.Do(req)
-	return http_response
+    req, _ := http.NewRequest("POST", "https://api.statsig.com/v1/" + endpoint, bytes.NewBuffer(body))
+    req.Header.Add("STATSIG-API-KEY", sdkKey)
+    req.Header.Set("Content-Type", "application/json")
+    http_response, _ := client.Do(req)
+    return http_response
 }
