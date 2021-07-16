@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"statsig/internal/evaluation"
 	"statsig/pkg/types"
+	"sync"
 )
 
 type statsigMetadata struct {
@@ -37,28 +38,32 @@ type getConfigInput struct {
 }
 
 type Statsig struct {
-	// TODO: fill this
+	// TODO: fill this, add logger and etc.
+	sdkKey      string
+	sdkMetadata statsigMetadata
+	evaluator   *evaluation.Evaluator
 }
 
-// TODO: I *think* these need to live inside some StatsigClient struct
-var sdkKey string
-var sdkMetadata *statsigMetadata
+var instance *Statsig
+var once sync.Once
+
 var client *http.Client
-var evaluator *evaluation.Evaluator
 
-func init() {
-	client = &http.Client{}
-}
+func Initialize(sdkKey string) *Statsig {
+	once.Do(func() {
+		client = &http.Client{}
 
-func Initialize(secretKey string) *Statsig {
-	sdkKey = secretKey
-	sdkMetadata = &statsigMetadata{SDKType: "go-sdk", SDKVersion: "0.0.1"}
-	evaluator = evaluation.New(secretKey)
-	return new(Statsig)
+		instance = new(Statsig)
+		instance.evaluator = evaluation.New(sdkKey)
+		instance.sdkKey = sdkKey
+		instance.sdkMetadata = statsigMetadata{SDKType: "go-sdk", SDKVersion: "0.0.1"}
+	})
+
+	return instance
 }
 
 func CheckGate(user types.StatsigUser, gateName string) bool {
-	input := &checkGateInput{GateName: gateName, User: user, StatsigMetadata: *sdkMetadata}
+	input := &checkGateInput{GateName: gateName, User: user, StatsigMetadata: instance.sdkMetadata}
 	jsonStr, _ := json.Marshal(input)
 	serverResponse := postRequest("check_gate", jsonStr)
 
@@ -72,7 +77,7 @@ func CheckGate(user types.StatsigUser, gateName string) bool {
 }
 
 func GetConfig(user types.StatsigUser, configName string) map[string]interface{} {
-	input := &getConfigInput{ConfigName: configName, User: user, StatsigMetadata: *sdkMetadata}
+	input := &getConfigInput{ConfigName: configName, User: user, StatsigMetadata: instance.sdkMetadata}
 	jsonStr, _ := json.Marshal(input)
 	serverResponse := postRequest("get_config", jsonStr)
 
@@ -85,7 +90,7 @@ func GetConfig(user types.StatsigUser, configName string) map[string]interface{}
 
 func postRequest(endpoint string, body []byte) *http.Response {
 	req, _ := http.NewRequest("POST", "https://api.statsig.com/v1/"+endpoint, bytes.NewBuffer(body))
-	req.Header.Add("STATSIG-API-KEY", sdkKey)
+	req.Header.Add("STATSIG-API-KEY", instance.sdkKey)
 	req.Header.Set("Content-Type", "application/json")
 	http_response, _ := client.Do(req)
 	return http_response
