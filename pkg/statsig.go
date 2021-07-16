@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"statsig/internal/evaluation"
 	"statsig/pkg/types"
 )
 
@@ -35,17 +36,25 @@ type getConfigInput struct {
 	StatsigMetadata statsigMetadata   `json:"statsigMetadata"`
 }
 
+type Statsig struct {
+	// TODO: fill this
+}
+
+// TODO: I *think* these need to live inside some StatsigClient struct
 var sdkKey string
 var sdkMetadata *statsigMetadata
 var client *http.Client
+var evaluator *evaluation.Evaluator
 
 func init() {
 	client = &http.Client{}
 }
 
-func Initialize(secretKey string) {
+func Initialize(secretKey string) *Statsig {
 	sdkKey = secretKey
 	sdkMetadata = &statsigMetadata{SDKType: "go-sdk", SDKVersion: "0.0.1"}
+	evaluator = evaluation.New(secretKey)
+	return new(Statsig)
 }
 
 func CheckGate(user types.StatsigUser, gateName string) bool {

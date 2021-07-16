@@ -17,9 +17,12 @@ type gateEvalResult struct {
 type configEvalResult struct {
 }
 
+var a int
+
 func New(secret string) *Evaluator {
 	store := initStore(secret)
-
+	a++
+	fmt.Println(a)
 	// TODO: init ip3country
 	fmt.Println("fuck")
 	return &Evaluator{
@@ -33,4 +36,6 @@ func (e Evaluator) CheckGate(user types.StatsigUser, gateName string) {
 	fmt.Println(gateName)
 	fmt.Println(user)
 	fmt.Println(e.store.FeatureGates[gateName])
+	a++
+	fmt.Println(a)
 }

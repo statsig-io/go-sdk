@@ -90,11 +90,14 @@ func (s *Store) syncValues() {
 	defer response.Body.Close()
 
 	var specs DownloadConfigSpecResponse
-	err = json.NewDecoder(response.Body).Decode(specs)
+	err = json.NewDecoder(response.Body).Decode(&specs)
 
 	if err != nil {
+
 		// TODO: log
+		fmt.Println(err.Error())
 	} else {
+		fmt.Println(specs.HasUpdates)
 		if specs.HasUpdates {
 			newGates := make(map[string]ConfigSpec)
 			for _, gate := range specs.FeatureGates {
