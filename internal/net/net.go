@@ -69,7 +69,7 @@ func (n *Net) CheckGate(user types.StatsigUser, gateName string) bool {
 	return gateResponse.Value
 }
 
-func (n *Net) GetConfig(user types.StatsigUser, configName string) map[string]interface{} {
+func (n *Net) GetConfig(user types.StatsigUser, configName string) *types.DynamicConfig {
 	input := &getConfigInput{
 		ConfigName: configName,
 		User: user,
@@ -78,7 +78,7 @@ func (n *Net) GetConfig(user types.StatsigUser, configName string) map[string]in
 	var configResponse configResponse
 	postRequest(n, "get_config", input, &configResponse)
 
-	return configResponse.Value
+	return types.NewConfig(configResponse.Name, configResponse.Value, configResponse.RuleID)
 }
 
 func postRequest(
