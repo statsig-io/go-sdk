@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
-	"strings"
 	"encoding/json"
 	"net/http"
 	"statsig/pkg/types"
@@ -19,7 +17,7 @@ type statsigMetadata struct {
 type gateResponse struct {
 	Name	string `json:"name"`
 	Value	bool   `json:"value"`
-	RuleID	bool   `json:"rule_id"`
+	RuleID	string   `json:"rule_id"`
 }
 
 type configResponse struct {
@@ -66,10 +64,8 @@ func (n *Net) CheckGate(user types.StatsigUser, gateName string) bool {
 	var gateResponse gateResponse
 	err := postRequest(n, "check_gate", input, &gateResponse)
 	if (err != nil) {
-		log.Fatal(err)
 		return false
 	}
-	fmt.Sprintf(gateResponse.Name)
 	return gateResponse.Value
 }
 
@@ -96,16 +92,13 @@ func postRequest(
 		return err
 	}
 	var req *http.Request
-	req, err = http.NewRequest("POST", n.api, bytes.NewBuffer(jsonStr))
+	req, err = http.NewRequest("POST", n.api + endpoint, bytes.NewBuffer(jsonStr))
 	if (err != nil) {
 		return err
 	}
 	req.Header.Add("STATSIG-API-KEY", n.sdkKey)
-	fmt.Println(n.api)
-	fmt.Println(n.sdkKey)
 	req.Header.Set("Content-Type", "application/json")
 	var response *http.Response
-	fmt.Println(formatRequest(req))
 	response, err = n.client.Do(req)
 	if (err != nil) {
 		return err
@@ -118,30 +111,3 @@ func postRequest(
 	err = decoder.Decode(&out)
 	return err
 }
-
-// formatRequest generates ascii representation of a request
-func formatRequest(r *http.Request) string {
-	// Create return string
-	var request []string
-	// Add the request string
-	url := fmt.Sprintf("%v %v %v", r.Method, r.URL, r.Proto)
-	request = append(request, url)
-	// Add the host
-	request = append(request, fmt.Sprintf("Host: %v", r.Host))
-	// Loop through headers
-	for name, headers := range r.Header {
-	  name = strings.ToLower(name)
-	  for _, h := range headers {
-		request = append(request, fmt.Sprintf("%v: %v", name, h))
-	  }
-	}
-	
-	// If this is a POST, add post data
-	if r.Method == "POST" {
-	   r.ParseForm()
-	   request = append(request, "\n")
-	   request = append(request, r.Form.Encode())
-	} 
-	 // Return the request as a string
-	 return strings.Join(request, "\n")
-   }
