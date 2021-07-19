@@ -1,4 +1,4 @@
-package statsig
+package types
 
 import (
     "testing"
@@ -68,12 +68,12 @@ func TestBasic(t *testing.T) {
 
 	fallbackValues := make([]interface{}, 0)
 	fallbackValues = append(fallbackValues, 4, 5, 6)
-	if !reflect.DeepEqual(c.GetSlice("String", 4, 5, 6), fallbackValues) {
+	if !reflect.DeepEqual(c.GetSlice("String", fallbackValues), fallbackValues) {
 		t.Errorf("Failed to use fallback slice")
 	}
 	actualValues := make([]interface{}, 0)
 	actualValues = append(actualValues, 1.0, 2.0, 3.0)
-	if !reflect.DeepEqual(c.GetSlice("Array", 4, 5, 6), actualValues) {
+	if !reflect.DeepEqual(c.GetSlice("Array", fallbackValues), actualValues) {
 		t.Errorf("Failed to get number array")
 	}
 }

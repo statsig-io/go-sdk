@@ -30,10 +30,10 @@ func CheckGate(user types.StatsigUser, gate string) bool {
 	return instance.net.CheckGate(user, gate)
 }
 
-func GetConfig(user types.StatsigUser, config string) map[string]interface {} {
+func GetConfig(user types.StatsigUser, config string) *types.DynamicConfig {
 	return instance.net.GetConfig(user, config)
 }
 
-func GetExperiment(user types.StatsigUser, experiment string) map[string]interface {} {
+func GetExperiment(user types.StatsigUser, experiment string) *types.DynamicConfig {
 	return instance.net.GetConfig(user, experiment)
 }
