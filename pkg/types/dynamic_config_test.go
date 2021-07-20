@@ -1,9 +1,9 @@
 package types
 
 import (
-    "testing"
 	"encoding/json"
 	"reflect"
+	"testing"
 )
 
 func TestBasic(t *testing.T) {
@@ -22,7 +22,7 @@ func TestBasic(t *testing.T) {
 			}`,
 		),
 		&jsonMap,
-	);
+	)
 	c := NewConfig(
 		"test",
 		jsonMap,

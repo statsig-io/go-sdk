@@ -1,10 +1,10 @@
 package statsig
 
 import (
-	"sync"
 	"statsig/internal/net"
 	"statsig/pkg/types"
 	"strconv"
+	"sync"
 )
 
 const MaxEvents = 500
@@ -13,14 +13,14 @@ const ConfigExposureEvent = "statsig::config_exposure"
 
 type statsigLogger struct {
 	events []types.StatsigEvent
-	net *net.Net
+	net    *net.Net
 	sync.Mutex
 }
 
 func NewLogger(net *net.Net) *statsigLogger {
 	return &statsigLogger{
 		events: make([]types.StatsigEvent, 0),
-		net: net,
+		net:    net,
 	}
 }
 
@@ -29,7 +29,7 @@ func (l *statsigLogger) Log(evt types.StatsigEvent) {
 	defer l.Unlock()
 
 	l.events = append(l.events, evt)
-	if (len(l.events) >= MaxEvents) {
+	if len(l.events) >= MaxEvents {
 		l.flush()
 	}
 }
@@ -41,12 +41,12 @@ func (l *statsigLogger) logGateExposure(
 	ruleID string,
 ) {
 	evt := &types.StatsigEvent{
-		User: user,
+		User:      user,
 		EventName: GateExposureEvent,
 		Metadata: map[string]string{
-			"gate": gateName,
+			"gate":      gateName,
 			"gateValue": strconv.FormatBool(value),
-			"ruleID": ruleID,
+			"ruleID":    ruleID,
 		},
 	}
 	l.Log(*evt)
@@ -58,7 +58,7 @@ func (l *statsigLogger) logConfigExposure(
 	ruleID string,
 ) {
 	evt := &types.StatsigEvent{
-		User: user,
+		User:      user,
 		EventName: ConfigExposureEvent,
 		Metadata: map[string]string{
 			"config": configName,

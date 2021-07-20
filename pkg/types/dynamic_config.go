@@ -1,15 +1,15 @@
 package types
 
 type DynamicConfig struct {
-	Name 	string
-	Value   map[string]interface{}
-	RuleID 	string
+	Name   string
+	Value  map[string]interface{}
+	RuleID string
 }
 
 func NewConfig(name string, value map[string]interface{}, ruleID string) *DynamicConfig {
 	return &DynamicConfig{
-		Name: name,
-		Value: value,
+		Name:   name,
+		Value:  value,
 		RuleID: ruleID,
 	}
 }
@@ -69,4 +69,3 @@ func (d *DynamicConfig) GetSlice(key string, fallback []interface{}) []interface
 	}
 	return fallback
 }
-
