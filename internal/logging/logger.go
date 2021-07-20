@@ -7,6 +7,13 @@ import (
 	"sync"
 )
 
+type logEventInput struct {
+	Events          []types.StatsigEvent `json:"events"`
+	StatsigMetadata net.StatsigMetadata  `json:"statsigMetadata"`
+}
+
+type logEventResponse struct{}
+
 const MaxEvents = 500
 const GateExposureEvent = "statsig::gate_exposure"
 const ConfigExposureEvent = "statsig::config_exposure"
@@ -69,6 +76,15 @@ func (l *Logger) LogConfigExposure(
 }
 
 func (l *Logger) Flush() {
-	l.net.LogEvents(l.events)
+	l.logEvents(l.events)
 	l.events = make([]types.StatsigEvent, 0)
+}
+
+func (l *Logger) logEvents(events []types.StatsigEvent) {
+	input := &logEventInput{
+		Events:          events,
+		StatsigMetadata: l.net.GetStatsigMetadata(),
+	}
+	var res logEventResponse
+	l.net.PostRequest("log_event", input, &res)
 }
