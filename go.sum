@@ -1,0 +1,7 @@
+github.com/statsig-io/ip3country-go v0.1.0 h1:6JKYRrxPiUBSaG56+axOrjhmdrn3rK1jTPxS3O3BG00=
+github.com/statsig-io/ip3country-go v0.1.0/go.mod h1:Xmhv3og3JNfMzvSa0ktUyS+KHe3lOOLr0lZ9ZCUWIB0=
+github.com/ua-parser/uap-go v0.0.0-20210121150957-347a3497cc39 h1:kYO0jPTV2Co2s3unqZl3GgB+T27G+ZRRU2/iXEX+TK4=
+github.com/ua-parser/uap-go v0.0.0-20210121150957-347a3497cc39/go.mod h1:OBcG9bn7sHtXgarhUEb3OfCnNsgtGnkVf41ilSZ3K3E=
+gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/yaml.v2 v2.2.1 h1:mUhvW9EsL+naU5Q3cakzfE91YhliOondGd6ZrsDBHQE=
+gopkg.in/yaml.v2 v2.2.1/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
