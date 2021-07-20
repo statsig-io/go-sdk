@@ -15,10 +15,10 @@ type StatsigMetadata struct {
 }
 
 type Net struct {
-	api				string
-	metadata 		StatsigMetadata
-	sdkKey   		string
-	client 			*http.Client
+	api      string
+	metadata StatsigMetadata
+	sdkKey   string
+	client   *http.Client
 }
 
 func New(secret string, api string) *Net {

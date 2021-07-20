@@ -18,8 +18,6 @@ import (
 	"github.com/ua-parser/uap-go/uaparser"
 )
 
-
-
 type gateResponse struct {
 	Name   string `json:"name"`
 	Value  bool   `json:"value"`
@@ -33,20 +31,20 @@ type configResponse struct {
 }
 
 type checkGateInput struct {
-	GateName        string            		`json:"gateName"`
-	User            types.StatsigUser 		`json:"user"`
-	StatsigMetadata net.StatsigMetadata		`json:"statsigMetadata"`
+	GateName        string              `json:"gateName"`
+	User            types.StatsigUser   `json:"user"`
+	StatsigMetadata net.StatsigMetadata `json:"statsigMetadata"`
 }
 
 type getConfigInput struct {
-	ConfigName      string            		`json:"configName"`
-	User            types.StatsigUser 		`json:"user"`
-	StatsigMetadata net.StatsigMetadata		`json:"statsigMetadata"`
+	ConfigName      string              `json:"configName"`
+	User            types.StatsigUser   `json:"user"`
+	StatsigMetadata net.StatsigMetadata `json:"statsigMetadata"`
 }
 
 type Evaluator struct {
-	logger 		*logging.Logger
-	net 		*net.Net
+	logger        *logging.Logger
+	net           *net.Net
 	store         *Store
 	countryLookup *countrylookup.CountryLookup
 	uaParser      *uaparser.Parser
@@ -72,15 +70,13 @@ func New(net *net.Net, log *logging.Logger) *Evaluator {
 	}()
 
 	return &Evaluator{
-		logger: log,
-		net: net,
+		logger:        log,
+		net:           net,
 		store:         store,
 		countryLookup: countryLookup,
 		uaParser:      parser,
 	}
 }
-
-
 
 func (e *Evaluator) CheckGate(user types.StatsigUser, gateName string) bool {
 	res := e.evalGate(user, gateName)
@@ -110,7 +106,7 @@ func (e *Evaluator) GetConfig(user types.StatsigUser, configName string) *types.
 	} else {
 		res = new(EvalResult)
 	}
-	
+
 	if res.FetchFromServer {
 		serverRes := e.fetchConfig(user, configName)
 		res = &EvalResult{
@@ -536,8 +532,6 @@ func getTime(a interface{}) time.Time {
 	return t_sec
 }
 
-
-
 func (e *Evaluator) fetchGate(user types.StatsigUser, gateName string) gateResponse {
 	input := &checkGateInput{
 		GateName:        gateName,
@@ -548,8 +542,8 @@ func (e *Evaluator) fetchGate(user types.StatsigUser, gateName string) gateRespo
 	err := e.net.PostRequest("check_gate", input, &res)
 	if err != nil {
 		return gateResponse{
-			Name: gateName,
-			Value: false,
+			Name:   gateName,
+			Value:  false,
 			RuleID: "",
 		}
 	}

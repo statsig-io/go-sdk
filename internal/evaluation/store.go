@@ -39,7 +39,7 @@ type DownloadConfigSpecResponse struct {
 }
 
 type DownloadConfigsInput struct {
-	SinceTime       string          	`json:"sinceTime"`
+	SinceTime       string              `json:"sinceTime"`
 	StatsigMetadata net.StatsigMetadata `json:"statsigMetadata"`
 }
 
@@ -47,14 +47,14 @@ type Store struct {
 	FeatureGates   map[string]ConfigSpec
 	DynamicConfigs map[string]ConfigSpec
 	lastSyncTime   int64
-	network 		*net.Net
+	network        *net.Net
 }
 
 func initStore(n *net.Net) *Store {
 	store := &Store{
-		FeatureGates: make(map[string]ConfigSpec),
+		FeatureGates:   make(map[string]ConfigSpec),
 		DynamicConfigs: make(map[string]ConfigSpec),
-		network: n,
+		network:        n,
 	}
 
 	specs := store.fetchConfigSpecs()
@@ -76,9 +76,9 @@ func initStore(n *net.Net) *Store {
 	return store
 }
 
-func (s *Store) fetchConfigSpecs() DownloadConfigSpecResponse  {
+func (s *Store) fetchConfigSpecs() DownloadConfigSpecResponse {
 	input := &DownloadConfigsInput{
-		SinceTime: strconv.FormatInt(s.lastSyncTime, 10),
+		SinceTime:       strconv.FormatInt(s.lastSyncTime, 10),
 		StatsigMetadata: s.network.GetStatsigMetadata(),
 	}
 	var specs DownloadConfigSpecResponse
