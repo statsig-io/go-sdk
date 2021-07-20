@@ -50,7 +50,7 @@ func (n *Net) PostRequest(
 	}
 	req.Header.Add("STATSIG-API-KEY", n.sdkKey)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix(), 10))
+	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
 	var response *http.Response
 	response, err = n.client.Do(req)
 	if err != nil {

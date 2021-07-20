@@ -18,30 +18,6 @@ import (
 	"github.com/ua-parser/uap-go/uaparser"
 )
 
-type gateResponse struct {
-	Name   string `json:"name"`
-	Value  bool   `json:"value"`
-	RuleID string `json:"rule_id"`
-}
-
-type configResponse struct {
-	Name   string                 `json:"name"`
-	Value  map[string]interface{} `json:"value"`
-	RuleID string                 `json:"rule_id"`
-}
-
-type checkGateInput struct {
-	GateName        string              `json:"gateName"`
-	User            types.StatsigUser   `json:"user"`
-	StatsigMetadata net.StatsigMetadata `json:"statsigMetadata"`
-}
-
-type getConfigInput struct {
-	ConfigName      string              `json:"configName"`
-	User            types.StatsigUser   `json:"user"`
-	StatsigMetadata net.StatsigMetadata `json:"statsigMetadata"`
-}
-
 type Evaluator struct {
 	logger        *logging.Logger
 	net           *net.Net
@@ -78,43 +54,18 @@ func New(net *net.Net, log *logging.Logger) *Evaluator {
 	}
 }
 
-func (e *Evaluator) CheckGate(user types.StatsigUser, gateName string) bool {
-	res := e.evalGate(user, gateName)
-
-	if res.FetchFromServer {
-		serverRes := e.fetchGate(user, gateName)
-		res = &EvalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
-	}
-	e.logger.LogGateExposure(user, gateName, res.Pass, res.Id)
-	return res.Pass
-}
-
-func (e *Evaluator) evalGate(user types.StatsigUser, gateName string) *EvalResult {
-	var res *EvalResult
+func (e *Evaluator) CheckGate(user types.StatsigUser, gateName string) *EvalResult {
 	if gate, hasGate := e.store.FeatureGates[gateName]; hasGate {
-		res = e.eval(user, gate)
-	} else {
-		res = new(EvalResult)
+		return e.eval(user, gate)
 	}
-	return res
+	return new(EvalResult)
 }
 
-func (e *Evaluator) GetConfig(user types.StatsigUser, configName string) *types.DynamicConfig {
-	var res *EvalResult
+func (e *Evaluator) GetConfig(user types.StatsigUser, configName string) *EvalResult {
 	if config, hasConfig := e.store.DynamicConfigs[configName]; hasConfig {
-		res = e.eval(user, config)
-	} else {
-		res = new(EvalResult)
+		return e.eval(user, config)
 	}
-
-	if res.FetchFromServer {
-		serverRes := e.fetchConfig(user, configName)
-		res = &EvalResult{
-			ConfigValue: types.NewConfig(configName, serverRes.Value, serverRes.RuleID),
-			Id:          serverRes.RuleID}
-	}
-	e.logger.LogConfigExposure(user, configName, res.Id)
-	return res.ConfigValue
+	return new(EvalResult)
 }
 
 func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
@@ -189,7 +140,7 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 		if !ok {
 			return &EvalResult{Pass: false}
 		}
-		result := e.evalGate(user, dependentGateName)
+		result := e.CheckGate(user, dependentGateName)
 		if result.FetchFromServer {
 			return &EvalResult{FetchFromServer: true}
 		}
@@ -530,33 +481,4 @@ func getTime(a interface{}) time.Time {
 		return t_msec
 	}
 	return t_sec
-}
-
-func (e *Evaluator) fetchGate(user types.StatsigUser, gateName string) gateResponse {
-	input := &checkGateInput{
-		GateName:        gateName,
-		User:            user,
-		StatsigMetadata: e.net.GetStatsigMetadata(),
-	}
-	var res gateResponse
-	err := e.net.PostRequest("check_gate", input, &res)
-	if err != nil {
-		return gateResponse{
-			Name:   gateName,
-			Value:  false,
-			RuleID: "",
-		}
-	}
-	return res
-}
-
-func (e *Evaluator) fetchConfig(user types.StatsigUser, configName string) configResponse {
-	input := &getConfigInput{
-		ConfigName:      configName,
-		User:            user,
-		StatsigMetadata: e.net.GetStatsigMetadata(),
-	}
-	var res configResponse
-	e.net.PostRequest("get_config", input, &res)
-	return res
 }
