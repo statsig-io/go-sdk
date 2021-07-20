@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"statsig/internal/evaluation"
+	"statsig/internal/logging"
 	"statsig/internal/net"
 	"statsig/pkg/types"
 	"sync"
@@ -11,7 +12,7 @@ type Statsig struct {
 	// TODO: fill this, add logger and etc.
 	sdkKey    string
 	evaluator *evaluation.Evaluator
-	logger    *statsigLogger
+	logger    *logging.Logger
 	net       *net.Net
 }
 
@@ -24,7 +25,7 @@ func Initialize(sdkKey string) {
 		instance.evaluator = evaluation.New(sdkKey)
 		instance.sdkKey = sdkKey
 		instance.net = net.New(sdkKey, "https://api.statsig.com/v1/")
-		instance.logger = NewLogger(instance.net)
+		instance.logger = logging.New(instance.net)
 	})
 }
 
@@ -48,5 +49,5 @@ func LogEvent(event types.StatsigEvent) {
 }
 
 func Shutdown() {
-	instance.logger.flush()
+	instance.logger.Flush()
 }
