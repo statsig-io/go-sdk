@@ -20,13 +20,13 @@ func TestInitialize(t *testing.T) {
 		t.Errorf("UA get returned true")
 	}
 
-	// config := GetConfig(user, "operating_system_config")
-	// if config.Name != "operating_system_config" {
-	// 	t.Errorf("Wrong dynamic config")
-	// }
-	// if config.RuleID != "default" {
-	// 	t.Errorf("Wrong dynamic config rule")
-	// }
+	config := GetConfig(user, "operating_system_config")
+	if config.Name != "operating_system_config" {
+		t.Errorf("Wrong dynamic config")
+	}
+	if config.RuleID != "default" {
+		t.Errorf("Wrong dynamic config rule")
+	}
 
 	//Test event logging
 	event := &types.StatsigEvent{

@@ -47,6 +47,9 @@ func GetConfig(user types.StatsigUser, config string) *types.DynamicConfig {
 			Id:          serverRes.RuleID}
 	}
 	instance.logger.LogConfigExposure(user, config, res.Id)
+	if res.ConfigValue == nil {
+		res.ConfigValue = types.NewConfig(config, nil, "")
+	}
 	return res.ConfigValue
 }
 
