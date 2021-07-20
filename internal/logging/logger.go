@@ -1,4 +1,4 @@
-package statsig
+package logging
 
 import (
 	"statsig/internal/net"
@@ -11,30 +11,30 @@ const MaxEvents = 500
 const GateExposureEvent = "statsig::gate_exposure"
 const ConfigExposureEvent = "statsig::config_exposure"
 
-type statsigLogger struct {
+type Logger struct {
 	events []types.StatsigEvent
 	net    *net.Net
 	sync.Mutex
 }
 
-func NewLogger(net *net.Net) *statsigLogger {
-	return &statsigLogger{
+func New(net *net.Net) *Logger {
+	return &Logger{
 		events: make([]types.StatsigEvent, 0),
 		net:    net,
 	}
 }
 
-func (l *statsigLogger) Log(evt types.StatsigEvent) {
+func (l *Logger) Log(evt types.StatsigEvent) {
 	l.Lock()
 	defer l.Unlock()
 
 	l.events = append(l.events, evt)
 	if len(l.events) >= MaxEvents {
-		l.flush()
+		l.Flush()
 	}
 }
 
-func (l *statsigLogger) logGateExposure(
+func (l *Logger) LogGateExposure(
 	user types.StatsigUser,
 	gateName string,
 	value bool,
@@ -52,7 +52,7 @@ func (l *statsigLogger) logGateExposure(
 	l.Log(*evt)
 }
 
-func (l *statsigLogger) logConfigExposure(
+func (l *Logger) LogConfigExposure(
 	user types.StatsigUser,
 	configName string,
 	ruleID string,
@@ -68,7 +68,7 @@ func (l *statsigLogger) logConfigExposure(
 	l.Log(*evt)
 }
 
-func (l *statsigLogger) flush() {
+func (l *Logger) Flush() {
 	l.net.LogEvents(l.events)
 	l.events = make([]types.StatsigEvent, 0)
 }
