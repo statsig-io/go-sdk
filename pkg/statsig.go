@@ -11,6 +11,7 @@ type Statsig struct {
 	// TODO: fill this, add logger and etc.
 	sdkKey      string
 	evaluator   *evaluation.Evaluator
+	logger		*statsigLogger
 	net 		*net.Net
 }
 
@@ -23,6 +24,7 @@ func Initialize(sdkKey string) {
 		instance.evaluator = evaluation.New(sdkKey)
 		instance.sdkKey = sdkKey
 		instance.net = net.New(sdkKey, "https://api.statsig.com/v1/")
+		instance.logger = NewLogger(instance.net)
 	})
 }
 
@@ -36,4 +38,15 @@ func GetConfig(user types.StatsigUser, config string) *types.DynamicConfig {
 
 func GetExperiment(user types.StatsigUser, experiment string) *types.DynamicConfig {
 	return instance.net.GetConfig(user, experiment)
+}
+
+func LogEvent(event types.StatsigEvent) {
+	if (event.EventName == "") {
+		return
+	}
+	instance.logger.Log(event)
+}
+
+func Shutdown() {
+	instance.logger.flush()
 }

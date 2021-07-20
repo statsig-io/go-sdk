@@ -27,4 +27,16 @@ func TestInitialize(t *testing.T) {
 	if (config.RuleID != "default") {
 		t.Errorf("Wrong dynamic config rule")
 	}
+
+	//Test event logging
+	event := &types.StatsigEvent{
+		User: user,
+		Value: "hi there",
+		Metadata: map[string]string{
+			"sdk language": "go",
+		},
+	}
+
+	LogEvent(*event)
+	Shutdown()
 }

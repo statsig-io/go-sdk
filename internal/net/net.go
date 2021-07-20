@@ -38,6 +38,13 @@ type getConfigInput struct {
 	StatsigMetadata statsigMetadata   `json:"statsigMetadata"`
 }
 
+type logEventInput struct {
+	Events      	[]types.StatsigEvent    `json:"events"`
+	StatsigMetadata statsigMetadata   		`json:"statsigMetadata"`
+}
+
+type logEventResponse struct {}
+
 type Net struct {
 	api			string
 	metadata 	statsigMetadata
@@ -46,7 +53,6 @@ type Net struct {
 }
 
 func New(secret string, api string) *Net {
-	
 	return &Net {
 		api: api,
 		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "0.0.1"},
@@ -79,6 +85,15 @@ func (n *Net) GetConfig(user types.StatsigUser, configName string) *types.Dynami
 	postRequest(n, "get_config", input, &configResponse)
 
 	return types.NewConfig(configResponse.Name, configResponse.Value, configResponse.RuleID)
+}
+
+func (n *Net) LogEvents(events []types.StatsigEvent) {
+	input := &logEventInput{
+		Events: events,
+		StatsigMetadata: n.metadata,
+	}
+	var res logEventResponse
+	postRequest(n, "log_event", input, &res)
 }
 
 func postRequest(
