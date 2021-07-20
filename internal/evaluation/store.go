@@ -78,7 +78,7 @@ func (s *Store) update(specs DownloadConfigSpecResponse) {
 		}
 
 		newConfigs := make(map[string]ConfigSpec)
-		for _, config := range specs.FeatureGates {
+		for _, config := range specs.DynamicConfigs {
 			newConfigs[config.Name] = config
 		}
 
