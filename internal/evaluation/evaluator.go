@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"statsig/internal/logging"
 	"statsig/internal/net"
 	"statsig/pkg/types"
 	"strconv"
@@ -19,7 +18,6 @@ import (
 )
 
 type Evaluator struct {
-	logger        *logging.Logger
 	net           *net.Net
 	store         *Store
 	countryLookup *countrylookup.CountryLookup
@@ -35,7 +33,7 @@ type EvalResult struct {
 
 var dynamicConfigType = "dynamic_config"
 
-func New(net *net.Net, log *logging.Logger) *Evaluator {
+func New(net *net.Net) *Evaluator {
 	store := initStore(net)
 	parser := uaparser.NewFromSaved()
 	countryLookup := countrylookup.New()
@@ -46,7 +44,6 @@ func New(net *net.Net, log *logging.Logger) *Evaluator {
 	}()
 
 	return &Evaluator{
-		logger:        log,
 		net:           net,
 		store:         store,
 		countryLookup: countryLookup,
