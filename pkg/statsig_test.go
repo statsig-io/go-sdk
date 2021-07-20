@@ -28,17 +28,15 @@ func TestInitialize(t *testing.T) {
 		t.Errorf("Wrong dynamic config rule")
 	}
 
-	// Test event logging
-	// event := &types.StatsigEvent{
-	// 	User: user,
-	// 	EventName: "hi",
-	// 	Value: 43,
-	// 	Metadata: map[string]string{
-	// 		"sdk language": "go",
-	// 	},
-	// }
+	//Test event logging
+	event := &types.StatsigEvent{
+		User: user,
+		Value: "hi there",
+		Metadata: map[string]string{
+			"sdk language": "go",
+		},
+	}
 
-	// for i := 0; i < 12; i++ {
-	// 	LogEvent(*event)
-	// }
+	LogEvent(*event)
+	Shutdown()
 }

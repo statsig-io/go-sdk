@@ -41,5 +41,12 @@ func GetExperiment(user types.StatsigUser, experiment string) *types.DynamicConf
 }
 
 func LogEvent(event types.StatsigEvent) {
+	if (event.EventName == "") {
+		return
+	}
 	instance.logger.Log(event)
+}
+
+func Shutdown() {
+	instance.logger.flush()
 }
