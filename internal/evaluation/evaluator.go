@@ -12,13 +12,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/statsig-io/ip3country-go/pkg/countrylookup"
 	"github.com/ua-parser/uap-go/uaparser"
 )
 
 type Evaluator struct {
-	store      *Store
-	ip3Country *interface{}
-	uaParser   *uaparser.Parser
+	store         *Store
+	countryLookup *countrylookup.CountryLookup
+	uaParser      *uaparser.Parser
 }
 
 type EvalResult struct {
@@ -33,6 +34,7 @@ var dynamicConfigType = "dynamic_config"
 func New(secret string) *Evaluator {
 	store := initStore(secret)
 	parser := uaparser.NewFromSaved()
+	countryLookup := countrylookup.New()
 	defer func() {
 		if err := recover(); err != nil {
 			// TODO: log here
@@ -40,9 +42,9 @@ func New(secret string) *Evaluator {
 	}()
 
 	return &Evaluator{
-		store:      store,
-		ip3Country: nil,
-		uaParser:   parser,
+		store:         store,
+		countryLookup: countryLookup,
+		uaParser:      parser,
 	}
 }
 
@@ -144,6 +146,9 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 	case "ip_based":
 		// TODO: ip3 country
 		value = getFromUser(user, cond.Field)
+		if value == nil {
+			value = getFromIP(user, cond.Field, e.countryLookup)
+		}
 	case "ua_based":
 		value = getFromUser(user, cond.Field)
 		if value == nil {
@@ -296,6 +301,17 @@ func getFromUserAgent(user types.StatsigUser, field string, parser *uaparser.Par
 	case "browser_version":
 	case "browserversion":
 		return strings.Join(removeEmptyStrings([]string{client.UserAgent.Major, client.UserAgent.Minor, client.UserAgent.Patch}), ".")
+	}
+	return ""
+}
+
+func getFromIP(user types.StatsigUser, field string, lookup *countrylookup.CountryLookup) string {
+	if strings.ToLower(field) != "country" || user.IpAddress == "" {
+		return ""
+	}
+	res, ok := lookup.LookupIpString(user.IpAddress)
+	if ok {
+		return res
 	}
 	return ""
 }
