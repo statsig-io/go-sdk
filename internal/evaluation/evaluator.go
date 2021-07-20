@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"statsig/internal/net"
 	"statsig/pkg/types"
 	"strconv"
 	"strings"
@@ -31,8 +32,8 @@ type EvalResult struct {
 
 var dynamicConfigType = "dynamic_config"
 
-func New(secret string) *Evaluator {
-	store := initStore(secret)
+func New(net *net.Net) *Evaluator {
+	store := initStore(net)
 	parser := uaparser.NewFromSaved()
 	countryLookup := countrylookup.New()
 	defer func() {
@@ -62,7 +63,7 @@ func (e *Evaluator) GetConfig(user types.StatsigUser, configName string) *EvalRe
 	return new(EvalResult)
 }
 
-func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
+func (e *Evaluator) eval(user types.StatsigUser, spec net.ConfigSpec) *EvalResult {
 	var configValue map[string]interface{}
 	isDynamicConfig := strings.ToLower(spec.Type) == dynamicConfigType
 	if isDynamicConfig {
@@ -107,12 +108,12 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 	return &EvalResult{Pass: false, Id: "default"}
 }
 
-func evalPassPercent(user types.StatsigUser, rule ConfigRule, salt string) bool {
+func evalPassPercent(user types.StatsigUser, rule net.ConfigRule, salt string) bool {
 	hash := getHash(salt + "." + rule.ID + "." + user.UserID)
 	return hash%10000 < (uint64(rule.PassPercentage) * 100)
 }
 
-func (e *Evaluator) evalRule(user types.StatsigUser, rule ConfigRule) *EvalResult {
+func (e *Evaluator) evalRule(user types.StatsigUser, rule net.ConfigRule) *EvalResult {
 	for _, cond := range rule.Conditions {
 		res := e.evalCondition(user, cond)
 		if !res.Pass || res.FetchFromServer {
@@ -122,7 +123,7 @@ func (e *Evaluator) evalRule(user types.StatsigUser, rule ConfigRule) *EvalResul
 	return &EvalResult{Pass: true, FetchFromServer: false}
 }
 
-func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) *EvalResult {
+func (e *Evaluator) evalCondition(user types.StatsigUser, cond net.ConfigCondition) *EvalResult {
 	// TODO: add all cond evaluations
 	var value interface{}
 	switch cond.Type {

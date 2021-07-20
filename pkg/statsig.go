@@ -22,10 +22,10 @@ var once sync.Once
 func Initialize(sdkKey string) {
 	once.Do(func() {
 		instance = new(Statsig)
-		instance.evaluator = evaluation.New(sdkKey)
 		instance.sdkKey = sdkKey
 		instance.net = net.New(sdkKey, "https://api.statsig.com/v1/")
 		instance.logger = logging.New(instance.net)
+		instance.evaluator = evaluation.New(instance.net)
 	})
 }
 
