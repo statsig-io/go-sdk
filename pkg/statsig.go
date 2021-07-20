@@ -30,15 +30,27 @@ func Initialize(sdkKey string) {
 }
 
 func CheckGate(user types.StatsigUser, gate string) bool {
-	return instance.net.CheckGate(user, gate)
+	res := instance.evaluator.CheckGate(user, gate)
+	if res.FetchFromServer {
+		return instance.net.CheckGate(user, gate)
+	}
+	return res.Pass
 }
 
 func GetConfig(user types.StatsigUser, config string) *types.DynamicConfig {
-	return instance.net.GetConfig(user, config)
+	res := instance.evaluator.GetConfig(user, config)
+	if res.FetchFromServer {
+		return instance.net.GetConfig(user, config)
+	}
+	return res.ConfigValue
 }
 
 func GetExperiment(user types.StatsigUser, experiment string) *types.DynamicConfig {
-	return instance.net.GetConfig(user, experiment)
+	res := instance.evaluator.GetConfig(user, experiment)
+	if res.FetchFromServer {
+		return instance.net.GetConfig(user, experiment)
+	}
+	return res.ConfigValue
 }
 
 func LogEvent(event types.StatsigEvent) {

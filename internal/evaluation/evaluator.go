@@ -23,10 +23,10 @@ type Evaluator struct {
 }
 
 type EvalResult struct {
-	pass            bool
-	configValue     *types.DynamicConfig
-	fetchFromServer bool
-	id              string
+	Pass            bool
+	ConfigValue     *types.DynamicConfig
+	FetchFromServer bool
+	Id              string
 }
 
 var dynamicConfigType = "dynamic_config"
@@ -75,10 +75,10 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 	if spec.Enabled {
 		for _, rule := range spec.Rules {
 			r := e.evalRule(user, rule)
-			if r.fetchFromServer {
+			if r.FetchFromServer {
 				return r
 			}
-			if r.pass {
+			if r.Pass {
 				pass := evalPassPercent(user, rule, spec.Salt)
 				if isDynamicConfig {
 					if pass {
@@ -88,11 +88,11 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 						}
 					}
 					return &EvalResult{
-						pass:        pass,
-						configValue: types.NewConfig(spec.Name, configValue, rule.ID),
-						id:          rule.ID}
+						Pass:        pass,
+						ConfigValue: types.NewConfig(spec.Name, configValue, rule.ID),
+						Id:          rule.ID}
 				} else {
-					return &EvalResult{pass: pass, id: rule.ID}
+					return &EvalResult{Pass: pass, Id: rule.ID}
 				}
 			}
 		}
@@ -100,11 +100,11 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 
 	if isDynamicConfig {
 		return &EvalResult{
-			pass:        false,
-			configValue: types.NewConfig(spec.Name, configValue, "default"),
-			id:          "default"}
+			Pass:        false,
+			ConfigValue: types.NewConfig(spec.Name, configValue, "default"),
+			Id:          "default"}
 	}
-	return &EvalResult{pass: false, id: "default"}
+	return &EvalResult{Pass: false, Id: "default"}
 }
 
 func evalPassPercent(user types.StatsigUser, rule ConfigRule, salt string) bool {
@@ -115,11 +115,11 @@ func evalPassPercent(user types.StatsigUser, rule ConfigRule, salt string) bool 
 func (e *Evaluator) evalRule(user types.StatsigUser, rule ConfigRule) *EvalResult {
 	for _, cond := range rule.Conditions {
 		res := e.evalCondition(user, cond)
-		if !res.pass || res.fetchFromServer {
+		if !res.Pass || res.FetchFromServer {
 			return res
 		}
 	}
-	return &EvalResult{pass: true, fetchFromServer: false}
+	return &EvalResult{Pass: true, FetchFromServer: false}
 }
 
 func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) *EvalResult {
@@ -127,21 +127,21 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 	var value interface{}
 	switch cond.Type {
 	case "public":
-		return &EvalResult{pass: true}
+		return &EvalResult{Pass: true}
 	case "fail_gate":
 	case "pass_gate":
 		dependentGateName, ok := cond.TargetValue.(string)
 		if !ok {
-			return &EvalResult{pass: false}
+			return &EvalResult{Pass: false}
 		}
 		result := e.CheckGate(user, dependentGateName)
-		if result.fetchFromServer {
-			return &EvalResult{fetchFromServer: true}
+		if result.FetchFromServer {
+			return &EvalResult{FetchFromServer: true}
 		}
 		if cond.Type == "pass_gate" {
-			return &EvalResult{pass: result.pass}
+			return &EvalResult{Pass: result.Pass}
 		} else {
-			return &EvalResult{pass: !result.pass}
+			return &EvalResult{Pass: !result.Pass}
 		}
 	case "ip_based":
 		// TODO: ip3 country
@@ -165,11 +165,11 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 			value = getHash(fmt.Sprintf("%s.%s", salt, user.UserID)) % 1000
 		}
 	default:
-		return &EvalResult{fetchFromServer: true}
+		return &EvalResult{FetchFromServer: true}
 	}
 
 	if value == nil {
-		return &EvalResult{pass: false}
+		return &EvalResult{Pass: false}
 	}
 
 	pass := false
@@ -250,7 +250,7 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 		pass = false
 		server = true
 	}
-	return &EvalResult{pass: pass, fetchFromServer: server}
+	return &EvalResult{Pass: pass, FetchFromServer: server}
 }
 
 func getFromUser(user types.StatsigUser, field string) interface{} {
