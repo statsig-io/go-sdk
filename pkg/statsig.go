@@ -9,10 +9,10 @@ import (
 
 type Statsig struct {
 	// TODO: fill this, add logger and etc.
-	sdkKey      string
-	evaluator   *evaluation.Evaluator
-	logger		*statsigLogger
-	net 		*net.Net
+	sdkKey    string
+	evaluator *evaluation.Evaluator
+	logger    *statsigLogger
+	net       *net.Net
 }
 
 var instance *Statsig
@@ -41,7 +41,7 @@ func GetExperiment(user types.StatsigUser, experiment string) *types.DynamicConf
 }
 
 func LogEvent(event types.StatsigEvent) {
-	if (event.EventName == "") {
+	if event.EventName == "" {
 		return
 	}
 	instance.logger.Log(event)
