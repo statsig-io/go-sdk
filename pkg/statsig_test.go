@@ -38,5 +38,15 @@ func TestInitialize(t *testing.T) {
 	}
 
 	LogEvent(*event)
-	Shutdown()
+	// test polling
+	// time.Sleep(12 * time.Second)
+	// LogEvent(*event)
+	// time.Sleep(12 * time.Second)
+	// Shutdown()
+	// LogEvent(*event)
+	// time.Sleep(12 * time.Second)
+	// LogEvent(*event)
+	// time.Sleep(12 * time.Second)
+	// LogEvent(*event)
+
 }
