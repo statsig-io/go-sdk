@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"statsig/internal/logging"
 	"statsig/internal/net"
 	"statsig/pkg/types"
 	"strconv"
@@ -17,7 +18,35 @@ import (
 	"github.com/ua-parser/uap-go/uaparser"
 )
 
+
+
+type gateResponse struct {
+	Name   string `json:"name"`
+	Value  bool   `json:"value"`
+	RuleID string `json:"rule_id"`
+}
+
+type configResponse struct {
+	Name   string                 `json:"name"`
+	Value  map[string]interface{} `json:"value"`
+	RuleID string                 `json:"rule_id"`
+}
+
+type checkGateInput struct {
+	GateName        string            		`json:"gateName"`
+	User            types.StatsigUser 		`json:"user"`
+	StatsigMetadata net.StatsigMetadata		`json:"statsigMetadata"`
+}
+
+type getConfigInput struct {
+	ConfigName      string            		`json:"configName"`
+	User            types.StatsigUser 		`json:"user"`
+	StatsigMetadata net.StatsigMetadata		`json:"statsigMetadata"`
+}
+
 type Evaluator struct {
+	logger 		*logging.Logger
+	net 		*net.Net
 	store         *Store
 	countryLookup *countrylookup.CountryLookup
 	uaParser      *uaparser.Parser
@@ -32,7 +61,7 @@ type EvalResult struct {
 
 var dynamicConfigType = "dynamic_config"
 
-func New(net *net.Net) *Evaluator {
+func New(net *net.Net, log *logging.Logger) *Evaluator {
 	store := initStore(net)
 	parser := uaparser.NewFromSaved()
 	countryLookup := countrylookup.New()
@@ -43,27 +72,56 @@ func New(net *net.Net) *Evaluator {
 	}()
 
 	return &Evaluator{
+		logger: log,
+		net: net,
 		store:         store,
 		countryLookup: countryLookup,
 		uaParser:      parser,
 	}
 }
 
-func (e *Evaluator) CheckGate(user types.StatsigUser, gateName string) *EvalResult {
+
+
+func (e *Evaluator) CheckGate(user types.StatsigUser, gateName string) bool {
+	res := e.evalGate(user, gateName)
+
+	if res.FetchFromServer {
+		serverRes := e.fetchGate(user, gateName)
+		res = &EvalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
+	}
+	e.logger.LogGateExposure(user, gateName, res.Pass, res.Id)
+	return res.Pass
+}
+
+func (e *Evaluator) evalGate(user types.StatsigUser, gateName string) *EvalResult {
+	var res *EvalResult
 	if gate, hasGate := e.store.FeatureGates[gateName]; hasGate {
-		return e.eval(user, gate)
+		res = e.eval(user, gate)
+	} else {
+		res = new(EvalResult)
 	}
-	return new(EvalResult)
+	return res
 }
 
-func (e *Evaluator) GetConfig(user types.StatsigUser, configName string) *EvalResult {
+func (e *Evaluator) GetConfig(user types.StatsigUser, configName string) *types.DynamicConfig {
+	var res *EvalResult
 	if config, hasConfig := e.store.DynamicConfigs[configName]; hasConfig {
-		return e.eval(user, config)
+		res = e.eval(user, config)
+	} else {
+		res = new(EvalResult)
 	}
-	return new(EvalResult)
+	
+	if res.FetchFromServer {
+		serverRes := e.fetchConfig(user, configName)
+		res = &EvalResult{
+			ConfigValue: types.NewConfig(configName, serverRes.Value, serverRes.RuleID),
+			Id:          serverRes.RuleID}
+	}
+	e.logger.LogConfigExposure(user, configName, res.Id)
+	return res.ConfigValue
 }
 
-func (e *Evaluator) eval(user types.StatsigUser, spec net.ConfigSpec) *EvalResult {
+func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 	var configValue map[string]interface{}
 	isDynamicConfig := strings.ToLower(spec.Type) == dynamicConfigType
 	if isDynamicConfig {
@@ -108,12 +166,12 @@ func (e *Evaluator) eval(user types.StatsigUser, spec net.ConfigSpec) *EvalResul
 	return &EvalResult{Pass: false, Id: "default"}
 }
 
-func evalPassPercent(user types.StatsigUser, rule net.ConfigRule, salt string) bool {
+func evalPassPercent(user types.StatsigUser, rule ConfigRule, salt string) bool {
 	hash := getHash(salt + "." + rule.ID + "." + user.UserID)
 	return hash%10000 < (uint64(rule.PassPercentage) * 100)
 }
 
-func (e *Evaluator) evalRule(user types.StatsigUser, rule net.ConfigRule) *EvalResult {
+func (e *Evaluator) evalRule(user types.StatsigUser, rule ConfigRule) *EvalResult {
 	for _, cond := range rule.Conditions {
 		res := e.evalCondition(user, cond)
 		if !res.Pass || res.FetchFromServer {
@@ -123,7 +181,7 @@ func (e *Evaluator) evalRule(user types.StatsigUser, rule net.ConfigRule) *EvalR
 	return &EvalResult{Pass: true, FetchFromServer: false}
 }
 
-func (e *Evaluator) evalCondition(user types.StatsigUser, cond net.ConfigCondition) *EvalResult {
+func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) *EvalResult {
 	// TODO: add all cond evaluations
 	var value interface{}
 	switch cond.Type {
@@ -135,7 +193,7 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond net.ConfigConditi
 		if !ok {
 			return &EvalResult{Pass: false}
 		}
-		result := e.CheckGate(user, dependentGateName)
+		result := e.evalGate(user, dependentGateName)
 		if result.FetchFromServer {
 			return &EvalResult{FetchFromServer: true}
 		}
@@ -476,4 +534,35 @@ func getTime(a interface{}) time.Time {
 		return t_msec
 	}
 	return t_sec
+}
+
+
+
+func (e *Evaluator) fetchGate(user types.StatsigUser, gateName string) gateResponse {
+	input := &checkGateInput{
+		GateName:        gateName,
+		User:            user,
+		StatsigMetadata: e.net.GetStatsigMetadata(),
+	}
+	var res gateResponse
+	err := e.net.PostRequest("check_gate", input, &res)
+	if err != nil {
+		return gateResponse{
+			Name: gateName,
+			Value: false,
+			RuleID: "",
+		}
+	}
+	return res
+}
+
+func (e *Evaluator) fetchConfig(user types.StatsigUser, configName string) configResponse {
+	input := &getConfigInput{
+		ConfigName:      configName,
+		User:            user,
+		StatsigMetadata: e.net.GetStatsigMetadata(),
+	}
+	var res configResponse
+	e.net.PostRequest("get_config", input, &res)
+	return res
 }

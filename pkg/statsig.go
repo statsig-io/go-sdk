@@ -9,7 +9,6 @@ import (
 )
 
 type Statsig struct {
-	// TODO: fill this, add logger and etc.
 	sdkKey    string
 	evaluator *evaluation.Evaluator
 	logger    *logging.Logger
@@ -25,32 +24,20 @@ func Initialize(sdkKey string) {
 		instance.sdkKey = sdkKey
 		instance.net = net.New(sdkKey, "https://api.statsig.com/v1/")
 		instance.logger = logging.New(instance.net)
-		instance.evaluator = evaluation.New(instance.net)
+		instance.evaluator = evaluation.New(instance.net, instance.logger)
 	})
 }
 
 func CheckGate(user types.StatsigUser, gate string) bool {
-	res := instance.evaluator.CheckGate(user, gate)
-	if res.FetchFromServer {
-		return instance.net.CheckGate(user, gate)
-	}
-	return res.Pass
+	return instance.evaluator.CheckGate(user, gate)
 }
 
 func GetConfig(user types.StatsigUser, config string) *types.DynamicConfig {
-	res := instance.evaluator.GetConfig(user, config)
-	if res.FetchFromServer {
-		return instance.net.GetConfig(user, config)
-	}
-	return res.ConfigValue
+	return instance.evaluator.GetConfig(user, config)
 }
 
 func GetExperiment(user types.StatsigUser, experiment string) *types.DynamicConfig {
-	res := instance.evaluator.GetConfig(user, experiment)
-	if res.FetchFromServer {
-		return instance.net.GetConfig(user, experiment)
-	}
-	return res.ConfigValue
+	return GetConfig(user, experiment)
 }
 
 func LogEvent(event types.StatsigEvent) {
