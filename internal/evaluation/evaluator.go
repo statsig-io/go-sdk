@@ -18,7 +18,6 @@ import (
 )
 
 type Evaluator struct {
-	net           *net.Net
 	store         *Store
 	countryLookup *countrylookup.CountryLookup
 	uaParser      *uaparser.Parser
@@ -44,11 +43,14 @@ func New(net *net.Net) *Evaluator {
 	}()
 
 	return &Evaluator{
-		net:           net,
 		store:         store,
 		countryLookup: countryLookup,
 		uaParser:      parser,
 	}
+}
+
+func (e *Evaluator) Stop() {
+	e.store.StopPolling()
 }
 
 func (e *Evaluator) CheckGate(user types.StatsigUser, gateName string) *EvalResult {

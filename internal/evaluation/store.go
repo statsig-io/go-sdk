@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"statsig/internal/net"
 	"strconv"
+	"time"
 )
 
 type ConfigSpec struct {
@@ -48,6 +49,7 @@ type Store struct {
 	DynamicConfigs map[string]ConfigSpec
 	lastSyncTime   int64
 	network        *net.Net
+	ticker         *time.Ticker
 }
 
 func initStore(n *net.Net) *Store {
@@ -55,9 +57,20 @@ func initStore(n *net.Net) *Store {
 		FeatureGates:   make(map[string]ConfigSpec),
 		DynamicConfigs: make(map[string]ConfigSpec),
 		network:        n,
+		ticker:         time.NewTicker(10 * time.Second),
 	}
 
 	specs := store.fetchConfigSpecs()
+	store.update(specs)
+	go store.pollForChanges()
+	return store
+}
+
+func (s *Store) StopPolling() {
+	s.ticker.Stop()
+}
+
+func (s *Store) update(specs DownloadConfigSpecResponse) {
 	if specs.HasUpdates {
 		newGates := make(map[string]ConfigSpec)
 		for _, gate := range specs.FeatureGates {
@@ -69,11 +82,9 @@ func initStore(n *net.Net) *Store {
 			newConfigs[config.Name] = config
 		}
 
-		store.FeatureGates = newGates
-		store.DynamicConfigs = newConfigs
+		s.FeatureGates = newGates
+		s.DynamicConfigs = newConfigs
 	}
-
-	return store
 }
 
 func (s *Store) fetchConfigSpecs() DownloadConfigSpecResponse {
@@ -85,4 +96,11 @@ func (s *Store) fetchConfigSpecs() DownloadConfigSpecResponse {
 	s.network.PostRequest("download_config_specs", input, &specs)
 	s.lastSyncTime = specs.Time
 	return specs
+}
+
+func (s *Store) pollForChanges() {
+	for range s.ticker.C {
+		specs := s.fetchConfigSpecs()
+		s.update(specs)
+	}
 }

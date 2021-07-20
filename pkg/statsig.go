@@ -63,6 +63,7 @@ func LogEvent(event types.StatsigEvent) {
 
 func Shutdown() {
 	instance.logger.Flush()
+	instance.evaluator.Stop()
 }
 
 type gateResponse struct {
