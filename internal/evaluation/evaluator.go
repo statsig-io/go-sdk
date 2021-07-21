@@ -167,7 +167,7 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 		value = time.Now().Unix() // time in seconds
 	case "user_bucket":
 		if salt, ok := cond.AdditionalValues["salt"]; ok {
-			value = getHash(fmt.Sprintf("%s.%s", salt, user.UserID)) % 1000
+			value = int64(getHash(fmt.Sprintf("%s.%s", salt, user.UserID)) % 1000)
 		}
 	default:
 		return &EvalResult{FetchFromServer: true}
@@ -352,6 +352,8 @@ func getNumericValue(a interface{}) (float64, bool) {
 		return float64(a.(int32)), true
 	case int64:
 		return float64(a.(int64)), true
+	case uint64:
+		return float64(a.(uint64)), true
 	case float32:
 		return float64(a.(float32)), true
 	case float64:
