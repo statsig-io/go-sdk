@@ -3,6 +3,7 @@ package statsig
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"statsig/pkg/types"
 	"testing"
 )
@@ -27,7 +28,15 @@ var testAPIs = []string{
 }
 
 func TestMain(m *testing.M) {
-	secret = "secret-9IWfdzNwExEYHEW4YfOQcFZ4xreZyFkbOXHaNbPsMwW"
+	secret = os.Getenv("test_api_key")
+	if secret == "" {
+		absPath, _ := filepath.Abs("../../ops/secrets/prod_keys/statsig-rulesets-eval-consistency-test-secret.key")
+		bytes, err := os.ReadFile(absPath)
+		if err != nil {
+			panic("THIS TEST IS EXPECTED TO FAIL FOR NON-STATSIG EMPLOYEES! If this is the only test failing, please proceed to submit a pull request. If you are a Statsig employee, chat with jkw.")
+		}
+		secret = string(bytes)
+	}
 	os.Exit(m.Run())
 }
 
