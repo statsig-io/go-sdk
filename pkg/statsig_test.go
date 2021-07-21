@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+func Test2(t *testing.T) {
+	Initialize("secret-9IWfdzNwExEYHEW4YfOQcFZ4xreZyFkbOXHaNbPsMwW")
+}
+
 func TestInitialize(t *testing.T) {
 	Initialize("secret-9IWfdzNwExEYHEW4YfOQcFZ4xreZyFkbOXHaNbPsMwW")
 	user := types.StatsigUser{
@@ -25,7 +29,7 @@ func TestInitialize(t *testing.T) {
 		t.Errorf("Wrong dynamic config")
 	}
 	if config.RuleID != "default" {
-		t.Errorf("Wrong dynamic config rule")
+		t.Errorf("Wrong dynamic config rule: " + config.RuleID)
 	}
 
 	//Test event logging
@@ -38,15 +42,4 @@ func TestInitialize(t *testing.T) {
 	}
 
 	LogEvent(*event)
-	// test polling
-	// time.Sleep(12 * time.Second)
-	// LogEvent(*event)
-	// time.Sleep(12 * time.Second)
-	// Shutdown()
-	// LogEvent(*event)
-	// time.Sleep(12 * time.Second)
-	// LogEvent(*event)
-	// time.Sleep(12 * time.Second)
-	// LogEvent(*event)
-
 }

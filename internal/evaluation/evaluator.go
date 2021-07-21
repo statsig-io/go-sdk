@@ -39,6 +39,7 @@ func New(net *net.Net) *Evaluator {
 	defer func() {
 		if err := recover(); err != nil {
 			// TODO: log here
+			fmt.Println(err)
 		}
 	}()
 
