@@ -30,7 +30,7 @@ func CheckGate(user types.StatsigUser, gate string) (bool, error) {
 
 func GetConfig(user types.StatsigUser, config string) (*types.DynamicConfig, error) {
 	if instance == nil {
-		return nil, fmt.Errorf("must Initialize() statsig before calling GetConfig")
+		return &types.DynamicConfig{Name: config}, fmt.Errorf("must Initialize() statsig before calling GetConfig")
 	}
 	return instance.GetConfig(user, config), nil
 }
@@ -50,10 +50,6 @@ func LogEvent(event types.StatsigEvent) error {
 	return nil
 }
 
-func Shutdown() error {
-	if instance == nil {
-		return fmt.Errorf("must Initialize() statsig before calling LogEvent")
-	}
+func Shutdown() {
 	instance.Shutdown()
-	return nil
 }
