@@ -315,7 +315,7 @@ func getFromIP(user types.StatsigUser, field string, lookup *countrylookup.Count
 	if strings.ToLower(field) != "country" || user.IpAddress == "" {
 		return ""
 	}
-	res, ok := lookup.LookupIpString(user.IpAddress)
+	res, ok := lookup.LookupIp(user.IpAddress)
 	if ok {
 		return res
 	}
