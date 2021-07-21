@@ -1,9 +1,9 @@
 package types
 
 type DynamicConfig struct {
-	Name   string
-	Value  map[string]interface{}
-	RuleID string
+	Name   string                 `json:"name"`
+	Value  map[string]interface{} `json:"value"`
+	RuleID string                 `json:"rule_id"`
 }
 
 func NewConfig(name string, value map[string]interface{}, ruleID string) *DynamicConfig {
