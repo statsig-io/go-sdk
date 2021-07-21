@@ -134,8 +134,7 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 	switch cond.Type {
 	case "public":
 		return &EvalResult{Pass: true}
-	case "fail_gate":
-	case "pass_gate":
+	case "fail_gate", "pass_gate":
 		dependentGateName, ok := cond.TargetValue.(string)
 		if !ok {
 			return &EvalResult{Pass: false}
@@ -260,52 +259,47 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 }
 
 func getFromUser(user types.StatsigUser, field string) interface{} {
+	var value interface{}
 	switch strings.ToLower(field) {
-	case "userid":
-	case "user_id":
-		return user.UserID
+	case "userid", "user_id":
+		value = user.UserID
 	case "email":
-		return user.Email
-	case "ip":
-	case "ipaddress":
-	case "ip_address":
-		return user.IpAddress
-	case "useragent":
-	case "user_agent":
-		return user.UserAgent
+		value = user.Email
+	case "ip", "ipaddress", "ip_address":
+		value = user.IpAddress
+	case "useragent", "user_agent":
+		value = user.UserAgent
 	case "country":
-		return user.Country
+		value = user.Country
 	case "locale":
-		return user.Locale
-	case "clientversion":
-	case "client_version":
-		return user.ClientVersion
+		value = user.Locale
+	case "appversion", "app_version":
+		value = user.AppVersion
 	default:
 		// ok == true means field actually exists in user.Custom
 		if val, ok := user.Custom[field]; ok {
-			return val
+			value = val
 		}
 		if val, ok := user.Custom[strings.ToLower(field)]; ok {
-			return val
+			value = val
 		}
 	}
-	return nil
+	if value == "" {
+		value = nil
+	}
+	return value
 }
 
 func getFromUserAgent(user types.StatsigUser, field string, parser *uaparser.Parser) string {
 	client := parser.Parse(user.UserAgent)
 	switch strings.ToLower(field) {
-	case "os_name":
-	case "osname":
+	case "os_name", "osname":
 		return client.Os.Family
-	case "os_version":
-	case "osversion":
+	case "os_version", "osversion":
 		return strings.Join(removeEmptyStrings([]string{client.Os.Major, client.Os.Minor, client.Os.Patch, client.Os.PatchMinor}), ".")
-	case "browser_name":
-	case "browsername":
+	case "browser_name", "browsername":
 		return client.UserAgent.Family
-	case "browser_version":
-	case "browserversion":
+	case "browser_version", "browserversion":
 		return strings.Join(removeEmptyStrings([]string{client.UserAgent.Major, client.UserAgent.Minor, client.UserAgent.Patch}), ".")
 	}
 	return ""

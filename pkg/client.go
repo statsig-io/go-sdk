@@ -16,7 +16,7 @@ type Client struct {
 }
 
 func NewClient(sdkKey string) *Client {
-	return NewWithOptions(sdkKey, &types.StatsigOptions{API: "https://api.statsig.com/v1/"})
+	return NewWithOptions(sdkKey, &types.StatsigOptions{API: "https://api.statsig.com/v1"})
 }
 
 func NewWithOptions(sdkKey string, options *types.StatsigOptions) *Client {
@@ -98,7 +98,7 @@ func fetchGate(user types.StatsigUser, gateName string, net *net.Net) gateRespon
 		StatsigMetadata: net.GetStatsigMetadata(),
 	}
 	var res gateResponse
-	err := net.PostRequest("check_gate", input, &res)
+	err := net.PostRequest("/check_gate", input, &res)
 	if err != nil {
 		return gateResponse{
 			Name:   gateName,
@@ -116,7 +116,7 @@ func fetchConfig(user types.StatsigUser, configName string, net *net.Net) config
 		StatsigMetadata: net.GetStatsigMetadata(),
 	}
 	var res configResponse
-	err := net.PostRequest("get_config", input, &res)
+	err := net.PostRequest("/get_config", input, &res)
 	if err != nil {
 		return configResponse{
 			Name:   configName,

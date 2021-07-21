@@ -93,7 +93,7 @@ func (s *Store) fetchConfigSpecs() DownloadConfigSpecResponse {
 		StatsigMetadata: s.network.GetStatsigMetadata(),
 	}
 	var specs DownloadConfigSpecResponse
-	s.network.PostRequest("download_config_specs", input, &specs)
+	s.network.PostRequest("/download_config_specs", input, &specs)
 	s.lastSyncTime = specs.Time
 	return specs
 }
