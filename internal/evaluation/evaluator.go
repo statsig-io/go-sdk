@@ -25,7 +25,7 @@ type Evaluator struct {
 
 type EvalResult struct {
 	Pass            bool
-	ConfigValue     *types.DynamicConfig
+	ConfigValue     types.DynamicConfig
 	FetchFromServer bool
 	Id              string
 }
@@ -95,7 +95,7 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 					}
 					return &EvalResult{
 						Pass:        pass,
-						ConfigValue: types.NewConfig(spec.Name, configValue, rule.ID),
+						ConfigValue: *types.NewConfig(spec.Name, configValue, rule.ID),
 						Id:          rule.ID}
 				} else {
 					return &EvalResult{Pass: pass, Id: rule.ID}
@@ -107,7 +107,7 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 	if isDynamicConfig {
 		return &EvalResult{
 			Pass:        false,
-			ConfigValue: types.NewConfig(spec.Name, configValue, "default"),
+			ConfigValue: *types.NewConfig(spec.Name, configValue, "default"),
 			Id:          "default"}
 	}
 	return &EvalResult{Pass: false, Id: "default"}

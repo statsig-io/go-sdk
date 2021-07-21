@@ -15,7 +15,7 @@ type Client struct {
 	net       *net.Net
 }
 
-func New(sdkKey string) *Client {
+func NewClient(sdkKey string) *Client {
 	return NewWithOptions(sdkKey, &types.StatsigOptions{API: "https://api.statsig.com/v1/"})
 }
 
@@ -44,14 +44,11 @@ func (c *Client) GetConfig(user types.StatsigUser, config string) *types.Dynamic
 	if res.FetchFromServer {
 		serverRes := fetchConfig(user, config, c.net)
 		res = &evaluation.EvalResult{
-			ConfigValue: types.NewConfig(config, serverRes.Value, serverRes.RuleID),
+			ConfigValue: *types.NewConfig(config, serverRes.Value, serverRes.RuleID),
 			Id:          serverRes.RuleID}
 	}
 	c.logger.LogConfigExposure(user, config, res.Id)
-	if res.ConfigValue == nil {
-		res.ConfigValue = types.NewConfig(config, nil, "")
-	}
-	return res.ConfigValue
+	return &res.ConfigValue
 }
 
 func (c *Client) GetExperiment(user types.StatsigUser, experiment string) *types.DynamicConfig {

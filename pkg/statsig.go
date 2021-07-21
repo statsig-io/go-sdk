@@ -10,7 +10,7 @@ var once sync.Once
 
 func Initialize(sdkKey string) {
 	once.Do(func() {
-		instance = New(sdkKey)
+		instance = NewClient(sdkKey)
 	})
 }
 
