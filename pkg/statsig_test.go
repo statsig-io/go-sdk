@@ -42,13 +42,12 @@ func TestMain(m *testing.M) {
 
 func Test(t *testing.T) {
 	for _, api := range testAPIs {
-		fmt.Println("Testing for " + api)
 		test_helper(api, t)
 	}
 }
 
 func test_helper(apiOverride string, t *testing.T) {
-	fmt.Println("Testing for " + apiOverride)
+	t.Logf("Testing for " + apiOverride)
 	c := NewWithOptions(secret, &types.StatsigOptions{API: apiOverride})
 	var d data
 	err := c.net.PostRequest("/rulesets_e2e_test", nil, &d)
