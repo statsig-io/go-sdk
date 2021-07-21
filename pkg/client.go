@@ -13,6 +13,7 @@ type Client struct {
 	evaluator *evaluation.Evaluator
 	logger    *logging.Logger
 	net       *net.Net
+	options   *types.StatsigOptions
 }
 
 func NewClient(sdkKey string) *Client {
@@ -20,16 +21,26 @@ func NewClient(sdkKey string) *Client {
 }
 
 func NewWithOptions(sdkKey string, options *types.StatsigOptions) *Client {
+	if len(options.API) == 0 {
+		options.API = "https://api.statsig.com/v1"
+	}
 	net := net.New(sdkKey, options.API)
 	logger := logging.New(net)
 	evaluator := evaluation.New(net)
 	if !strings.HasPrefix(sdkKey, "secret") {
 		panic("Must provide a valid SDK key.")
 	}
-	return &Client{sdkKey: sdkKey, evaluator: evaluator, logger: logger, net: net}
+	return &Client{
+		sdkKey:    sdkKey,
+		evaluator: evaluator,
+		logger:    logger,
+		net:       net,
+		options:   options,
+	}
 }
 
 func (c *Client) CheckGate(user types.StatsigUser, gate string) bool {
+	user = normalizeUser(user, *c.options)
 	res := c.evaluator.CheckGate(user, gate)
 	if res.FetchFromServer {
 		serverRes := fetchGate(user, gate, c.net)
@@ -40,6 +51,7 @@ func (c *Client) CheckGate(user types.StatsigUser, gate string) bool {
 }
 
 func (c *Client) GetConfig(user types.StatsigUser, config string) *types.DynamicConfig {
+	user = normalizeUser(user, *c.options)
 	res := c.evaluator.GetConfig(user, config)
 	if res.FetchFromServer {
 		serverRes := fetchConfig(user, config, c.net)
@@ -56,6 +68,7 @@ func (c *Client) GetExperiment(user types.StatsigUser, experiment string) *types
 }
 
 func (c *Client) LogEvent(event types.StatsigEvent) {
+	event.User = normalizeUser(event.User, *c.options)
 	if event.EventName == "" {
 		return
 	}
@@ -124,4 +137,22 @@ func fetchConfig(user types.StatsigUser, configName string, net *net.Net) config
 		}
 	}
 	return res
+}
+
+func normalizeUser(user types.StatsigUser, options types.StatsigOptions) types.StatsigUser {
+	var env map[string]string
+	if len(options.Environment.Params) > 0 {
+		env = options.Environment.Params
+	} else {
+		env = make(map[string]string)
+	}
+
+	if options.Environment.Tier != "" {
+		env["tier"] = options.Environment.Tier
+	}
+	for k, v := range user.StatsigEnvironment {
+		env[k] = v
+	}
+	user.StatsigEnvironment = env
+	return user
 }
