@@ -1,5 +1,11 @@
 package types
 
 type StatsigOptions struct {
-	API string
+	API         string
+	Environment StatsigEnvironment
+}
+
+type StatsigEnvironment struct {
+	Tier   string
+	Params map[string]string
 }

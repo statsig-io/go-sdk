@@ -43,6 +43,7 @@ func (n *Net) PostRequest(
 	if err != nil {
 		return err
 	}
+
 	var req *http.Request
 	req, err = http.NewRequest("POST", n.api+endpoint, bytes.NewBuffer(jsonStr))
 	if err != nil {
