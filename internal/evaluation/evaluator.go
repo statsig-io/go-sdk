@@ -163,9 +163,6 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 		value = getFromUser(user, cond.Field)
 	case "environment_field":
 		value = getFromEnvironment(user, cond.Field)
-		if value == "" {
-			value = nil
-		}
 	case "current_time":
 		value = time.Now().Unix() // time in seconds
 	case "user_bucket":
@@ -176,7 +173,7 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 		return &EvalResult{FetchFromServer: true}
 	}
 
-	if value == nil {
+	if value == nil || value == "" {
 		return &EvalResult{Pass: false}
 	}
 

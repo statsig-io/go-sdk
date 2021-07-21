@@ -22,7 +22,7 @@ func NewClient(sdkKey string) *Client {
 
 func NewWithOptions(sdkKey string, options *types.StatsigOptions) *Client {
 	if len(options.API) == 0 {
-		options.API = "https://api.statsig.com/v1/"
+		options.API = "https://api.statsig.com/v1"
 	}
 	net := net.New(sdkKey, options.API)
 	logger := logging.New(net)
