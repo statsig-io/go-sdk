@@ -162,7 +162,10 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 	case "user_field":
 		value = getFromUser(user, cond.Field)
 	case "environment_field":
-		// TODO: after Tore adds environment
+		value = getFromEnvironment(user, cond.Field)
+		if value == "" {
+			value = nil
+		}
 	case "current_time":
 		value = time.Now().Unix() // time in seconds
 	case "user_bucket":
@@ -286,6 +289,17 @@ func getFromUser(user types.StatsigUser, field string) interface{} {
 	}
 	if value == "" {
 		value = nil
+	}
+	return value
+}
+
+func getFromEnvironment(user types.StatsigUser, field string) string {
+	var value string
+	if val, ok := user.StatsigEnvironment[field]; ok {
+		value = val
+	}
+	if val, ok := user.StatsigEnvironment[strings.ToLower(field)]; ok {
+		value = val
 	}
 	return value
 }
