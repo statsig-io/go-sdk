@@ -89,10 +89,8 @@ func (s *Store) update(specs DownloadConfigSpecResponse) {
 
 func (s *Store) fetchConfigSpecs() DownloadConfigSpecResponse {
 	input := &DownloadConfigsInput{
+		SinceTime:       strconv.FormatInt(s.lastSyncTime, 10),
 		StatsigMetadata: s.network.GetStatsigMetadata(),
-	}
-	if s.lastSyncTime > 0 {
-		input.SinceTime = strconv.FormatInt(s.lastSyncTime, 10)
 	}
 	var specs DownloadConfigSpecResponse
 	s.network.PostRequest("/download_config_specs", input, &specs)
