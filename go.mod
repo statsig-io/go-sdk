@@ -3,6 +3,7 @@ module github.com/statsig-io/go-sdk
 go 1.16
 
 replace github.com/statsig-io/go-sdk/internal => ./internal/
+
 replace github.com/statsig-io/go-sdk/types => ./types/
 
 require (
