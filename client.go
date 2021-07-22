@@ -2,11 +2,13 @@ package statsig
 
 import (
 	"fmt"
-	"statsig/internal/evaluation"
-	"statsig/internal/logging"
-	"statsig/internal/net"
-	"statsig/types"
 	"strings"
+
+	"github.com/statsig-io/go-sdk/internal/evaluation"
+	"github.com/statsig-io/go-sdk/internal/logging"
+	"github.com/statsig-io/go-sdk/internal/net"
+
+	"github.com/statsig-io/go-sdk/types"
 )
 
 // An instance of a StatsigClient for interfacing with Statsig Feature Gates, Dynamic Configs, Experiments, and Event Logging

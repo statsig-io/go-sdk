@@ -1,10 +1,11 @@
 package logging
 
 import (
-	"statsig/internal/net"
-	"statsig/types"
 	"strconv"
 	"sync"
+
+	"github.com/statsig-io/go-sdk/internal/net"
+	"github.com/statsig-io/go-sdk/types"
 )
 
 type logEventInput struct {

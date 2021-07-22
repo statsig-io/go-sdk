@@ -2,9 +2,10 @@ package evaluation
 
 import (
 	"encoding/json"
-	"statsig/internal/net"
 	"strconv"
 	"time"
+
+	"github.com/statsig-io/go-sdk/internal/net"
 )
 
 type ConfigSpec struct {
