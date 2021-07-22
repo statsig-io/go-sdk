@@ -13,7 +13,7 @@ var once sync.Once
 // Initializes the global Statsig instance with the given sdkKey
 func Initialize(sdkKey string) {
 	once.Do(func() {
-		instance = NewClient(sdkKey)
+		instance = New(sdkKey)
 	})
 }
 

@@ -19,7 +19,7 @@ type Client struct {
 }
 
 // Initializes a Statsig Client with the given sdkKey
-func NewClient(sdkKey string) *Client {
+func New(sdkKey string) *Client {
 	return NewWithOptions(sdkKey, &types.StatsigOptions{API: "https://api.statsig.com/v1"})
 }
 
