@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: '^1.16'
-      - run: go build && go test statsig_test.go
+      - run: go test
         env:
           test_api_key: ${{ secrets.SDK_CONSISTENCY_TEST_COMPANY_API_KEY }}
-      - run: go build && go test */**.go
+      - run: go test */**.go
