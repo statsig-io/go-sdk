@@ -3,7 +3,7 @@ package statsig
 
 import (
 	"fmt"
-	"statsigsdk/statsig/types"
+	"statsig/types"
 	"sync"
 )
 
