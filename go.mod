@@ -1,4 +1,4 @@
-module statsig
+module github.com/statsig-io/go-sdk
 
 go 1.16
 
