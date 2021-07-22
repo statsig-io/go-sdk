@@ -1,4 +1,4 @@
-module statsig
+module statsigsdk
 
 go 1.16
 

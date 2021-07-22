@@ -2,10 +2,10 @@ package statsig
 
 import (
 	"fmt"
-	"statsig/internal/evaluation"
-	"statsig/internal/logging"
-	"statsig/internal/net"
-	"statsig/pkg/types"
+	"statsigsdk/internal/evaluation"
+	"statsigsdk/internal/logging"
+	"statsigsdk/internal/net"
+	"statsigsdk/statsig/types"
 	"strings"
 )
 

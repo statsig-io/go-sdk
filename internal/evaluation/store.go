@@ -2,7 +2,7 @@ package evaluation
 
 import (
 	"encoding/json"
-	"statsig/internal/net"
+	"statsigsdk/internal/net"
 	"strconv"
 	"time"
 )

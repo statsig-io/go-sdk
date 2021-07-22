@@ -1,8 +1,8 @@
 package logging
 
 import (
-	"statsig/internal/net"
-	"statsig/pkg/types"
+	"statsigsdk/internal/net"
+	"statsigsdk/statsig/types"
 	"strconv"
 	"sync"
 )
