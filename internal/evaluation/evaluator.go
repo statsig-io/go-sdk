@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"statsig/internal/net"
-	"statsig/pkg/types"
+	"statsig/types"
 	"strconv"
 	"strings"
 	"time"
@@ -30,7 +30,7 @@ type EvalResult struct {
 	Id              string
 }
 
-var dynamicConfigType = "dynamic_config"
+const dynamicConfigType = "dynamic_config"
 
 func New(net *net.Net) *Evaluator {
 	store := initStore(net)

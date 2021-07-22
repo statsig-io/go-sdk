@@ -2,7 +2,7 @@ package logging
 
 import (
 	"statsig/internal/net"
-	"statsig/pkg/types"
+	"statsig/types"
 	"strconv"
 	"sync"
 )

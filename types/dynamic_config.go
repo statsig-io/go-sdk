@@ -1,5 +1,6 @@
 package types
 
+// A json blob configured in the Statsig Console
 type DynamicConfig struct {
 	Name   string                 `json:"name"`
 	Value  map[string]interface{} `json:"value"`
@@ -17,6 +18,8 @@ func NewConfig(name string, value map[string]interface{}, ruleID string) *Dynami
 	}
 }
 
+// Gets the string value at the given key in the DynamicConfig
+// Returns the fallback string if the item at the given key is not found or not of type string
 func (d *DynamicConfig) GetString(key string, fallback string) string {
 	if v, ok := d.Value[key]; ok {
 		var res string
@@ -31,6 +34,8 @@ func (d *DynamicConfig) GetString(key string, fallback string) string {
 	return fallback
 }
 
+// Gets the float64 value at the given key in the DynamicConfig
+// Returns the fallback float64 if the item at the given key is not found or not of type float64
 func (d *DynamicConfig) GetNumber(key string, fallback float64) float64 {
 	if v, ok := d.Value[key]; ok {
 		var res float64
@@ -45,6 +50,8 @@ func (d *DynamicConfig) GetNumber(key string, fallback float64) float64 {
 	return fallback
 }
 
+// Gets the boolean value at the given key in the DynamicConfig
+// Returns the fallback boolean if the item at the given key is not found or not of type boolean
 func (d *DynamicConfig) GetBool(key string, fallback bool) bool {
 	if v, ok := d.Value[key]; ok {
 		var res bool
@@ -59,6 +66,8 @@ func (d *DynamicConfig) GetBool(key string, fallback bool) bool {
 	return fallback
 }
 
+// Gets the slice value at the given key in the DynamicConfig
+// Returns the fallback slice if the item at the given key is not found or not of type slice
 func (d *DynamicConfig) GetSlice(key string, fallback []interface{}) []interface{} {
 	if v, ok := d.Value[key]; ok {
 		var res = make([]interface{}, 0)
