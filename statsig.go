@@ -3,8 +3,9 @@ package statsig
 
 import (
 	"fmt"
-	"statsig/types"
 	"sync"
+
+	"github.com/statsig-io/go-sdk/types"
 )
 
 var instance *Client

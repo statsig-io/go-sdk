@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"statsig/internal/net"
-	"statsig/types"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/statsig-io/go-sdk/internal/net"
+	"github.com/statsig-io/go-sdk/types"
 
 	"github.com/statsig-io/ip3country-go/pkg/countrylookup"
 	"github.com/ua-parser/uap-go/uaparser"

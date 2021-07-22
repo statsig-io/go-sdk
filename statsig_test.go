@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"statsig/types"
 	"testing"
+
+	"github.com/statsig-io/go-sdk/types"
 )
 
 type data struct {
