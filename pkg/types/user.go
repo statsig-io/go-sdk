@@ -1,5 +1,7 @@
 package types
 
+// User specific attributes for evaluating Feature Gates, Experiments, and DyanmicConfigs
+// NOTE: UserID is **required** - see https://docs.statsig.com/messages/serverRequiredUserID
 type StatsigUser struct {
 	UserID             string                 `json:"userID"`
 	Email              string                 `json:"email"`

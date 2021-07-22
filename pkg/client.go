@@ -1,6 +1,7 @@
 package statsig
 
 import (
+	"fmt"
 	"statsig/internal/evaluation"
 	"statsig/internal/logging"
 	"statsig/internal/net"
@@ -8,6 +9,7 @@ import (
 	"strings"
 )
 
+// An instance of a StatsigClient for interfacing with Statsig Feature Gates, Dynamic Configs, Experiments, and Event Logging
 type Client struct {
 	sdkKey    string
 	evaluator *evaluation.Evaluator
@@ -16,10 +18,12 @@ type Client struct {
 	options   *types.StatsigOptions
 }
 
+// Initializes a Statsig Client with the given sdkKey
 func NewClient(sdkKey string) *Client {
 	return NewWithOptions(sdkKey, &types.StatsigOptions{API: "https://api.statsig.com/v1"})
 }
 
+// Initializes a Statsig Client with the given sdkKey and options
 func NewWithOptions(sdkKey string, options *types.StatsigOptions) *Client {
 	if len(options.API) == 0 {
 		options.API = "https://api.statsig.com/v1"
@@ -39,7 +43,12 @@ func NewWithOptions(sdkKey string, options *types.StatsigOptions) *Client {
 	}
 }
 
+// Checks the value of a Feature Gate for the given user
 func (c *Client) CheckGate(user types.StatsigUser, gate string) bool {
+	if user.UserID == "" {
+		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
+		return false
+	}
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.CheckGate(user, gate)
 	if res.FetchFromServer {
@@ -50,7 +59,12 @@ func (c *Client) CheckGate(user types.StatsigUser, gate string) bool {
 	return res.Pass
 }
 
-func (c *Client) GetConfig(user types.StatsigUser, config string) *types.DynamicConfig {
+// Gets the DynamicConfig value for the given user
+func (c *Client) GetConfig(user types.StatsigUser, config string) types.DynamicConfig {
+	if user.UserID == "" {
+		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
+		return *types.NewConfig(config, nil, "")
+	}
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.GetConfig(user, config)
 	if res.FetchFromServer {
@@ -60,13 +74,19 @@ func (c *Client) GetConfig(user types.StatsigUser, config string) *types.Dynamic
 			Id:          serverRes.RuleID}
 	}
 	c.logger.LogConfigExposure(user, config, res.Id)
-	return &res.ConfigValue
+	return res.ConfigValue
 }
 
-func (c *Client) GetExperiment(user types.StatsigUser, experiment string) *types.DynamicConfig {
+// Gets the DynamicConfig value of an Experiment for the given user
+func (c *Client) GetExperiment(user types.StatsigUser, experiment string) types.DynamicConfig {
+	if user.UserID == "" {
+		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
+		return *types.NewConfig(experiment, nil, "")
+	}
 	return c.GetConfig(user, experiment)
 }
 
+// Logs an event to Statsig for analysis in the Statsig Console
 func (c *Client) LogEvent(event types.StatsigEvent) {
 	event.User = normalizeUser(event.User, *c.options)
 	if event.EventName == "" {
@@ -75,6 +95,8 @@ func (c *Client) LogEvent(event types.StatsigEvent) {
 	c.logger.Log(event)
 }
 
+// Cleans up Statsig, persisting any Event Logs and cleanup processes
+// Using any method is undefined after Shutdown() has been called
 func (c *Client) Shutdown() {
 	c.logger.Flush()
 	c.evaluator.Stop()
