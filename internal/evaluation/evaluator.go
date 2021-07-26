@@ -276,15 +276,17 @@ func getFromUser(user types.StatsigUser, field string) interface{} {
 		value = user.Locale
 	case "appversion", "app_version":
 		value = user.AppVersion
-	default:
+	}
+
+	if value == "" || value == nil {
 		// ok == true means field actually exists in user.Custom
-		if val, ok := user.Custom[field]; ok {
-			value = val
-		}
-		if val, ok := user.Custom[strings.ToLower(field)]; ok {
-			value = val
+		if customValue, ok := user.Custom[field]; ok {
+			value = customValue
+		} else if customValue, ok := user.Custom[strings.ToLower(field)]; ok {
+			value = customValue
 		}
 	}
+
 	if value == "" {
 		value = nil
 	}
