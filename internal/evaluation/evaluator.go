@@ -261,6 +261,7 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 
 func getFromUser(user types.StatsigUser, field string) interface{} {
 	var value interface{}
+	// 1. Try to get from top level user field first
 	switch strings.ToLower(field) {
 	case "userid", "user_id":
 		value = user.UserID
@@ -276,15 +277,18 @@ func getFromUser(user types.StatsigUser, field string) interface{} {
 		value = user.Locale
 	case "appversion", "app_version":
 		value = user.AppVersion
-	default:
+	}
+
+	// 2. Check custom user attributes next
+	if value == "" || value == nil {
 		// ok == true means field actually exists in user.Custom
-		if val, ok := user.Custom[field]; ok {
-			value = val
-		}
-		if val, ok := user.Custom[strings.ToLower(field)]; ok {
-			value = val
+		if customValue, ok := user.Custom[field]; ok {
+			value = customValue
+		} else if customValue, ok := user.Custom[strings.ToLower(field)]; ok {
+			value = customValue
 		}
 	}
+
 	if value == "" {
 		value = nil
 	}
