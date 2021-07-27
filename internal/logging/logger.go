@@ -2,7 +2,7 @@ package logging
 
 import (
 	"strconv"
-	"sync"
+	"time"
 
 	"github.com/statsig-io/go-sdk/internal/net"
 	"github.com/statsig-io/go-sdk/types"
@@ -22,23 +22,31 @@ const ConfigExposureEvent = "statsig::config_exposure"
 type Logger struct {
 	events []types.StatsigEvent
 	net    *net.Net
-	sync.Mutex
+	tick   *time.Ticker
 }
 
 func New(net *net.Net) *Logger {
-	return &Logger{
+	log := &Logger{
 		events: make([]types.StatsigEvent, 0),
 		net:    net,
+		tick:   time.NewTicker(time.Second * time.Duration(5)),
+	}
+
+	go log.backgroundFlush()
+
+	return log
+}
+
+func (l *Logger) backgroundFlush() {
+	for range l.tick.C {
+		l.Flush(false)
 	}
 }
 
 func (l *Logger) Log(evt types.StatsigEvent) {
-	l.Lock()
-	defer l.Unlock()
-
 	l.events = append(l.events, evt)
 	if len(l.events) >= MaxEvents {
-		l.Flush()
+		l.Flush(false)
 	}
 }
 
@@ -76,7 +84,13 @@ func (l *Logger) LogConfigExposure(
 	l.Log(*evt)
 }
 
-func (l *Logger) Flush() {
+func (l *Logger) Flush(closing bool) {
+	if closing {
+		l.tick.Stop()
+	}
+	if len(l.events) == 0 {
+		return
+	}
 	l.logEvents(l.events)
 	l.events = make([]types.StatsigEvent, 0)
 }

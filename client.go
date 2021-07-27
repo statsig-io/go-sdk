@@ -100,7 +100,7 @@ func (c *Client) LogEvent(event types.StatsigEvent) {
 // Cleans up Statsig, persisting any Event Logs and cleanup processes
 // Using any method is undefined after Shutdown() has been called
 func (c *Client) Shutdown() {
-	c.logger.Flush()
+	c.logger.Flush(true)
 	c.evaluator.Stop()
 }
 
