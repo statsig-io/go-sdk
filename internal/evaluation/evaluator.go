@@ -115,7 +115,13 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 }
 
 func evalPassPercent(user types.StatsigUser, rule ConfigRule, spec ConfigSpec) bool {
-	hash := getHash(spec.Salt + "." + rule.Salt + "." + user.UserID)
+	var hash uint64
+	if rule.Salt == "" {
+		hash = getHash(spec.Salt + "." + rule.ID + "." + user.UserID)
+	} else {
+		hash = getHash(spec.Salt + "." + rule.Salt + "." + user.UserID)
+	}
+
 	return hash%10000 < (uint64(rule.PassPercentage) * 100)
 }
 
