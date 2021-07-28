@@ -20,6 +20,7 @@ type ConfigSpec struct {
 type ConfigRule struct {
 	Name           string            `json:"name"`
 	ID             string            `json:"id"`
+	Salt           string            `json:"salt"`
 	PassPercentage float64           `json:"passPercentage"`
 	Conditions     []ConfigCondition `json:"conditions"`
 	ReturnValue    json.RawMessage   `json:"returnValue"`
