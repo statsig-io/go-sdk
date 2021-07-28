@@ -156,7 +156,10 @@ func fetchConfig(user types.StatsigUser, configName string, n *net.Net) configRe
 		StatsigMetadata: n.GetStatsigMetadata(),
 	}
 	var res configResponse
-	err := n.PostRequest("/get_config", input, &res)
+	var err error
+	go func() {
+		err = n.PostRequest("/get_config", input, &res)
+	}()
 	if err != nil {
 		return configResponse{
 			Name:   configName,
