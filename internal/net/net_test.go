@@ -1,7 +1,7 @@
 package net
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,19 +11,52 @@ type MockClient struct {
 	Do func(req *http.Request) (*http.Response, error)
 }
 
-type Empty = struct{}
+type Empty struct{}
 
-func Test(t *testing.T) {
+type ServerResponse struct {
+	Name string `json:"name"`
+}
+
+func TestNonRetryable(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		res.Write([]byte("body"))
+		if req.Method != "POST" {
+			t.Errorf("Expected ‘POST’ request, got '%s'", req.Method)
+		}
+
+		res.WriteHeader(http.StatusNotFound)
 	}))
-	defer func() { testServer.Close() }()
-	fmt.Println(testServer.URL)
-	in := Empty{}
-	out := Empty{}
+	defer testServer.Close()
+	in := &Empty{}
+	var out ServerResponse
 	n := New("secret-123", testServer.URL)
-	err := n.PostRequest("123", in, out)
+	err := n.RetryablePostRequest("/123", in, &out, 2)
 	if err == nil {
 		t.Errorf("Expected error for network request but got nil")
+	}
+}
+
+func TestRetries(t *testing.T) {
+	tries := 0
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		defer func() {
+			tries = tries + 1
+		}()
+		if tries == 0 {
+			res.WriteHeader(http.StatusInternalServerError)
+		} else if tries == 1 {
+			output := ServerResponse{
+				Name: "test",
+			}
+			res.WriteHeader(http.StatusOK)
+			json.NewEncoder(res).Encode(output)
+		}
+	}))
+	defer func() { testServer.Close() }()
+	in := Empty{}
+	var out ServerResponse
+	n := New("secret-123", testServer.URL)
+	err := n.RetryablePostRequest("/123", in, out, 2)
+	if err != nil {
+		t.Errorf("Expected successful request but got error")
 	}
 }

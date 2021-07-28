@@ -34,6 +34,7 @@ func New(secret string, api string) *Net {
 		api = "https://api.statsig.com/v1"
 	}
 	if strings.HasSuffix(api, "/") {
+		fmt.Println(api)
 		api = api[:len(api)-1]
 	}
 	return &Net{
@@ -65,7 +66,7 @@ func (n *Net) RetryablePostRequest(
 	if retries > MaxRetries {
 		retries = MaxRetries
 	}
-	return n.postRequestInternal(endpoint, in, out, retries, 10)
+	return n.postRequestInternal(endpoint, in, out, retries, 1)
 }
 
 func (n *Net) postRequestInternal(
@@ -93,18 +94,15 @@ func (n *Net) postRequestInternal(
 	if err != nil {
 		return err
 	}
+	defer response.Body.Close()
 	if response.StatusCode >= 200 && response.StatusCode < 300 {
-		decoder := json.NewDecoder(response.Body)
-		err = decoder.Decode(&out)
+		err := json.NewDecoder(response.Body).Decode(&out)
 		return err
 	} else if retries > 0 {
 		retry := retryCodes()
 		if retry(response.StatusCode) {
-			go func() {
-				time.Sleep(time.Duration(backoff) * time.Second)
-				n.postRequestInternal(endpoint, in, out, retries-1, backoff*backoffMultiplier)
-			}()
-			return nil
+			time.Sleep(time.Duration(backoff) * time.Second)
+			return n.postRequestInternal(endpoint, in, out, retries-1, backoff*backoffMultiplier)
 		}
 	}
 	return fmt.Errorf("http response error code: %d", response.StatusCode)

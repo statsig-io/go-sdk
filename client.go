@@ -135,7 +135,10 @@ func fetchGate(user types.StatsigUser, gateName string, n *net.Net) gateResponse
 		StatsigMetadata: n.GetStatsigMetadata(),
 	}
 	var res gateResponse
-	err := n.PostRequest("/check_gate", input, &res)
+	var err error
+	go func() {
+		err = n.PostRequest("/check_gate", input, &res)
+	}()
 	if err != nil {
 		return gateResponse{
 			Name:   gateName,

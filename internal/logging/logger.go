@@ -101,5 +101,5 @@ func (l *Logger) logEvents(events []types.StatsigEvent) {
 		StatsigMetadata: l.net.GetStatsigMetadata(),
 	}
 	var res logEventResponse
-	l.net.RetryablePostRequest("/log_event", input, &res, net.MaxRetries)
+	go l.net.RetryablePostRequest("/log_event", input, &res, net.MaxRetries)
 }
