@@ -86,7 +86,7 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 				return r
 			}
 			if r.Pass {
-				pass := evalPassPercent(user, rule, spec.Salt)
+				pass := evalPassPercent(user, rule, spec)
 				if isDynamicConfig {
 					if pass {
 						err := json.Unmarshal(rule.ReturnValue, &configValue)
@@ -114,8 +114,13 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 	return &EvalResult{Pass: false, Id: "default"}
 }
 
-func evalPassPercent(user types.StatsigUser, rule ConfigRule, salt string) bool {
-	hash := getHash(salt + "." + rule.ID + "." + user.UserID)
+func evalPassPercent(user types.StatsigUser, rule ConfigRule, spec ConfigSpec) bool {
+	ruleSalt := rule.Salt
+	if ruleSalt == "" {
+		ruleSalt = rule.ID
+	}
+	hash := getHash(spec.Salt + "." + ruleSalt + "." + user.UserID)
+
 	return hash%10000 < (uint64(rule.PassPercentage) * 100)
 }
 
