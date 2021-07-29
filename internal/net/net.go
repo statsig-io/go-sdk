@@ -13,8 +13,7 @@ import (
 const backoffMultiplier = 10
 
 const (
-	SingleRetry = 1
-	MaxRetries  = 4
+	MaxRetries = 5
 )
 
 type StatsigMetadata struct {
@@ -62,10 +61,7 @@ func (n *Net) RetryablePostRequest(
 	out interface{},
 	retries int,
 ) error {
-	if retries > MaxRetries {
-		retries = MaxRetries
-	}
-	return n.postRequestInternal(endpoint, in, out, retries, 10)
+	return n.postRequestInternal(endpoint, in, out, retries, 1)
 }
 
 func (n *Net) postRequestInternal(
