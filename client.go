@@ -128,14 +128,14 @@ type getConfigInput struct {
 	StatsigMetadata net.StatsigMetadata `json:"statsigMetadata"`
 }
 
-func fetchGate(user types.StatsigUser, gateName string, net *net.Net) gateResponse {
+func fetchGate(user types.StatsigUser, gateName string, n *net.Net) gateResponse {
 	input := &checkGateInput{
 		GateName:        gateName,
 		User:            user,
-		StatsigMetadata: net.GetStatsigMetadata(),
+		StatsigMetadata: n.GetStatsigMetadata(),
 	}
 	var res gateResponse
-	err := net.PostRequest("/check_gate", input, &res)
+	err := n.PostRequest("/check_gate", input, &res)
 	if err != nil {
 		return gateResponse{
 			Name:   gateName,
@@ -146,14 +146,14 @@ func fetchGate(user types.StatsigUser, gateName string, net *net.Net) gateRespon
 	return res
 }
 
-func fetchConfig(user types.StatsigUser, configName string, net *net.Net) configResponse {
+func fetchConfig(user types.StatsigUser, configName string, n *net.Net) configResponse {
 	input := &getConfigInput{
 		ConfigName:      configName,
 		User:            user,
-		StatsigMetadata: net.GetStatsigMetadata(),
+		StatsigMetadata: n.GetStatsigMetadata(),
 	}
 	var res configResponse
-	err := net.PostRequest("/get_config", input, &res)
+	err := n.PostRequest("/get_config", input, &res)
 	if err != nil {
 		return configResponse{
 			Name:   configName,

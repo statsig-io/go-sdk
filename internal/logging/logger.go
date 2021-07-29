@@ -29,7 +29,7 @@ func New(net *net.Net) *Logger {
 	log := &Logger{
 		events: make([]types.StatsigEvent, 0),
 		net:    net,
-		tick:   time.NewTicker(time.Second * time.Duration(5)),
+		tick:   time.NewTicker(time.Minute),
 	}
 
 	go log.backgroundFlush()
@@ -101,5 +101,5 @@ func (l *Logger) logEvents(events []types.StatsigEvent) {
 		StatsigMetadata: l.net.GetStatsigMetadata(),
 	}
 	var res logEventResponse
-	l.net.PostRequest("/log_event", input, &res)
+	go l.net.RetryablePostRequest("/log_event", input, &res, net.MaxRetries)
 }

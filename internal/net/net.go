@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+const backoffMultiplier = 10
+
+const (
+	MaxRetries = 5
+)
+
 type StatsigMetadata struct {
 	SDKType    string `json:"sdkType"`
 	SDKVersion string `json:"sdkVersion"`
@@ -46,6 +52,25 @@ func (n *Net) PostRequest(
 	in interface{},
 	out interface{},
 ) error {
+	return n.postRequestInternal(endpoint, in, out, 0, 0)
+}
+
+func (n *Net) RetryablePostRequest(
+	endpoint string,
+	in interface{},
+	out interface{},
+	retries int,
+) error {
+	return n.postRequestInternal(endpoint, in, out, retries, 1)
+}
+
+func (n *Net) postRequestInternal(
+	endpoint string,
+	in interface{},
+	out interface{},
+	retries int,
+	backoff int,
+) error {
 	jsonStr, err := json.Marshal(in)
 	if err != nil {
 		return err
@@ -62,13 +87,39 @@ func (n *Net) PostRequest(
 	var response *http.Response
 	response, err = n.client.Do(req)
 	if err != nil {
+		if retries > 0 {
+			time.Sleep(time.Duration(backoff) * time.Second)
+			return n.postRequestInternal(endpoint, in, out, retries-1, backoff*backoffMultiplier)
+		}
 		return err
 	}
-	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
-	if !statusOK {
-		return fmt.Errorf("http response error code: %d", response.StatusCode)
+	defer response.Body.Close()
+	if response.StatusCode >= 200 && response.StatusCode < 300 {
+		err := json.NewDecoder(response.Body).Decode(&out)
+		return err
+	} else if retries > 0 {
+		retry := retryCodes()
+		if retry(response.StatusCode) {
+			time.Sleep(time.Duration(backoff) * time.Second)
+			return n.postRequestInternal(endpoint, in, out, retries-1, backoff*backoffMultiplier)
+		}
 	}
-	decoder := json.NewDecoder(response.Body)
-	err = decoder.Decode(&out)
-	return err
+	return fmt.Errorf("http response error code: %d", response.StatusCode)
+}
+
+func retryCodes() func(int) bool {
+	codes := map[int]bool{
+		408: true,
+		500: true,
+		502: true,
+		503: true,
+		504: true,
+		522: true,
+		524: true,
+		599: true,
+	}
+	return func(key int) bool {
+		_, ok := codes[key]
+		return ok
+	}
 }

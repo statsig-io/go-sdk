@@ -1,7 +1,6 @@
 package statsig
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,7 +53,7 @@ func test_helper(apiOverride string, t *testing.T) {
 	var d data
 	err := c.net.PostRequest("/rulesets_e2e_test", nil, &d)
 	if err != nil {
-		fmt.Println(err.Error())
+		t.Errorf("Could not download test data")
 	}
 
 	for _, entry := range d.Entries {
