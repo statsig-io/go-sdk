@@ -65,7 +65,7 @@ func (n *Net) RetryablePostRequest(
 	if retries > MaxRetries {
 		retries = MaxRetries
 	}
-	return n.postRequestInternal(endpoint, in, out, retries, 1)
+	return n.postRequestInternal(endpoint, in, out, retries, 10)
 }
 
 func (n *Net) postRequestInternal(
