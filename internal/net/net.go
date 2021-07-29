@@ -34,7 +34,6 @@ func New(secret string, api string) *Net {
 		api = "https://api.statsig.com/v1"
 	}
 	if strings.HasSuffix(api, "/") {
-		fmt.Println(api)
 		api = api[:len(api)-1]
 	}
 	return &Net{
@@ -92,6 +91,10 @@ func (n *Net) postRequestInternal(
 	var response *http.Response
 	response, err = n.client.Do(req)
 	if err != nil {
+		if retries > 0 {
+			time.Sleep(time.Duration(backoff) * time.Second)
+			return n.postRequestInternal(endpoint, in, out, retries-1, backoff*backoffMultiplier)
+		}
 		return err
 	}
 	defer response.Body.Close()

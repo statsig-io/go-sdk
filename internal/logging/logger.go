@@ -29,7 +29,7 @@ func New(net *net.Net) *Logger {
 	log := &Logger{
 		events: make([]types.StatsigEvent, 0),
 		net:    net,
-		tick:   time.NewTicker(time.Second * time.Duration(5)),
+		tick:   time.NewTicker(time.Minute),
 	}
 
 	go log.backgroundFlush()
