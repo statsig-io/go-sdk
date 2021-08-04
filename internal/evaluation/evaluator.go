@@ -157,12 +157,12 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 	case "ip_based":
 		// TODO: ip3 country
 		value = getFromUser(user, cond.Field)
-		if value == nil {
+		if value == nil || value == "" {
 			value = getFromIP(user, cond.Field, e.countryLookup)
 		}
 	case "ua_based":
 		value = getFromUser(user, cond.Field)
-		if value == nil {
+		if value == nil || value == "" {
 			value = getFromUserAgent(user, cond.Field, e.uaParser)
 		}
 	case "user_field":
@@ -177,10 +177,6 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 		}
 	default:
 		return &EvalResult{FetchFromServer: true}
-	}
-
-	if value == nil || value == "" {
-		return &EvalResult{Pass: false}
 	}
 
 	pass := false
@@ -294,9 +290,6 @@ func getFromUser(user types.StatsigUser, field string) interface{} {
 		}
 	}
 
-	if value == "" {
-		value = nil
-	}
 	return value
 }
 
@@ -388,6 +381,9 @@ func compareNumbers(a, b interface{}, fun func(x, y float64) bool) bool {
 }
 
 func compareStrings(s1 interface{}, s2 interface{}, ignoreCase bool, fun func(x, y string) bool) bool {
+	if s1 == nil || s2 == nil {
+		return false
+	}
 	if reflect.TypeOf(s1).Kind() != reflect.String || reflect.TypeOf(s2).Kind() != reflect.String {
 		return false
 	}
