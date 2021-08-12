@@ -37,7 +37,7 @@ func New(secret string, api string) *Net {
 	}
 	return &Net{
 		api:      api,
-		metadata: StatsigMetadata{SDKType: "go-sdk", SDKVersion: "0.0.1"},
+		metadata: StatsigMetadata{SDKType: "go-sdk", SDKVersion: "0.2.0"},
 		sdkKey:   secret,
 		client:   &http.Client{},
 	}
