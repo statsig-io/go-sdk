@@ -44,6 +44,7 @@ func (l *Logger) backgroundFlush() {
 }
 
 func (l *Logger) Log(evt types.StatsigEvent) {
+	evt.User.PrivateAttributes = nil
 	l.events = append(l.events, evt)
 	if len(l.events) >= MaxEvents {
 		l.Flush(false)
@@ -91,15 +92,21 @@ func (l *Logger) Flush(closing bool) {
 	if len(l.events) == 0 {
 		return
 	}
-	l.logEvents(l.events)
+
+	if closing {
+		l.sendEvents(l.events)
+	} else {
+		go l.sendEvents(l.events)
+	}
+
 	l.events = make([]types.StatsigEvent, 0)
 }
 
-func (l *Logger) logEvents(events []types.StatsigEvent) {
+func (l *Logger) sendEvents(events []types.StatsigEvent) {
 	input := &logEventInput{
 		Events:          events,
 		StatsigMetadata: l.net.GetStatsigMetadata(),
 	}
 	var res logEventResponse
-	go l.net.RetryablePostRequest("/log_event", input, &res, net.MaxRetries)
+	l.net.RetryablePostRequest("/log_event", input, &res, net.MaxRetries)
 }

@@ -7,10 +7,6 @@ import (
 	"testing"
 )
 
-type MockClient struct {
-	Do func(req *http.Request) (*http.Response, error)
-}
-
 type Empty struct{}
 
 type ServerResponse struct {
@@ -26,7 +22,7 @@ func TestNonRetryable(t *testing.T) {
 		res.WriteHeader(http.StatusNotFound)
 	}))
 	defer testServer.Close()
-	in := &Empty{}
+	in := Empty{}
 	var out ServerResponse
 	n := New("secret-123", testServer.URL)
 	err := n.RetryablePostRequest("/123", in, &out, 2)
