@@ -27,10 +27,14 @@ func New(sdkKey string) *Client {
 
 // Initializes a Statsig Client with the given sdkKey and options
 func NewWithOptions(sdkKey string, options *types.StatsigOptions) *Client {
+	return NewForSDK(sdkKey, options, "", "")
+}
+
+func NewForSDK(sdkKey string, options *types.StatsigOptions, sdkName string, sdkVersion string) *Client {
 	if len(options.API) == 0 {
 		options.API = "https://api.statsig.com/v1"
 	}
-	net := net.New(sdkKey, options.API)
+	net := net.New(sdkKey, options.API, sdkName, sdkVersion)
 	logger := logging.New(net)
 	evaluator := evaluation.New(net)
 	if !strings.HasPrefix(sdkKey, "secret") {

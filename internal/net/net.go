@@ -28,16 +28,24 @@ type Net struct {
 	client   *http.Client
 }
 
-func New(secret string, api string) *Net {
+func New(secret string, api string, sdkType string, sdkVersion string) *Net {
 	if api == "" {
 		api = "https://api.statsig.com/v1"
 	}
 	if strings.HasSuffix(api, "/") {
 		api = api[:len(api)-1]
 	}
+
+	if sdkType == "" {
+		sdkType = "go-sdk"
+	}
+	if sdkVersion == "" {
+		sdkVersion = "0.2.1"
+	}
+
 	return &Net{
 		api:      api,
-		metadata: StatsigMetadata{SDKType: "go-sdk", SDKVersion: "0.2.0"},
+		metadata: StatsigMetadata{SDKType: sdkType, SDKVersion: sdkVersion},
 		sdkKey:   secret,
 		client:   &http.Client{},
 	}
@@ -87,6 +95,7 @@ func (n *Net) postRequestInternal(
 	var response *http.Response
 	response, err = n.client.Do(req)
 	if err != nil {
+		fmt.Print(err)
 		if retries > 0 {
 			time.Sleep(time.Duration(backoff) * time.Second)
 			return n.postRequestInternal(endpoint, in, out, retries-1, backoff*backoffMultiplier)
