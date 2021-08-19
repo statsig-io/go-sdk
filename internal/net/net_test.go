@@ -28,7 +28,7 @@ func TestNonRetryable(t *testing.T) {
 	defer testServer.Close()
 	in := &Empty{}
 	var out ServerResponse
-	n := New("secret-123", testServer.URL)
+	n := New("secret-123", testServer.URL, "", "")
 	err := n.RetryablePostRequest("/123", in, &out, 2)
 	if err == nil {
 		t.Errorf("Expected error for network request but got nil")
@@ -54,7 +54,7 @@ func TestRetries(t *testing.T) {
 	defer func() { testServer.Close() }()
 	in := Empty{}
 	var out ServerResponse
-	n := New("secret-123", testServer.URL)
+	n := New("secret-123", testServer.URL, "", "")
 	err := n.RetryablePostRequest("/123", in, out, 2)
 	if err != nil {
 		t.Errorf("Expected successful request but got error")

@@ -28,16 +28,24 @@ type Net struct {
 	client   *http.Client
 }
 
-func New(secret string, api string) *Net {
+func New(secret string, api string, sdkType string, sdkVersion string) *Net {
 	if api == "" {
 		api = "https://api.statsig.com/v1"
 	}
 	if strings.HasSuffix(api, "/") {
 		api = api[:len(api)-1]
 	}
+
+	if sdkType == "" {
+		sdkType = "go-sdk"
+	}
+	if sdkVersion == "" {
+		sdkVersion = "0.2.1"
+	}
+
 	return &Net{
 		api:      api,
-		metadata: StatsigMetadata{SDKType: "go-sdk", SDKVersion: "0.2.0"},
+		metadata: StatsigMetadata{SDKType: sdkType, SDKVersion: sdkVersion},
 		sdkKey:   secret,
 		client:   &http.Client{},
 	}
