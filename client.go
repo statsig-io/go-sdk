@@ -27,10 +27,10 @@ func New(sdkKey string) *Client {
 
 // Initializes a Statsig Client with the given sdkKey and options
 func NewWithOptions(sdkKey string, options *types.StatsigOptions) *Client {
-	return NewForSDK(sdkKey, options, "", "")
+	return WrapperSDKInstance(sdkKey, options, "", "")
 }
 
-func NewForSDK(sdkKey string, options *types.StatsigOptions, sdkName string, sdkVersion string) *Client {
+func WrapperSDKInstance(sdkKey string, options *types.StatsigOptions, sdkName string, sdkVersion string) *Client {
 	if len(options.API) == 0 {
 		options.API = "https://api.statsig.com/v1"
 	}

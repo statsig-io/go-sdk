@@ -20,12 +20,12 @@ func Initialize(sdkKey string) {
 
 // Initializes the global Statsig instance with the given sdkKey and options
 func InitializeWithOptions(sdkKey string, options *types.StatsigOptions) {
-	InitializeForWrapperSDK(sdkKey, options, "", "")
+	WrapperSDK(sdkKey, options, "", "")
 }
 
-func InitializeForWrapperSDK(sdkKey string, options *types.StatsigOptions, sdkName string, sdkVersion string) {
+func WrapperSDK(sdkKey string, options *types.StatsigOptions, sdkName string, sdkVersion string) {
 	once.Do(func() {
-		instance = NewForSDK(sdkKey, options, sdkName, sdkVersion)
+		instance = WrapperSDKInstance(sdkKey, options, sdkName, sdkVersion)
 	})
 }
 
