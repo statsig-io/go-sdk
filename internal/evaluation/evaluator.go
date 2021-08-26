@@ -135,7 +135,6 @@ func (e *Evaluator) evalRule(user types.StatsigUser, rule ConfigRule) *EvalResul
 }
 
 func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) *EvalResult {
-	// TODO: add all cond evaluations
 	var value interface{}
 	switch cond.Type {
 	case "public":
@@ -155,7 +154,6 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 			return &EvalResult{Pass: !result.Pass}
 		}
 	case "ip_based":
-		// TODO: ip3 country
 		value = getFromUser(user, cond.Field)
 		if value == nil || value == "" {
 			value = getFromIP(user, cond.Field, e.countryLookup)
@@ -280,13 +278,16 @@ func getFromUser(user types.StatsigUser, field string) interface{} {
 		value = user.AppVersion
 	}
 
-	// 2. Check custom user attributes next
+	// 2. Check custom user attributes and then private attributes next
 	if value == "" || value == nil {
-		// ok == true means field actually exists in user.Custom
 		if customValue, ok := user.Custom[field]; ok {
 			value = customValue
 		} else if customValue, ok := user.Custom[strings.ToLower(field)]; ok {
 			value = customValue
+		} else if privateValue, ok := user.PrivateAttributes[field]; ok {
+			value = privateValue
+		} else if privateValue, ok := user.PrivateAttributes[strings.ToLower(field)]; ok {
+			value = privateValue
 		}
 	}
 
@@ -305,7 +306,12 @@ func getFromEnvironment(user types.StatsigUser, field string) string {
 }
 
 func getFromUserAgent(user types.StatsigUser, field string, parser *uaparser.Parser) string {
-	client := parser.Parse(user.UserAgent)
+	ua := getFromUser(user, "useragent")
+	uaStr, ok := ua.(string)
+	if !ok {
+		return ""
+	}
+	client := parser.Parse(uaStr)
 	switch strings.ToLower(field) {
 	case "os_name", "osname":
 		return client.Os.Family
@@ -320,13 +326,17 @@ func getFromUserAgent(user types.StatsigUser, field string, parser *uaparser.Par
 }
 
 func getFromIP(user types.StatsigUser, field string, lookup *countrylookup.CountryLookup) string {
-	if strings.ToLower(field) != "country" || user.IpAddress == "" {
+	if strings.ToLower(field) != "country" {
 		return ""
 	}
-	res, ok := lookup.LookupIp(user.IpAddress)
-	if ok {
-		return res
+
+	ip := getFromUser(user, "ip")
+	if ipStr, ok := ip.(string); ok {
+		if res, lookupOK := lookup.LookupIp(ipStr); lookupOK {
+			return res
+		}
 	}
+
 	return ""
 }
 

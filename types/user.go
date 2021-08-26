@@ -1,7 +1,8 @@
 package types
 
 // User specific attributes for evaluating Feature Gates, Experiments, and DyanmicConfigs
-// NOTE: UserID is **required** - see https://docs.statsig.com/messages/serverRequiredUserID
+// NOTE: UserID is **required** - see https://docs.statsig.com/messages/serverRequiredUserID\
+// PrivateAttributes are only used for user targeting/grouping in feature gates, dynamic configs, experiments and etc; they are omitted in logs.
 type StatsigUser struct {
 	UserID             string                 `json:"userID"`
 	Email              string                 `json:"email"`
@@ -11,5 +12,6 @@ type StatsigUser struct {
 	Locale             string                 `json:"locale"`
 	AppVersion         string                 `json:"appVersion"`
 	Custom             map[string]interface{} `json:"custom"`
+	PrivateAttributes  map[string]interface{} `json:"privateAttributes"`
 	StatsigEnvironment map[string]string      `json:"statsigEnvironment"`
 }

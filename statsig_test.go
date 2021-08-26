@@ -43,7 +43,6 @@ func TestMain(m *testing.M) {
 func Test(t *testing.T) {
 	for _, api := range testAPIs {
 		test_helper(api, t)
-		break
 	}
 }
 
