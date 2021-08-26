@@ -106,8 +106,7 @@ func (n *Net) postRequestInternal(
 		err := json.NewDecoder(response.Body).Decode(&out)
 		return err
 	} else if retries > 0 {
-		retry := retryCodes()
-		if retry(response.StatusCode) {
+		if shouldRetry(response.StatusCode) {
 			time.Sleep(time.Duration(backoff) * time.Second)
 			return n.postRequestInternal(endpoint, in, out, retries-1, backoff*backoffMultiplier)
 		}
@@ -115,19 +114,11 @@ func (n *Net) postRequestInternal(
 	return fmt.Errorf("http response error code: %d", response.StatusCode)
 }
 
-func retryCodes() func(int) bool {
-	codes := map[int]bool{
-		408: true,
-		500: true,
-		502: true,
-		503: true,
-		504: true,
-		522: true,
-		524: true,
-		599: true,
-	}
-	return func(key int) bool {
-		_, ok := codes[key]
-		return ok
+func shouldRetry(code int) bool {
+	switch code {
+	case 408, 500, 502, 503, 504, 522, 524, 599:
+		return true
+	default:
+		return false
 	}
 }
