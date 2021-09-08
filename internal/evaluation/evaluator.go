@@ -232,6 +232,10 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			return compareStrings(x, y, true, func(s1, s2 string) bool { return strings.Contains(s1, s2) })
 		})
+	case "str_contains_none":
+		pass = !arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
+			return compareStrings(x, y, true, func(s1, s2 string) bool { return strings.Contains(s1, s2) })
+		})
 	case "str_matches":
 		matched, _ := regexp.MatchString(cond.TargetValue.(string), value.(string))
 		pass = matched
