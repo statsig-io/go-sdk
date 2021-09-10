@@ -204,19 +204,19 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 	// array operations
 	case "any":
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
-			return compare(x, y, true)
+			return compareStrings(x, y, true, func(s1, s2 string) bool { return s1 == s2 })
 		})
 	case "none":
 		pass = !arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
-			return compare(x, y, true)
+			return compareStrings(x, y, true, func(s1, s2 string) bool { return s1 == s2 })
 		})
 	case "any_case_sensitive":
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
-			return compare(x, y, false)
+			return compareStrings(x, y, false, func(s1, s2 string) bool { return s1 == s2 })
 		})
 	case "none_case_sensitive":
 		pass = !arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
-			return compare(x, y, false)
+			return compareStrings(x, y, false, func(s1, s2 string) bool { return s1 == s2 })
 		})
 
 	// string operations
@@ -395,15 +395,21 @@ func compareNumbers(a, b interface{}, fun func(x, y float64) bool) bool {
 }
 
 func compareStrings(s1 interface{}, s2 interface{}, ignoreCase bool, fun func(x, y string) bool) bool {
+	var str1, str2 string
 	if s1 == nil || s2 == nil {
 		return false
 	}
-	if reflect.TypeOf(s1).Kind() != reflect.String || reflect.TypeOf(s2).Kind() != reflect.String {
-		return false
+	if reflect.TypeOf(s1).Kind() == reflect.String {
+		str1 = s1.(string)
+	} else {
+		str1 = fmt.Sprintf("%v", s1)
+	}
+	if reflect.TypeOf(s2).Kind() == reflect.String {
+		str2 = s2.(string)
+	} else {
+		str2 = fmt.Sprintf("%v", s2)
 	}
 
-	str1 := s1.(string)
-	str2 := s2.(string)
 	if ignoreCase {
 		return fun(strings.ToLower(str1), strings.ToLower(str2))
 	}
@@ -473,12 +479,6 @@ func arrayAny(arr interface{}, val interface{}, fun func(x, y interface{}) bool)
 		}
 	}
 	return false
-}
-
-func compare(a interface{}, b interface{}, ignoreCase bool) bool {
-	return reflect.DeepEqual(a, b) ||
-		compareNumbers(a, b, func(x, y float64) bool { return x == y }) ||
-		compareStrings(a, b, ignoreCase, func(s1, s2 string) bool { return s1 == s2 })
 }
 
 func getTime(a interface{}) time.Time {
