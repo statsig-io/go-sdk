@@ -396,12 +396,15 @@ func compareNumbers(a, b interface{}, fun func(x, y float64) bool) bool {
 
 func compareStrings(s1 interface{}, s2 interface{}, ignoreCase bool, fun func(x, y string) bool) bool {
 	var str1, str2 string
-	if s1 != nil && reflect.TypeOf(s1).Kind() == reflect.String {
+	if s1 == nil || s2 == nil {
+		return false
+	}
+	if reflect.TypeOf(s1).Kind() == reflect.String {
 		str1 = s1.(string)
 	} else {
 		str1 = fmt.Sprintf("%v", s1)
 	}
-	if s2 != nil && reflect.TypeOf(s2).Kind() == reflect.String {
+	if reflect.TypeOf(s2).Kind() == reflect.String {
 		str2 = s2.(string)
 	} else {
 		str2 = fmt.Sprintf("%v", s2)
