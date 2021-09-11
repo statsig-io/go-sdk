@@ -40,7 +40,7 @@ func New(secret string, api string, sdkType string, sdkVersion string) *Net {
 		sdkType = "go-sdk"
 	}
 	if sdkVersion == "" {
-		sdkVersion = "0.4.1"
+		sdkVersion = "0.4.2"
 	}
 
 	return &Net{
