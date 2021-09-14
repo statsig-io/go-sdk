@@ -100,7 +100,7 @@ func (c *Client) LogEvent(event types.StatsigEvent) {
 	if event.EventName == "" {
 		return
 	}
-	c.logger.Log(event)
+	c.logger.LogCustom(event)
 }
 
 // Cleans up Statsig, persisting any Event Logs and cleanup processes

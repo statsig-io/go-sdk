@@ -51,16 +51,17 @@ func (l *Logger) backgroundFlush() {
 	}
 }
 
-func (l *Logger) Log(evt types.StatsigEvent) {
+func (l *Logger) LogCustom(evt types.StatsigEvent) {
 	evt.User.PrivateAttributes = nil
-	l.events = append(l.events, evt)
-	if len(l.events) >= MaxEvents {
-		l.Flush(false)
-	}
+	l.logInternal(evt)
 }
 
 func (l *Logger) logExposure(evt exposureEvent) {
 	evt.User.PrivateAttributes = nil
+	l.logInternal(evt)
+}
+
+func (l *Logger) logInternal(evt interface{}) {
 	l.events = append(l.events, evt)
 	if len(l.events) >= MaxEvents {
 		l.Flush(false)

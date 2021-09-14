@@ -37,7 +37,7 @@ func TestLog(t *testing.T) {
 	customEventNoPrivate := types.StatsigEvent{
 		EventName: "test_event",
 		User:      privateUser, Value: "3"}
-	logger.Log(customEvent)
+	logger.LogCustom(customEvent)
 
 	if !reflect.DeepEqual(logger.events[0], customEventNoPrivate) {
 		t.Errorf("Custom event not logged correctly.")
