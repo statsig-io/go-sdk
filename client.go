@@ -61,7 +61,7 @@ func (c *Client) CheckGate(user types.StatsigUser, gate string) bool {
 		serverRes := fetchGate(user, gate, c.net)
 		res = &evaluation.EvalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
 	} else {
-		c.logger.LogGateExposure(user, gate, res.Pass, res.Id)
+		c.logger.LogGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures)
 	}
 	return res.Pass
 }
@@ -80,7 +80,7 @@ func (c *Client) GetConfig(user types.StatsigUser, config string) types.DynamicC
 			ConfigValue: *types.NewConfig(config, serverRes.Value, serverRes.RuleID),
 			Id:          serverRes.RuleID}
 	} else {
-		c.logger.LogConfigExposure(user, config, res.Id)
+		c.logger.LogConfigExposure(user, config, res.Id, res.SecondaryExposures)
 	}
 	return res.ConfigValue
 }
