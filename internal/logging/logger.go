@@ -51,20 +51,17 @@ func (l *Logger) backgroundFlush() {
 	}
 }
 
-func (l *Logger) Log(evt interface{}) {
-	switch evt.(type) {
-	case exposureEvent:
-		event := evt.(exposureEvent)
-		event.User.PrivateAttributes = nil
-		l.events = append(l.events, event)
-	case types.StatsigEvent:
-		event := evt.(types.StatsigEvent)
-		event.User.PrivateAttributes = nil
-		l.events = append(l.events, event)
-	default:
-		return
+func (l *Logger) Log(evt types.StatsigEvent) {
+	evt.User.PrivateAttributes = nil
+	l.events = append(l.events, evt)
+	if len(l.events) >= MaxEvents {
+		l.Flush(false)
 	}
+}
 
+func (l *Logger) logExposure(evt exposureEvent) {
+	evt.User.PrivateAttributes = nil
+	l.events = append(l.events, evt)
 	if len(l.events) >= MaxEvents {
 		l.Flush(false)
 	}
@@ -87,7 +84,7 @@ func (l *Logger) LogGateExposure(
 		},
 		SecondaryExposures: exposures,
 	}
-	l.Log(*evt)
+	l.logExposure(*evt)
 }
 
 func (l *Logger) LogConfigExposure(
@@ -105,7 +102,7 @@ func (l *Logger) LogConfigExposure(
 		},
 		SecondaryExposures: exposures,
 	}
-	l.Log(*evt)
+	l.logExposure(*evt)
 }
 
 func (l *Logger) Flush(closing bool) {
