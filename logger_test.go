@@ -1,4 +1,4 @@
-package logging
+package statsig
 
 import (
 	"net/http"
@@ -6,9 +6,6 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
-
-	"github.com/statsig-io/go-sdk/internal/net"
-	"github.com/statsig-io/go-sdk/types"
 )
 
 func TestLog(t *testing.T) {
@@ -17,24 +14,24 @@ func TestLog(t *testing.T) {
 	}))
 	defer testServer.Close()
 
-	net := net.New("secret", testServer.URL, "", "")
-	logger := New(net)
+	transport := newTransport("secret", testServer.URL, "", "")
+	logger := newLogger(transport)
 
-	user := types.StatsigUser{
+	user := User{
 		UserID:            "123",
 		Email:             "123@gmail.com",
 		PrivateAttributes: map[string]interface{}{"private": "shh"},
 	}
-	privateUser := types.StatsigUser{
+	privateUser := User{
 		UserID: "123",
 		Email:  "123@gmail.com",
 	}
 
 	// Test custom logs
-	customEvent := types.StatsigEvent{
+	customEvent := Event{
 		EventName: "test_event",
 		User:      user, Value: "3"}
-	customEventNoPrivate := types.StatsigEvent{
+	customEventNoPrivate := Event{
 		EventName: "test_event",
 		User:      privateUser, Value: "3"}
 	logger.LogCustom(customEvent)
@@ -46,7 +43,7 @@ func TestLog(t *testing.T) {
 	// Test gate exposures
 	exposures := []map[string]string{{"gate": "another_gate", "gateValue": "true", "ruleID": "default"}}
 	logger.LogGateExposure(user, "test_gate", true, "rule_id", exposures)
-	gateExposureEvent := exposureEvent{EventName: GateExposureEvent, User: privateUser, Metadata: map[string]string{
+	gateExposureEvent := exposureEvent{EventName: gateExposureEvent, User: privateUser, Metadata: map[string]string{
 		"gate":      "test_gate",
 		"gateValue": strconv.FormatBool(true),
 		"ruleID":    "rule_id",
@@ -59,7 +56,7 @@ func TestLog(t *testing.T) {
 	// Test config exposures
 	exposures = append(exposures, map[string]string{"gate": "yet_another_gate", "gateValue": "false", "ruleID": ""})
 	logger.LogConfigExposure(user, "test_config", "rule_id_config", exposures)
-	configExposureEvent := exposureEvent{EventName: ConfigExposureEvent, User: privateUser, Metadata: map[string]string{
+	configExposureEvent := exposureEvent{EventName: configExposureEvent, User: privateUser, Metadata: map[string]string{
 		"config": "test_config",
 		"ruleID": "rule_id_config",
 	}, SecondaryExposures: exposures}

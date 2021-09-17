@@ -1,4 +1,30 @@
-package types
+package statsig
+
+// User specific attributes for evaluating Feature Gates, Experiments, and DyanmicConfigs
+//
+// NOTE: UserID is **required** - see https://docs.statsig.com/messages/serverRequiredUserID\
+// PrivateAttributes are only used for user targeting/grouping in feature gates, dynamic configs,
+// experiments and etc; they are omitted in logs.
+type User struct {
+	UserID             string                 `json:"userID"`
+	Email              string                 `json:"email"`
+	IpAddress          string                 `json:"ip"`
+	UserAgent          string                 `json:"userAgent"`
+	Country            string                 `json:"country"`
+	Locale             string                 `json:"locale"`
+	AppVersion         string                 `json:"appVersion"`
+	Custom             map[string]interface{} `json:"custom"`
+	PrivateAttributes  map[string]interface{} `json:"privateAttributes"`
+	StatsigEnvironment map[string]string      `json:"statsigEnvironment"`
+}
+
+// an event to be sent to Statsig for logging and analysis
+type Event struct {
+	EventName string            `json:"eventName"`
+	User      User              `json:"user"`
+	Value     string            `json:"value"`
+	Metadata  map[string]string `json:"metadata"`
+}
 
 // A json blob configured in the Statsig Console
 type DynamicConfig struct {

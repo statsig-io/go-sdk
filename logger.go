@@ -1,43 +1,42 @@
-package logging
+package statsig
 
 import (
 	"strconv"
 	"time"
+)
 
-	"github.com/statsig-io/go-sdk/internal/net"
-	"github.com/statsig-io/go-sdk/types"
+const (
+	maxEvents           = 500
+	gateExposureEvent   = "statsig::gate_exposure"
+	configExposureEvent = "statsig::config_exposure"
 )
 
 type exposureEvent struct {
 	EventName          string              `json:"eventName"`
-	User               types.StatsigUser   `json:"user"`
+	User               User                `json:"user"`
 	Value              string              `json:"value"`
 	Metadata           map[string]string   `json:"metadata"`
 	SecondaryExposures []map[string]string `json:"secondaryExposures"`
 }
 
 type logEventInput struct {
-	Events          []interface{}       `json:"events"`
-	StatsigMetadata net.StatsigMetadata `json:"statsigMetadata"`
+	Events          []interface{}   `json:"events"`
+	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
 type logEventResponse struct{}
 
-const MaxEvents = 500
-const GateExposureEvent = "statsig::gate_exposure"
-const ConfigExposureEvent = "statsig::config_exposure"
-
-type Logger struct {
-	events []interface{}
-	net    *net.Net
-	tick   *time.Ticker
+type logger struct {
+	events    []interface{}
+	transport *transport
+	tick      *time.Ticker
 }
 
-func New(net *net.Net) *Logger {
-	log := &Logger{
-		events: make([]interface{}, 0),
-		net:    net,
-		tick:   time.NewTicker(time.Minute),
+func newLogger(transport *transport) *logger {
+	log := &logger{
+		events:    make([]interface{}, 0),
+		transport: transport,
+		tick:      time.NewTicker(time.Minute),
 	}
 
 	go log.backgroundFlush()
@@ -45,31 +44,31 @@ func New(net *net.Net) *Logger {
 	return log
 }
 
-func (l *Logger) backgroundFlush() {
+func (l *logger) backgroundFlush() {
 	for range l.tick.C {
-		l.Flush(false)
+		l.flush(false)
 	}
 }
 
-func (l *Logger) LogCustom(evt types.StatsigEvent) {
+func (l *logger) LogCustom(evt Event) {
 	evt.User.PrivateAttributes = nil
 	l.logInternal(evt)
 }
 
-func (l *Logger) logExposure(evt exposureEvent) {
+func (l *logger) logExposure(evt exposureEvent) {
 	evt.User.PrivateAttributes = nil
 	l.logInternal(evt)
 }
 
-func (l *Logger) logInternal(evt interface{}) {
+func (l *logger) logInternal(evt interface{}) {
 	l.events = append(l.events, evt)
-	if len(l.events) >= MaxEvents {
-		l.Flush(false)
+	if len(l.events) >= maxEvents {
+		l.flush(false)
 	}
 }
 
-func (l *Logger) LogGateExposure(
-	user types.StatsigUser,
+func (l *logger) LogGateExposure(
+	user User,
 	gateName string,
 	value bool,
 	ruleID string,
@@ -77,7 +76,7 @@ func (l *Logger) LogGateExposure(
 ) {
 	evt := &exposureEvent{
 		User:      user,
-		EventName: GateExposureEvent,
+		EventName: gateExposureEvent,
 		Metadata: map[string]string{
 			"gate":      gateName,
 			"gateValue": strconv.FormatBool(value),
@@ -88,15 +87,15 @@ func (l *Logger) LogGateExposure(
 	l.logExposure(*evt)
 }
 
-func (l *Logger) LogConfigExposure(
-	user types.StatsigUser,
+func (l *logger) LogConfigExposure(
+	user User,
 	configName string,
 	ruleID string,
 	exposures []map[string]string,
 ) {
 	evt := &exposureEvent{
 		User:      user,
-		EventName: ConfigExposureEvent,
+		EventName: configExposureEvent,
 		Metadata: map[string]string{
 			"config": configName,
 			"ruleID": ruleID,
@@ -106,7 +105,7 @@ func (l *Logger) LogConfigExposure(
 	l.logExposure(*evt)
 }
 
-func (l *Logger) Flush(closing bool) {
+func (l *logger) flush(closing bool) {
 	if closing {
 		l.tick.Stop()
 	}
@@ -123,11 +122,11 @@ func (l *Logger) Flush(closing bool) {
 	l.events = make([]interface{}, 0)
 }
 
-func (l *Logger) sendEvents(events []interface{}) {
+func (l *logger) sendEvents(events []interface{}) {
 	input := &logEventInput{
 		Events:          events,
-		StatsigMetadata: l.net.GetStatsigMetadata(),
+		StatsigMetadata: l.transport.metadata,
 	}
 	var res logEventResponse
-	l.net.RetryablePostRequest("/log_event", input, &res, net.MaxRetries)
+	l.transport.retryablePostRequest("/log_event", input, &res, maxRetries)
 }
