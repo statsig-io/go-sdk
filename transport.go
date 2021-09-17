@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -32,7 +31,7 @@ func newTransport(secret string, api string, sdkType string, sdkVersion string) 
 	api = defaultString(api, DefaultEndpoint)
 	api = strings.TrimSuffix(api, "/")
 	sdkType = defaultString(sdkType, "go-sdk")
-	sdkVersion = defaultString(sdkVersion, "0.4.2")
+	sdkVersion = defaultString(sdkVersion, "v1.0.0-beta.1")
 
 	return &transport{
 		api:      api,
@@ -42,24 +41,24 @@ func newTransport(secret string, api string, sdkType string, sdkVersion string) 
 	}
 }
 
-func (n *transport) postRequest(
+func (transport *transport) postRequest(
 	endpoint string,
 	in interface{},
 	out interface{},
 ) error {
-	return n.postRequestInternal(endpoint, in, out, 0, 0)
+	return transport.postRequestInternal(endpoint, in, out, 0, 0)
 }
 
-func (n *transport) retryablePostRequest(
+func (transport *transport) retryablePostRequest(
 	endpoint string,
 	in interface{},
 	out interface{},
 	retries int,
 ) error {
-	return n.postRequestInternal(endpoint, in, out, retries, time.Second)
+	return transport.postRequestInternal(endpoint, in, out, retries, time.Second)
 }
 
-func (n *transport) postRequestInternal(
+func (transport *transport) postRequestInternal(
 	endpoint string,
 	in interface{},
 	out interface{},
@@ -72,16 +71,16 @@ func (n *transport) postRequestInternal(
 	}
 
 	return retry(retries, time.Duration(backoff), func() (bool, error) {
-		req, err := http.NewRequest("POST", path.Join(n.api, endpoint), bytes.NewBuffer(body))
+		req, err := http.NewRequest("POST", transport.api+endpoint, bytes.NewBuffer(body))
 		if err != nil {
 			return false, err
 		}
 
-		req.Header.Add("STATSIG-API-KEY", n.sdkKey)
+		req.Header.Add("STATSIG-API-KEY", transport.sdkKey)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
 
-		response, err := n.client.Do(req)
+		response, err := transport.client.Do(req)
 		if err != nil {
 			return true, err
 		}

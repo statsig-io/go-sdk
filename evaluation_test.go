@@ -1,7 +1,6 @@
 package statsig
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,6 +23,7 @@ var testAPIs = []string{
 	"https://us-east-2.api.statsig.com/v1",
 	"https://ap-south-1.api.statsig.com/v1",
 	"https://latest.api.statsig.com/v1",
+	"https://az-northeurope.api.statsig.com/v1",
 }
 
 func TestMain(m *testing.M) {
@@ -51,7 +51,6 @@ func test_helper(apiOverride string, t *testing.T) {
 	var d data
 	err := c.transport.postRequest("/rulesets_e2e_test", nil, &d)
 	if err != nil {
-		fmt.Println(err)
 		t.Errorf("Could not download test data")
 	}
 
