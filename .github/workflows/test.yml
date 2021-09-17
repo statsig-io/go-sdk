@@ -17,4 +17,3 @@ jobs:
       - run: go test -v
         env:
           test_api_key: ${{ secrets.SDK_CONSISTENCY_TEST_COMPANY_API_KEY }}
-      - run: go test */**.go -v

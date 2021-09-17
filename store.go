@@ -1,32 +1,30 @@
-package evaluation
+package statsig
 
 import (
 	"encoding/json"
 	"strconv"
 	"time"
-
-	"github.com/statsig-io/go-sdk/internal/net"
 )
 
-type ConfigSpec struct {
+type configSpec struct {
 	Name         string          `json:"name"`
 	Type         string          `json:"type"`
 	Salt         string          `json:"salt"`
 	Enabled      bool            `json:"enabled"`
-	Rules        []ConfigRule    `json:"rules"`
+	Rules        []configRule    `json:"rules"`
 	DefaultValue json.RawMessage `json:"defaultValue"`
 }
 
-type ConfigRule struct {
+type configRule struct {
 	Name           string            `json:"name"`
 	ID             string            `json:"id"`
 	Salt           string            `json:"salt"`
 	PassPercentage float64           `json:"passPercentage"`
-	Conditions     []ConfigCondition `json:"conditions"`
+	Conditions     []configCondition `json:"conditions"`
 	ReturnValue    json.RawMessage   `json:"returnValue"`
 }
 
-type ConfigCondition struct {
+type configCondition struct {
 	Type             string                 `json:"type"`
 	Operator         string                 `json:"operator"`
 	Field            string                 `json:"field"`
@@ -34,31 +32,31 @@ type ConfigCondition struct {
 	AdditionalValues map[string]interface{} `json:"additionalValues"`
 }
 
-type DownloadConfigSpecResponse struct {
+type downloadConfigSpecResponse struct {
 	HasUpdates     bool         `json:"has_updates"`
 	Time           int64        `json:"time"`
-	FeatureGates   []ConfigSpec `json:"feature_gates"`
-	DynamicConfigs []ConfigSpec `json:"dynamic_configs"`
+	FeatureGates   []configSpec `json:"feature_gates"`
+	DynamicConfigs []configSpec `json:"dynamic_configs"`
 }
 
-type DownloadConfigsInput struct {
-	SinceTime       string              `json:"sinceTime"`
-	StatsigMetadata net.StatsigMetadata `json:"statsigMetadata"`
+type downloadConfigsInput struct {
+	SinceTime       string          `json:"sinceTime"`
+	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
-type Store struct {
-	FeatureGates   map[string]ConfigSpec
-	DynamicConfigs map[string]ConfigSpec
+type store struct {
+	featureGates   map[string]configSpec
+	dynamicConfigs map[string]configSpec
 	lastSyncTime   int64
-	network        *net.Net
+	transport      *transport
 	ticker         *time.Ticker
 }
 
-func initStore(n *net.Net) *Store {
-	store := &Store{
-		FeatureGates:   make(map[string]ConfigSpec),
-		DynamicConfigs: make(map[string]ConfigSpec),
-		network:        n,
+func newStore(transport *transport) *store {
+	store := &store{
+		featureGates:   make(map[string]configSpec),
+		dynamicConfigs: make(map[string]configSpec),
+		transport:      transport,
 		ticker:         time.NewTicker(10 * time.Second),
 	}
 
@@ -68,39 +66,39 @@ func initStore(n *net.Net) *Store {
 	return store
 }
 
-func (s *Store) StopPolling() {
+func (s *store) StopPolling() {
 	s.ticker.Stop()
 }
 
-func (s *Store) update(specs DownloadConfigSpecResponse) {
+func (s *store) update(specs downloadConfigSpecResponse) {
 	if specs.HasUpdates {
-		newGates := make(map[string]ConfigSpec)
+		newGates := make(map[string]configSpec)
 		for _, gate := range specs.FeatureGates {
 			newGates[gate.Name] = gate
 		}
 
-		newConfigs := make(map[string]ConfigSpec)
+		newConfigs := make(map[string]configSpec)
 		for _, config := range specs.DynamicConfigs {
 			newConfigs[config.Name] = config
 		}
 
-		s.FeatureGates = newGates
-		s.DynamicConfigs = newConfigs
+		s.featureGates = newGates
+		s.dynamicConfigs = newConfigs
 	}
 }
 
-func (s *Store) fetchConfigSpecs() DownloadConfigSpecResponse {
-	input := &DownloadConfigsInput{
+func (s *store) fetchConfigSpecs() downloadConfigSpecResponse {
+	input := &downloadConfigsInput{
 		SinceTime:       strconv.FormatInt(s.lastSyncTime, 10),
-		StatsigMetadata: s.network.GetStatsigMetadata(),
+		StatsigMetadata: s.transport.metadata,
 	}
-	var specs DownloadConfigSpecResponse
-	s.network.PostRequest("/download_config_specs", input, &specs)
+	var specs downloadConfigSpecResponse
+	s.transport.postRequest("/download_config_specs", input, &specs)
 	s.lastSyncTime = specs.Time
 	return specs
 }
 
-func (s *Store) pollForChanges() {
+func (s *store) pollForChanges() {
 	for range s.ticker.C {
 		specs := s.fetchConfigSpecs()
 		s.update(specs)

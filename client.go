@@ -3,40 +3,34 @@ package statsig
 import (
 	"fmt"
 	"strings"
-
-	"github.com/statsig-io/go-sdk/internal/evaluation"
-	"github.com/statsig-io/go-sdk/internal/logging"
-	"github.com/statsig-io/go-sdk/internal/net"
-
-	"github.com/statsig-io/go-sdk/types"
 )
 
 // An instance of a StatsigClient for interfacing with Statsig Feature Gates, Dynamic Configs, Experiments, and Event Logging
 type Client struct {
 	sdkKey    string
-	evaluator *evaluation.Evaluator
-	logger    *logging.Logger
-	net       *net.Net
-	options   *types.StatsigOptions
+	evaluator *evaluator
+	logger    *logger
+	transport *transport
+	options   *Options
 }
 
 // Initializes a Statsig Client with the given sdkKey
-func New(sdkKey string) *Client {
-	return NewWithOptions(sdkKey, &types.StatsigOptions{API: "https://api.statsig.com/v1"})
+func NewClient(sdkKey string) *Client {
+	return NewClientWithOptions(sdkKey, &Options{API: DefaultEndpoint})
 }
 
 // Initializes a Statsig Client with the given sdkKey and options
-func NewWithOptions(sdkKey string, options *types.StatsigOptions) *Client {
-	return WrapperSDKInstance(sdkKey, options, "", "")
+func NewClientWithOptions(sdkKey string, options *Options) *Client {
+	return wrapperSDKInstance(sdkKey, options, "", "")
 }
 
-func WrapperSDKInstance(sdkKey string, options *types.StatsigOptions, sdkName string, sdkVersion string) *Client {
+func wrapperSDKInstance(sdkKey string, options *Options, sdkName string, sdkVersion string) *Client {
 	if len(options.API) == 0 {
 		options.API = "https://api.statsig.com/v1"
 	}
-	net := net.New(sdkKey, options.API, sdkName, sdkVersion)
-	logger := logging.New(net)
-	evaluator := evaluation.New(net)
+	transport := newTransport(sdkKey, options.API, sdkName, sdkVersion)
+	logger := newLogger(transport)
+	evaluator := newEvaluator(transport)
 	if !strings.HasPrefix(sdkKey, "secret") {
 		panic("Must provide a valid SDK key.")
 	}
@@ -44,13 +38,13 @@ func WrapperSDKInstance(sdkKey string, options *types.StatsigOptions, sdkName st
 		sdkKey:    sdkKey,
 		evaluator: evaluator,
 		logger:    logger,
-		net:       net,
+		transport: transport,
 		options:   options,
 	}
 }
 
 // Checks the value of a Feature Gate for the given user
-func (c *Client) CheckGate(user types.StatsigUser, gate string) bool {
+func (c *Client) CheckGate(user User, gate string) bool {
 	if user.UserID == "" {
 		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
 		return false
@@ -58,55 +52,55 @@ func (c *Client) CheckGate(user types.StatsigUser, gate string) bool {
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.CheckGate(user, gate)
 	if res.FetchFromServer {
-		serverRes := fetchGate(user, gate, c.net)
-		res = &evaluation.EvalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
+		serverRes := fetchGate(user, gate, c.transport)
+		res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
 	} else {
-		c.logger.LogGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures)
+		c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures)
 	}
 	return res.Pass
 }
 
 // Gets the DynamicConfig value for the given user
-func (c *Client) GetConfig(user types.StatsigUser, config string) types.DynamicConfig {
+func (c *Client) GetConfig(user User, config string) DynamicConfig {
 	if user.UserID == "" {
 		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
-		return *types.NewConfig(config, nil, "")
+		return *NewConfig(config, nil, "")
 	}
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.GetConfig(user, config)
 	if res.FetchFromServer {
-		serverRes := fetchConfig(user, config, c.net)
-		res = &evaluation.EvalResult{
-			ConfigValue: *types.NewConfig(config, serverRes.Value, serverRes.RuleID),
+		serverRes := fetchConfig(user, config, c.transport)
+		res = &evalResult{
+			ConfigValue: *NewConfig(config, serverRes.Value, serverRes.RuleID),
 			Id:          serverRes.RuleID}
 	} else {
-		c.logger.LogConfigExposure(user, config, res.Id, res.SecondaryExposures)
+		c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures)
 	}
 	return res.ConfigValue
 }
 
 // Gets the DynamicConfig value of an Experiment for the given user
-func (c *Client) GetExperiment(user types.StatsigUser, experiment string) types.DynamicConfig {
+func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 	if user.UserID == "" {
 		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
-		return *types.NewConfig(experiment, nil, "")
+		return *NewConfig(experiment, nil, "")
 	}
 	return c.GetConfig(user, experiment)
 }
 
 // Logs an event to Statsig for analysis in the Statsig Console
-func (c *Client) LogEvent(event types.StatsigEvent) {
+func (c *Client) LogEvent(event Event) {
 	event.User = normalizeUser(event.User, *c.options)
 	if event.EventName == "" {
 		return
 	}
-	c.logger.LogCustom(event)
+	c.logger.logCustom(event)
 }
 
 // Cleans up Statsig, persisting any Event Logs and cleanup processes
 // Using any method is undefined after Shutdown() has been called
 func (c *Client) Shutdown() {
-	c.logger.Flush(true)
+	c.logger.flush(true)
 	c.evaluator.Stop()
 }
 
@@ -123,25 +117,25 @@ type configResponse struct {
 }
 
 type checkGateInput struct {
-	GateName        string              `json:"gateName"`
-	User            types.StatsigUser   `json:"user"`
-	StatsigMetadata net.StatsigMetadata `json:"statsigMetadata"`
+	GateName        string          `json:"gateName"`
+	User            User            `json:"user"`
+	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
 type getConfigInput struct {
-	ConfigName      string              `json:"configName"`
-	User            types.StatsigUser   `json:"user"`
-	StatsigMetadata net.StatsigMetadata `json:"statsigMetadata"`
+	ConfigName      string          `json:"configName"`
+	User            User            `json:"user"`
+	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
-func fetchGate(user types.StatsigUser, gateName string, n *net.Net) gateResponse {
+func fetchGate(user User, gateName string, t *transport) gateResponse {
 	input := &checkGateInput{
 		GateName:        gateName,
 		User:            user,
-		StatsigMetadata: n.GetStatsigMetadata(),
+		StatsigMetadata: t.metadata,
 	}
 	var res gateResponse
-	err := n.PostRequest("/check_gate", input, &res)
+	err := t.postRequest("/check_gate", input, &res)
 	if err != nil {
 		return gateResponse{
 			Name:   gateName,
@@ -152,14 +146,14 @@ func fetchGate(user types.StatsigUser, gateName string, n *net.Net) gateResponse
 	return res
 }
 
-func fetchConfig(user types.StatsigUser, configName string, n *net.Net) configResponse {
+func fetchConfig(user User, configName string, t *transport) configResponse {
 	input := &getConfigInput{
 		ConfigName:      configName,
 		User:            user,
-		StatsigMetadata: n.GetStatsigMetadata(),
+		StatsigMetadata: t.metadata,
 	}
 	var res configResponse
-	err := n.PostRequest("/get_config", input, &res)
+	err := t.postRequest("/get_config", input, &res)
 	if err != nil {
 		return configResponse{
 			Name:   configName,
@@ -169,7 +163,7 @@ func fetchConfig(user types.StatsigUser, configName string, n *net.Net) configRe
 	return res
 }
 
-func normalizeUser(user types.StatsigUser, options types.StatsigOptions) types.StatsigUser {
+func normalizeUser(user User, options Options) User {
 	var env map[string]string
 	if len(options.Environment.Params) > 0 {
 		env = options.Environment.Params

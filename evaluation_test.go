@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/statsig-io/go-sdk/types"
 )
 
 type data struct {
@@ -13,9 +11,9 @@ type data struct {
 }
 
 type entry struct {
-	User    types.StatsigUser              `json:"user"`
-	Gates   map[string]bool                `json:"feature_gates"`
-	Configs map[string]types.DynamicConfig `json:"dynamic_configs"`
+	User    User                     `json:"user"`
+	Gates   map[string]bool          `json:"feature_gates"`
+	Configs map[string]DynamicConfig `json:"dynamic_configs"`
 }
 
 var secret string
@@ -49,9 +47,9 @@ func Test(t *testing.T) {
 
 func test_helper(apiOverride string, t *testing.T) {
 	t.Logf("Testing for " + apiOverride)
-	c := NewWithOptions(secret, &types.StatsigOptions{API: apiOverride})
+	c := NewClientWithOptions(secret, &Options{API: apiOverride})
 	var d data
-	err := c.net.PostRequest("/rulesets_e2e_test", nil, &d)
+	err := c.transport.postRequest("/rulesets_e2e_test", nil, &d)
 	if err != nil {
 		t.Errorf("Could not download test data")
 	}
