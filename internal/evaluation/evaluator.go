@@ -25,10 +25,11 @@ type Evaluator struct {
 }
 
 type EvalResult struct {
-	Pass            bool
-	ConfigValue     types.DynamicConfig
-	FetchFromServer bool
-	Id              string
+	Pass               bool
+	ConfigValue        types.DynamicConfig
+	FetchFromServer    bool
+	Id                 string
+	SecondaryExposures []map[string]string
 }
 
 const dynamicConfigType = "dynamic_config"
@@ -79,12 +80,14 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 		}
 	}
 
+	var exposures []map[string]string
 	if spec.Enabled {
 		for _, rule := range spec.Rules {
 			r := e.evalRule(user, rule)
 			if r.FetchFromServer {
 				return r
 			}
+			exposures = append(exposures, r.SecondaryExposures...)
 			if r.Pass {
 				pass := evalPassPercent(user, rule, spec)
 				if isDynamicConfig {
@@ -95,11 +98,12 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 						}
 					}
 					return &EvalResult{
-						Pass:        pass,
-						ConfigValue: *types.NewConfig(spec.Name, configValue, rule.ID),
-						Id:          rule.ID}
+						Pass:               pass,
+						ConfigValue:        *types.NewConfig(spec.Name, configValue, rule.ID),
+						Id:                 rule.ID,
+						SecondaryExposures: exposures}
 				} else {
-					return &EvalResult{Pass: pass, Id: rule.ID}
+					return &EvalResult{Pass: pass, Id: rule.ID, SecondaryExposures: exposures}
 				}
 			}
 		}
@@ -107,11 +111,12 @@ func (e *Evaluator) eval(user types.StatsigUser, spec ConfigSpec) *EvalResult {
 
 	if isDynamicConfig {
 		return &EvalResult{
-			Pass:        false,
-			ConfigValue: *types.NewConfig(spec.Name, configValue, "default"),
-			Id:          "default"}
+			Pass:               false,
+			ConfigValue:        *types.NewConfig(spec.Name, configValue, "default"),
+			Id:                 "default",
+			SecondaryExposures: exposures}
 	}
-	return &EvalResult{Pass: false, Id: "default"}
+	return &EvalResult{Pass: false, Id: "default", SecondaryExposures: exposures}
 }
 
 func evalPassPercent(user types.StatsigUser, rule ConfigRule, spec ConfigSpec) bool {
@@ -125,13 +130,20 @@ func evalPassPercent(user types.StatsigUser, rule ConfigRule, spec ConfigSpec) b
 }
 
 func (e *Evaluator) evalRule(user types.StatsigUser, rule ConfigRule) *EvalResult {
+	var exposures []map[string]string
+	var finalResult = &EvalResult{Pass: true, FetchFromServer: false}
 	for _, cond := range rule.Conditions {
 		res := e.evalCondition(user, cond)
-		if !res.Pass || res.FetchFromServer {
-			return res
+		if !res.Pass {
+			finalResult.Pass = false
 		}
+		if res.FetchFromServer {
+			finalResult.FetchFromServer = true
+		}
+		exposures = append(exposures, res.SecondaryExposures...)
 	}
-	return &EvalResult{Pass: true, FetchFromServer: false}
+	finalResult.SecondaryExposures = exposures
+	return finalResult
 }
 
 func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) *EvalResult {
@@ -148,10 +160,16 @@ func (e *Evaluator) evalCondition(user types.StatsigUser, cond ConfigCondition) 
 		if result.FetchFromServer {
 			return &EvalResult{FetchFromServer: true}
 		}
+		newExposure := map[string]string{
+			"gate":      dependentGateName,
+			"gateValue": strconv.FormatBool(result.Pass),
+			"ruleID":    result.Id,
+		}
+		allExposures := append(result.SecondaryExposures, newExposure)
 		if cond.Type == "pass_gate" {
-			return &EvalResult{Pass: result.Pass}
+			return &EvalResult{Pass: result.Pass, SecondaryExposures: allExposures}
 		} else {
-			return &EvalResult{Pass: !result.Pass}
+			return &EvalResult{Pass: !result.Pass, SecondaryExposures: allExposures}
 		}
 	case "ip_based":
 		value = getFromUser(user, cond.Field)
