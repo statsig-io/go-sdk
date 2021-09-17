@@ -50,7 +50,7 @@ func (l *logger) backgroundFlush() {
 	}
 }
 
-func (l *logger) LogCustom(evt Event) {
+func (l *logger) logCustom(evt Event) {
 	evt.User.PrivateAttributes = nil
 	l.logInternal(evt)
 }
@@ -67,7 +67,7 @@ func (l *logger) logInternal(evt interface{}) {
 	}
 }
 
-func (l *logger) LogGateExposure(
+func (l *logger) logGateExposure(
 	user User,
 	gateName string,
 	value bool,
@@ -87,7 +87,7 @@ func (l *logger) LogGateExposure(
 	l.logExposure(*evt)
 }
 
-func (l *logger) LogConfigExposure(
+func (l *logger) logConfigExposure(
 	user User,
 	configName string,
 	ruleID string,

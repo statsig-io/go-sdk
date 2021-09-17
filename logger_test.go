@@ -34,7 +34,7 @@ func TestLog(t *testing.T) {
 	customEventNoPrivate := Event{
 		EventName: "test_event",
 		User:      privateUser, Value: "3"}
-	logger.LogCustom(customEvent)
+	logger.logCustom(customEvent)
 
 	if !reflect.DeepEqual(logger.events[0], customEventNoPrivate) {
 		t.Errorf("Custom event not logged correctly.")
@@ -42,7 +42,7 @@ func TestLog(t *testing.T) {
 
 	// Test gate exposures
 	exposures := []map[string]string{{"gate": "another_gate", "gateValue": "true", "ruleID": "default"}}
-	logger.LogGateExposure(user, "test_gate", true, "rule_id", exposures)
+	logger.logGateExposure(user, "test_gate", true, "rule_id", exposures)
 	gateExposureEvent := exposureEvent{EventName: gateExposureEvent, User: privateUser, Metadata: map[string]string{
 		"gate":      "test_gate",
 		"gateValue": strconv.FormatBool(true),
@@ -55,7 +55,7 @@ func TestLog(t *testing.T) {
 
 	// Test config exposures
 	exposures = append(exposures, map[string]string{"gate": "yet_another_gate", "gateValue": "false", "ruleID": ""})
-	logger.LogConfigExposure(user, "test_config", "rule_id_config", exposures)
+	logger.logConfigExposure(user, "test_config", "rule_id_config", exposures)
 	configExposureEvent := exposureEvent{EventName: configExposureEvent, User: privateUser, Metadata: map[string]string{
 		"config": "test_config",
 		"ruleID": "rule_id_config",

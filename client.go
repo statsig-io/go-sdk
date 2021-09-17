@@ -55,7 +55,7 @@ func (c *Client) CheckGate(user User, gate string) bool {
 		serverRes := fetchGate(user, gate, c.transport)
 		res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
 	} else {
-		c.logger.LogGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures)
+		c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures)
 	}
 	return res.Pass
 }
@@ -74,7 +74,7 @@ func (c *Client) GetConfig(user User, config string) DynamicConfig {
 			ConfigValue: *NewConfig(config, serverRes.Value, serverRes.RuleID),
 			Id:          serverRes.RuleID}
 	} else {
-		c.logger.LogConfigExposure(user, config, res.Id, res.SecondaryExposures)
+		c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures)
 	}
 	return res.ConfigValue
 }
@@ -94,7 +94,7 @@ func (c *Client) LogEvent(event Event) {
 	if event.EventName == "" {
 		return
 	}
-	c.logger.LogCustom(event)
+	c.logger.logCustom(event)
 }
 
 // Cleans up Statsig, persisting any Event Logs and cleanup processes
