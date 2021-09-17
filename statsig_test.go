@@ -25,6 +25,7 @@ var testAPIs = []string{
 	"https://us-east-2.api.statsig.com/v1",
 	"https://ap-south-1.api.statsig.com/v1",
 	"https://latest.api.statsig.com/v1",
+	"https://az-northeurope.api.statsig.com/v1",
 }
 
 func TestMain(m *testing.M) {
