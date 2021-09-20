@@ -31,7 +31,7 @@ func newTransport(secret string, api string, sdkType string, sdkVersion string) 
 	api = defaultString(api, DefaultEndpoint)
 	api = strings.TrimSuffix(api, "/")
 	sdkType = defaultString(sdkType, "go-sdk")
-	sdkVersion = defaultString(sdkVersion, "v1.0.0-beta.1")
+	sdkVersion = defaultString(sdkVersion, "v1.0.0-beta.2")
 
 	return &transport{
 		api:      api,
