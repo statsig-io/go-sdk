@@ -70,33 +70,27 @@ func test_helper(apiOverride string, t *testing.T) {
 		t.Errorf("Could not download test data")
 	}
 
+	var totalChecks = 3 * (len(d.Entries[0].GatesV2) + len(d.Entries[0].Configs)) * len(d.Entries)
+	var checks = 0
 	for _, entry := range d.Entries {
 		u := entry.User
-		if len(entry.GatesV2) > 0 {
-			for gate, serverResult := range entry.GatesV2 {
-				sdkResult := c.evaluator.CheckGate(u, gate)
-				if sdkResult.Pass != serverResult.Value {
-					t.Errorf("Values are different for gate %s. SDK got %t but server is %t. User is %s",
-						gate, sdkResult.Pass, serverResult.Value, u)
-				}
-
-				if sdkResult.Id != serverResult.RuleID {
-					t.Errorf("Rule IDs are different for gate %s. SDK got %s but server is %s",
-						gate, sdkResult.Id, serverResult.RuleID)
-				}
-
-				if !compare_exposures(sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
-					t.Errorf("Secondary exposures are different for gate %s. SDK got %s but server is %s",
-						gate, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
-				}
+		for gate, serverResult := range entry.GatesV2 {
+			sdkResult := c.evaluator.CheckGate(u, gate)
+			if sdkResult.Pass != serverResult.Value {
+				t.Errorf("Values are different for gate %s. SDK got %t but server is %t. User is %s",
+					gate, sdkResult.Pass, serverResult.Value, u)
 			}
-		} else {
-			for gate, value := range entry.Gates {
-				sdkV := c.CheckGate(u, gate)
-				if sdkV != value {
-					t.Errorf("%s failed for user %s: expected %t, got %t", gate, u, value, sdkV)
-				}
+
+			if sdkResult.Id != serverResult.RuleID {
+				t.Errorf("Rule IDs are different for gate %s. SDK got %s but server is %s",
+					gate, sdkResult.Id, serverResult.RuleID)
 			}
+
+			if !compare_exposures(sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
+				t.Errorf("Secondary exposures are different for gate %s. SDK got %s but server is %s",
+					gate, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
+			}
+			checks += 3
 		}
 
 		for config, serverResult := range entry.Configs {
@@ -115,7 +109,11 @@ func test_helper(apiOverride string, t *testing.T) {
 				t.Errorf("Secondary exposures are different for config %s. SDK got %s but server is %s",
 					config, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
 			}
+			checks += 3
 		}
+	}
+	if totalChecks != checks {
+		t.Errorf("Expected to perform %d but only checked %d times for %s.", totalChecks, checks, apiOverride)
 	}
 }
 
