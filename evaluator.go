@@ -78,6 +78,7 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 	}
 
 	var exposures []map[string]string
+	defaultRuleID := "default"
 	if spec.Enabled {
 		for _, rule := range spec.Rules {
 			r := e.evalRule(user, rule)
@@ -89,10 +90,12 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 				pass := evalPassPercent(user, rule, spec)
 				if isDynamicConfig {
 					if pass {
-						err := json.Unmarshal(rule.ReturnValue, &configValue)
+						var ruleConfigValue map[string]interface{}
+						err := json.Unmarshal(rule.ReturnValue, &ruleConfigValue)
 						if err != nil {
-							configValue = make(map[string]interface{})
+							ruleConfigValue = make(map[string]interface{})
 						}
+						configValue = ruleConfigValue
 					}
 					return &evalResult{
 						Pass:               pass,
@@ -104,16 +107,18 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 				}
 			}
 		}
+	} else {
+		defaultRuleID = "disabled"
 	}
 
 	if isDynamicConfig {
 		return &evalResult{
 			Pass:               false,
-			ConfigValue:        *NewConfig(spec.Name, configValue, "default"),
-			Id:                 "default",
+			ConfigValue:        *NewConfig(spec.Name, configValue, defaultRuleID),
+			Id:                 defaultRuleID,
 			SecondaryExposures: exposures}
 	}
-	return &evalResult{Pass: false, Id: "default", SecondaryExposures: exposures}
+	return &evalResult{Pass: false, Id: defaultRuleID, SecondaryExposures: exposures}
 }
 
 func evalPassPercent(user User, rule configRule, spec configSpec) bool {
