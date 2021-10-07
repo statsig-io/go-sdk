@@ -21,14 +21,10 @@ func NewClient(sdkKey string) *Client {
 
 // Initializes a Statsig Client with the given sdkKey and options
 func NewClientWithOptions(sdkKey string, options *Options) *Client {
-	return wrapperSDKInstance(sdkKey, options, "", "")
-}
-
-func wrapperSDKInstance(sdkKey string, options *Options, sdkName string, sdkVersion string) *Client {
 	if len(options.API) == 0 {
 		options.API = "https://api.statsig.com/v1"
 	}
-	transport := newTransport(sdkKey, options.API, sdkName, sdkVersion)
+	transport := newTransport(sdkKey, options.API)
 	logger := newLogger(transport)
 	evaluator := newEvaluator(transport)
 	if !strings.HasPrefix(sdkKey, "secret") {

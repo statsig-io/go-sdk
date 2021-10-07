@@ -14,7 +14,7 @@ func TestLog(t *testing.T) {
 	}))
 	defer testServer.Close()
 
-	transport := newTransport("secret", testServer.URL, "", "")
+	transport := newTransport("secret", testServer.URL)
 	logger := newLogger(transport)
 
 	user := User{
