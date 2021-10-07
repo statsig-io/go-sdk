@@ -27,15 +27,13 @@ type transport struct {
 	client   *http.Client
 }
 
-func newTransport(secret string, api string, sdkType string, sdkVersion string) *transport {
+func newTransport(secret string, api string) *transport {
 	api = defaultString(api, DefaultEndpoint)
 	api = strings.TrimSuffix(api, "/")
-	sdkType = defaultString(sdkType, "go-sdk")
-	sdkVersion = defaultString(sdkVersion, "v1.0.0")
 
 	return &transport{
 		api:      api,
-		metadata: statsigMetadata{SDKType: sdkType, SDKVersion: sdkVersion},
+		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "v1.0.0"},
 		sdkKey:   secret,
 		client:   &http.Client{},
 	}

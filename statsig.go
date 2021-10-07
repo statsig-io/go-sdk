@@ -32,13 +32,8 @@ type Environment struct {
 
 // Initializes the global Statsig instance with the given sdkKey and options
 func InitializeWithOptions(sdkKey string, options *Options) {
-	WrapperSDK(sdkKey, options, "", "")
-}
-
-// Used for interop with SDKs in other languages only.
-func WrapperSDK(sdkKey string, options *Options, sdkName string, sdkVersion string) {
 	once.Do(func() {
-		instance = wrapperSDKInstance(sdkKey, options, sdkName, sdkVersion)
+		instance = NewClientWithOptions(sdkKey, options)
 	})
 }
 
