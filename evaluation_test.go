@@ -36,7 +36,7 @@ var secret string
 var testAPIs = []string{
 	"https://api.statsig.com/v1",
 	"https://us-west-2.api.statsig.com/v1",
-	"https://us-east-2.api.statsig.com/v1",
+	"https://az-eastus-2.api.statsig.com/v1",
 	"https://ap-south-1.api.statsig.com/v1",
 	"https://latest.api.statsig.com/v1",
 	"https://az-northeurope.api.statsig.com/v1",
