@@ -33,7 +33,7 @@ func newTransport(secret string, api string) *transport {
 
 	return &transport{
 		api:      api,
-		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "v1.0.0"},
+		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "v1.0.1"},
 		sdkKey:   secret,
 		client:   &http.Client{},
 	}
