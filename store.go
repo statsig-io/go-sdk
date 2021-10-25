@@ -2,7 +2,6 @@ package statsig
 
 import (
 	"encoding/json"
-	"strconv"
 	"time"
 )
 
@@ -40,7 +39,7 @@ type downloadConfigSpecResponse struct {
 }
 
 type downloadConfigsInput struct {
-	SinceTime       string          `json:"sinceTime"`
+	SinceTime       int64           `json:"sinceTime"`
 	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
@@ -89,7 +88,7 @@ func (s *store) update(specs downloadConfigSpecResponse) {
 
 func (s *store) fetchConfigSpecs() downloadConfigSpecResponse {
 	input := &downloadConfigsInput{
-		SinceTime:       strconv.FormatInt(s.lastSyncTime, 10),
+		SinceTime:       s.lastSyncTime,
 		StatsigMetadata: s.transport.metadata,
 	}
 	var specs downloadConfigSpecResponse
