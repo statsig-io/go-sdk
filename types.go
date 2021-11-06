@@ -16,6 +16,7 @@ type User struct {
 	Custom             map[string]interface{} `json:"custom"`
 	PrivateAttributes  map[string]interface{} `json:"privateAttributes"`
 	StatsigEnvironment map[string]string      `json:"statsigEnvironment"`
+	CustomIDs          map[string]string      `json:"customIDs"`
 }
 
 // an event to be sent to Statsig for logging and analysis
