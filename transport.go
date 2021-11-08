@@ -3,6 +3,7 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -25,10 +26,11 @@ type transport struct {
 	sdkKey   string
 	metadata statsigMetadata
 	client   *http.Client
+	options  *Options
 }
 
-func newTransport(secret string, api string) *transport {
-	api = defaultString(api, DefaultEndpoint)
+func newTransport(secret string, options *Options) *transport {
+	api := defaultString(options.API, DefaultEndpoint)
 	api = strings.TrimSuffix(api, "/")
 
 	return &transport{
@@ -36,6 +38,7 @@ func newTransport(secret string, api string) *transport {
 		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "v1.0.1"},
 		sdkKey:   secret,
 		client:   &http.Client{},
+		options:  options,
 	}
 }
 
@@ -63,6 +66,9 @@ func (transport *transport) postRequestInternal(
 	retries int,
 	backoff time.Duration,
 ) error {
+	if transport.options.LocalMode {
+		return errors.New("cannot access network in local mode")
+	}
 	body, err := json.Marshal(in)
 	if err != nil {
 		return err

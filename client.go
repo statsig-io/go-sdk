@@ -24,10 +24,10 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	if len(options.API) == 0 {
 		options.API = "https://api.statsig.com/v1"
 	}
-	transport := newTransport(sdkKey, options.API)
+	transport := newTransport(sdkKey, options)
 	logger := newLogger(transport)
 	evaluator := newEvaluator(transport)
-	if !strings.HasPrefix(sdkKey, "secret") {
+	if !options.LocalMode && !strings.HasPrefix(sdkKey, "secret") {
 		panic("Must provide a valid SDK key.")
 	}
 	return &Client{
