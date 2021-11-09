@@ -126,9 +126,22 @@ func evalPassPercent(user User, rule configRule, spec configSpec) bool {
 	if ruleSalt == "" {
 		ruleSalt = rule.ID
 	}
-	hash := getHash(spec.Salt + "." + ruleSalt + "." + user.UserID)
+	hash := getHash(spec.Salt + "." + ruleSalt + "." + getUnitID(user, rule.IDType))
 
 	return hash%10000 < (uint64(rule.PassPercentage) * 100)
+}
+
+func getUnitID(user User, idType string) string {
+	if idType != "" && strings.ToLower(idType) != "userid" {
+		if val, ok := user.CustomIDs[idType]; ok {
+			return val
+		}
+		if val, ok := user.CustomIDs[strings.ToLower(idType)]; ok {
+			return val
+		}
+		return ""
+	}
+	return user.UserID
 }
 
 func (e *evaluator) evalRule(user User, rule configRule) *evalResult {
@@ -191,8 +204,10 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		value = time.Now().Unix() // time in seconds
 	case "user_bucket":
 		if salt, ok := cond.AdditionalValues["salt"]; ok {
-			value = int64(getHash(fmt.Sprintf("%s.%s", salt, user.UserID)) % 1000)
+			value = int64(getHash(fmt.Sprintf("%s.%s", salt, getUnitID(user, cond.IDType))) % 1000)
 		}
+	case "unit_id":
+		value = getUnitID(user, cond.IDType)
 	default:
 		return &evalResult{FetchFromServer: true}
 	}

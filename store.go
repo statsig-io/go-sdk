@@ -12,6 +12,7 @@ type configSpec struct {
 	Enabled      bool            `json:"enabled"`
 	Rules        []configRule    `json:"rules"`
 	DefaultValue json.RawMessage `json:"defaultValue"`
+	IDType       string          `json:"idType"`
 }
 
 type configRule struct {
@@ -21,6 +22,7 @@ type configRule struct {
 	PassPercentage float64           `json:"passPercentage"`
 	Conditions     []configCondition `json:"conditions"`
 	ReturnValue    json.RawMessage   `json:"returnValue"`
+	IDType         string            `json:"idType"`
 }
 
 type configCondition struct {
@@ -29,6 +31,7 @@ type configCondition struct {
 	Field            string                 `json:"field"`
 	TargetValue      interface{}            `json:"targetValue"`
 	AdditionalValues map[string]interface{} `json:"additionalValues"`
+	IDType           string                 `json:"idType"`
 }
 
 type downloadConfigSpecResponse struct {
