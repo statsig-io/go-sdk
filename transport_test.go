@@ -2,7 +2,6 @@ package statsig
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,9 +14,7 @@ type ServerResponse struct {
 }
 
 func TestNonRetryable(t *testing.T) {
-	hit := false
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		hit = true
 		if req.Method != "POST" {
 			t.Errorf("Expected ‘POST’ request, got '%s'", req.Method)
 		}
@@ -35,17 +32,12 @@ func TestNonRetryable(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error for network request but got nil")
 	}
-	fmt.Printf("%t", hit)
 }
 
 func TestLocalMode(t *testing.T) {
 	hit := false
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		hit = true
-		if req.Method != "POST" {
-			t.Errorf("Expected ‘POST’ request, got '%s'", req.Method)
-		}
-
 		res.WriteHeader(http.StatusNotFound)
 	}))
 	defer testServer.Close()
