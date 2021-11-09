@@ -207,7 +207,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 			value = int64(getHash(fmt.Sprintf("%s.%s", salt, getUnitID(user, cond.IDType))) % 1000)
 		}
 	case "unit_id":
-		value = getUnitID(user, cond.Field)
+		value = getUnitID(user, cond.IDType)
 	default:
 		return &evalResult{FetchFromServer: true}
 	}
