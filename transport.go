@@ -3,7 +3,6 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -67,7 +66,7 @@ func (transport *transport) postRequestInternal(
 	backoff time.Duration,
 ) error {
 	if transport.options.LocalMode {
-		return errors.New("cannot access network in local mode")
+		return nil
 	}
 	body, err := json.Marshal(in)
 	if err != nil {

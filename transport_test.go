@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +15,9 @@ type ServerResponse struct {
 }
 
 func TestNonRetryable(t *testing.T) {
+	hit := false
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		hit = true
 		if req.Method != "POST" {
 			t.Errorf("Expected ‘POST’ request, got '%s'", req.Method)
 		}
@@ -32,10 +35,13 @@ func TestNonRetryable(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error for network request but got nil")
 	}
+	fmt.Printf("%t", hit)
 }
 
 func TestLocalMode(t *testing.T) {
+	hit := false
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		hit = true
 		if req.Method != "POST" {
 			t.Errorf("Expected ‘POST’ request, got '%s'", req.Method)
 		}
@@ -51,11 +57,11 @@ func TestLocalMode(t *testing.T) {
 	}
 	n := newTransport("secret-123", opt)
 	err := n.retryablePostRequest("/123", in, &out, 2)
-	if err == nil {
-		t.Errorf("Expected error for network request but got nil")
+	if err != nil {
+		t.Errorf("Expected no error for network request")
 	}
-	if err.Error() != "cannot access network in local mode" {
-		t.Errorf("Expected local mode not to access the network")
+	if hit {
+		t.Errorf("Expected transport class not to hit the server")
 	}
 }
 
