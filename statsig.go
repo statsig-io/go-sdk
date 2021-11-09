@@ -22,6 +22,7 @@ func Initialize(sdkKey string) {
 type Options struct {
 	API         string      `json:"api"`
 	Environment Environment `json:"environment"`
+	LocalMode   bool        `json:"localMode"`
 }
 
 // See https://docs.statsig.com/guides/usingEnvironments

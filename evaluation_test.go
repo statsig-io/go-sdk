@@ -113,6 +113,33 @@ func test_helper(apiOverride string, t *testing.T) {
 	}
 }
 
+func TestStatsigLocalMode(t *testing.T) {
+	user := &User{UserID: "test"}
+	local := &Options{
+		LocalMode: true,
+	}
+	local_c := NewClientWithOptions("", local)
+	network := &Options{}
+	net_c := NewClientWithOptions(secret, network)
+	local_gate := local_c.CheckGate(*user, "test_public")
+	if local_gate {
+		t.Errorf("Local mode should always return false for gate checks")
+	}
+	net_gate := net_c.CheckGate(*user, "test_public")
+	if !net_gate {
+		t.Errorf("Network mode should work")
+	}
+
+	local_config := local_c.GetConfig(*user, "test_custom_config")
+	net_config := net_c.GetConfig(*user, "test_custom_config")
+	if len(local_config.Value) != 0 {
+		t.Errorf("Local mode should always return false for gate checks")
+	}
+	if len(net_config.Value) == 0 {
+		t.Errorf("Network mode should fetch configs")
+	}
+}
+
 func compare_exposures(v1 []map[string]string, v2 []map[string]string) bool {
 	if v1 == nil {
 		v1 = []map[string]string{}

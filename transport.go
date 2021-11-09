@@ -25,17 +25,19 @@ type transport struct {
 	sdkKey   string
 	metadata statsigMetadata
 	client   *http.Client
+	options  *Options
 }
 
-func newTransport(secret string, api string) *transport {
-	api = defaultString(api, DefaultEndpoint)
+func newTransport(secret string, options *Options) *transport {
+	api := defaultString(options.API, DefaultEndpoint)
 	api = strings.TrimSuffix(api, "/")
 
 	return &transport{
 		api:      api,
-		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "v1.0.1"},
+		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.1.0"},
 		sdkKey:   secret,
 		client:   &http.Client{},
+		options:  options,
 	}
 }
 
@@ -63,6 +65,9 @@ func (transport *transport) postRequestInternal(
 	retries int,
 	backoff time.Duration,
 ) error {
+	if transport.options.LocalMode {
+		return nil
+	}
 	body, err := json.Marshal(in)
 	if err != nil {
 		return err

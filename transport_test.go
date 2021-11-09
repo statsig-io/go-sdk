@@ -24,10 +24,36 @@ func TestNonRetryable(t *testing.T) {
 	defer testServer.Close()
 	in := Empty{}
 	var out ServerResponse
-	n := newTransport("secret-123", testServer.URL)
+	opt := &Options{
+		API: testServer.URL,
+	}
+	n := newTransport("secret-123", opt)
 	err := n.retryablePostRequest("/123", in, &out, 2)
 	if err == nil {
 		t.Errorf("Expected error for network request but got nil")
+	}
+}
+
+func TestLocalMode(t *testing.T) {
+	hit := false
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		hit = true
+		res.WriteHeader(http.StatusNotFound)
+	}))
+	defer testServer.Close()
+	in := Empty{}
+	var out ServerResponse
+	opt := &Options{
+		API:       testServer.URL,
+		LocalMode: true,
+	}
+	n := newTransport("secret-123", opt)
+	err := n.retryablePostRequest("/123", in, &out, 2)
+	if err != nil {
+		t.Errorf("Expected no error for network request")
+	}
+	if hit {
+		t.Errorf("Expected transport class not to hit the server")
 	}
 }
 
@@ -50,7 +76,10 @@ func TestRetries(t *testing.T) {
 	defer func() { testServer.Close() }()
 	in := Empty{}
 	var out ServerResponse
-	n := newTransport("secret-123", testServer.URL)
+	opt := &Options{
+		API: testServer.URL,
+	}
+	n := newTransport("secret-123", opt)
 	err := n.retryablePostRequest("/123", in, out, 2)
 	if err != nil {
 		t.Errorf("Expected successful request but got error")

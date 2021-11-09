@@ -13,8 +13,10 @@ func TestLog(t *testing.T) {
 		return
 	}))
 	defer testServer.Close()
-
-	transport := newTransport("secret", testServer.URL)
+	opt := &Options{
+		API: testServer.URL,
+	}
+	transport := newTransport("secret", opt)
 	logger := newLogger(transport)
 
 	user := User{
