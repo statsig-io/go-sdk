@@ -49,10 +49,6 @@ func newEvaluator(transport *transport) *evaluator {
 	}
 }
 
-func (e *evaluator) Stop() {
-	e.store.StopPolling()
-}
-
 func (e *evaluator) CheckGate(user User, gateName string) *evalResult {
 	if gate, hasGate := e.store.featureGates[gateName]; hasGate {
 		return e.eval(user, gate)
@@ -163,7 +159,9 @@ func (e *evaluator) evalRule(user User, rule configRule) *evalResult {
 
 func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 	var value interface{}
-	switch cond.Type {
+	condType := strings.ToLower(cond.Type)
+	op := strings.ToLower(cond.Operator)
+	switch condType {
 	case "public":
 		return &evalResult{Pass: true}
 	case "fail_gate", "pass_gate":
@@ -181,7 +179,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 			"ruleID":    result.Id,
 		}
 		allExposures := append(result.SecondaryExposures, newExposure)
-		if cond.Type == "pass_gate" {
+		if condType == "pass_gate" {
 			return &evalResult{Pass: result.Pass, SecondaryExposures: allExposures}
 		} else {
 			return &evalResult{Pass: !result.Pass, SecondaryExposures: allExposures}
@@ -214,7 +212,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 
 	pass := false
 	server := false
-	switch cond.Operator {
+	switch op {
 	case "gt":
 		pass = compareNumbers(value, cond.TargetValue, func(x, y float64) bool { return x > y })
 	case "gte":
@@ -290,6 +288,16 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		y1, m1, d1 := getTime(value).Date()
 		y2, m2, d2 := getTime(cond.TargetValue).Date()
 		pass = (y1 == y2 && m1 == m2 && d1 == d2)
+	case "in_segment_list", "not_in_segment_list":
+		var inlist bool
+		if v, ok := e.store.idLists[cond.TargetValue.(string)]; ok {
+			inlist = v.ids[value.(string)]
+		}
+		if op == "in_segment" {
+			pass = inlist
+		} else {
+			pass = !inlist
+		}
 	default:
 		pass = false
 		server = true

@@ -97,7 +97,6 @@ func (c *Client) LogEvent(event Event) {
 // Using any method is undefined after Shutdown() has been called
 func (c *Client) Shutdown() {
 	c.logger.flush(true)
-	c.evaluator.Stop()
 }
 
 type gateResponse struct {
