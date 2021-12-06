@@ -66,21 +66,28 @@ type downloadIDListResponse struct {
 }
 
 type store struct {
-	featureGates   map[string]configSpec
-	dynamicConfigs map[string]configSpec
-	idLists        map[string]idList
-	lastSyncTime   int64
-	transport      *transport
+	featureGates       map[string]configSpec
+	dynamicConfigs     map[string]configSpec
+	idLists            map[string]*idList
+	lastSyncTime       int64
+	transport          *transport
+	configSyncInterval time.Duration
+	idListSyncInterval time.Duration
 }
 
 func newStore(transport *transport) *store {
-	store := &store{
-		featureGates:   make(map[string]configSpec),
-		dynamicConfigs: make(map[string]configSpec),
-		idLists:        make(map[string]idList),
-		transport:      transport,
-	}
+	return newStoreInternal(transport, 10*time.Second, time.Minute)
+}
 
+func newStoreInternal(transport *transport, configSyncInterval time.Duration, idListSyncInterval time.Duration) *store {
+	store := &store{
+		featureGates:       make(map[string]configSpec),
+		dynamicConfigs:     make(map[string]configSpec),
+		idLists:            make(map[string]*idList),
+		transport:          transport,
+		configSyncInterval: configSyncInterval,
+		idListSyncInterval: idListSyncInterval,
+	}
 	store.fetchConfigSpecs()
 	store.syncIDLists()
 	go store.pollForRulesetChanges()
@@ -112,7 +119,7 @@ func (s *store) fetchConfigSpecs() {
 
 		for list := range specs.IDLists {
 			if _, ok := s.idLists[list]; !ok {
-				s.idLists[list] = idList{ids: make(map[string]bool), time: 0}
+				s.idLists[list] = &idList{ids: make(map[string]bool), time: 0}
 			}
 		}
 		for list := range s.idLists {
@@ -127,34 +134,35 @@ func (s *store) syncIDLists() {
 	wg := sync.WaitGroup{}
 	for name, list := range s.idLists {
 		wg.Add(1)
-		go func(name string, list *idList) {
+		go func(name string, l *idList) {
+			defer wg.Done()
 			var res downloadIDListResponse
 			err := s.transport.postRequest(
 				"/download_id_list",
-				downloadIDListInput{ListName: name, SinceTime: list.time, StatsigMetadata: s.transport.metadata},
+				downloadIDListInput{ListName: name, SinceTime: l.time, StatsigMetadata: s.transport.metadata},
 				&res)
 			if err == nil {
 				for _, id := range res.AddIDs {
-					list.ids[id] = true
+					l.ids[id] = true
 				}
 				for _, id := range res.RemoveIDs {
-					delete(list.ids, id)
+					delete(l.ids, id)
 				}
-				list.time = res.Time
+				l.time = res.Time
 			}
-		}(name, &list)
+		}(name, list)
 	}
 	wg.Wait()
 }
 
 func (s *store) pollForIDListChanges() {
-	time.Sleep(time.Minute)
+	time.Sleep(s.idListSyncInterval)
 	s.syncIDLists()
 	s.pollForIDListChanges()
 }
 
 func (s *store) pollForRulesetChanges() {
-	time.Sleep(10 * time.Second)
+	time.Sleep(s.configSyncInterval)
 	s.fetchConfigSpecs()
 	s.pollForRulesetChanges()
 }
