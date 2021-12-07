@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"encoding/json"
+	"sync"
 	"time"
 )
 
@@ -35,10 +36,11 @@ type configCondition struct {
 }
 
 type downloadConfigSpecResponse struct {
-	HasUpdates     bool         `json:"has_updates"`
-	Time           int64        `json:"time"`
-	FeatureGates   []configSpec `json:"feature_gates"`
-	DynamicConfigs []configSpec `json:"dynamic_configs"`
+	HasUpdates     bool            `json:"has_updates"`
+	Time           int64           `json:"time"`
+	FeatureGates   []configSpec    `json:"feature_gates"`
+	DynamicConfigs []configSpec    `json:"dynamic_configs"`
+	IDLists        map[string]bool `json:"id_lists"`
 }
 
 type downloadConfigsInput struct {
@@ -46,33 +48,62 @@ type downloadConfigsInput struct {
 	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
+type idList struct {
+	ids  map[string]bool
+	time int64
+}
+
+type downloadIDListInput struct {
+	ListName        string          `json:"listName"`
+	SinceTime       int64           `json:"sinceTime"`
+	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
+}
+
+type downloadIDListResponse struct {
+	AddIDs    []string `json:"add_ids"`
+	RemoveIDs []string `json:"remove_ids"`
+	Time      int64    `json:"time"`
+}
+
 type store struct {
-	featureGates   map[string]configSpec
-	dynamicConfigs map[string]configSpec
-	lastSyncTime   int64
-	transport      *transport
-	ticker         *time.Ticker
+	featureGates       map[string]configSpec
+	dynamicConfigs     map[string]configSpec
+	idLists            map[string]*idList
+	lastSyncTime       int64
+	transport          *transport
+	configSyncInterval time.Duration
+	idListSyncInterval time.Duration
+	shutdown           bool
 }
 
 func newStore(transport *transport) *store {
-	store := &store{
-		featureGates:   make(map[string]configSpec),
-		dynamicConfigs: make(map[string]configSpec),
-		transport:      transport,
-		ticker:         time.NewTicker(10 * time.Second),
-	}
+	return newStoreInternal(transport, 10*time.Second, time.Minute)
+}
 
-	specs := store.fetchConfigSpecs()
-	store.update(specs)
-	go store.pollForChanges()
+func newStoreInternal(transport *transport, configSyncInterval time.Duration, idListSyncInterval time.Duration) *store {
+	store := &store{
+		featureGates:       make(map[string]configSpec),
+		dynamicConfigs:     make(map[string]configSpec),
+		idLists:            make(map[string]*idList),
+		transport:          transport,
+		configSyncInterval: configSyncInterval,
+		idListSyncInterval: idListSyncInterval,
+	}
+	store.fetchConfigSpecs()
+	store.syncIDLists()
+	go store.pollForRulesetChanges()
+	go store.pollForIDListChanges()
 	return store
 }
 
-func (s *store) StopPolling() {
-	s.ticker.Stop()
-}
-
-func (s *store) update(specs downloadConfigSpecResponse) {
+func (s *store) fetchConfigSpecs() {
+	input := &downloadConfigsInput{
+		SinceTime:       s.lastSyncTime,
+		StatsigMetadata: s.transport.metadata,
+	}
+	var specs downloadConfigSpecResponse
+	s.transport.postRequest("/download_config_specs", input, &specs)
+	s.lastSyncTime = specs.Time
 	if specs.HasUpdates {
 		newGates := make(map[string]configSpec)
 		for _, gate := range specs.FeatureGates {
@@ -86,23 +117,63 @@ func (s *store) update(specs downloadConfigSpecResponse) {
 
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs
+
+		for list := range specs.IDLists {
+			if _, ok := s.idLists[list]; !ok {
+				s.idLists[list] = &idList{ids: make(map[string]bool), time: 0}
+			}
+		}
+		for list := range s.idLists {
+			if _, ok := specs.IDLists[list]; !ok {
+				delete(s.idLists, list)
+			}
+		}
 	}
 }
 
-func (s *store) fetchConfigSpecs() downloadConfigSpecResponse {
-	input := &downloadConfigsInput{
-		SinceTime:       s.lastSyncTime,
-		StatsigMetadata: s.transport.metadata,
+func (s *store) syncIDLists() {
+	wg := sync.WaitGroup{}
+	for name, list := range s.idLists {
+		wg.Add(1)
+		go func(name string, l *idList) {
+			defer wg.Done()
+			var res downloadIDListResponse
+			err := s.transport.postRequest(
+				"/download_id_list",
+				downloadIDListInput{ListName: name, SinceTime: l.time, StatsigMetadata: s.transport.metadata},
+				&res)
+			if err == nil {
+				for _, id := range res.AddIDs {
+					l.ids[id] = true
+				}
+				for _, id := range res.RemoveIDs {
+					delete(l.ids, id)
+				}
+				l.time = res.Time
+			}
+		}(name, list)
 	}
-	var specs downloadConfigSpecResponse
-	s.transport.postRequest("/download_config_specs", input, &specs)
-	s.lastSyncTime = specs.Time
-	return specs
+	wg.Wait()
 }
 
-func (s *store) pollForChanges() {
-	for range s.ticker.C {
-		specs := s.fetchConfigSpecs()
-		s.update(specs)
+func (s *store) pollForIDListChanges() {
+	time.Sleep(s.idListSyncInterval)
+	if s.shutdown {
+		return
 	}
+	s.syncIDLists()
+	s.pollForIDListChanges()
+}
+
+func (s *store) pollForRulesetChanges() {
+	time.Sleep(s.configSyncInterval)
+	if s.shutdown {
+		return
+	}
+	s.fetchConfigSpecs()
+	s.pollForRulesetChanges()
+}
+
+func (s *store) stopPolling() {
+	s.shutdown = true
 }

@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -49,18 +50,18 @@ func newEvaluator(transport *transport) *evaluator {
 	}
 }
 
-func (e *evaluator) Stop() {
-	e.store.StopPolling()
+func (e *evaluator) shutdown() {
+	e.store.stopPolling()
 }
 
-func (e *evaluator) CheckGate(user User, gateName string) *evalResult {
+func (e *evaluator) checkGate(user User, gateName string) *evalResult {
 	if gate, hasGate := e.store.featureGates[gateName]; hasGate {
 		return e.eval(user, gate)
 	}
 	return new(evalResult)
 }
 
-func (e *evaluator) GetConfig(user User, configName string) *evalResult {
+func (e *evaluator) getConfig(user User, configName string) *evalResult {
 	if config, hasConfig := e.store.dynamicConfigs[configName]; hasConfig {
 		return e.eval(user, config)
 	}
@@ -163,7 +164,9 @@ func (e *evaluator) evalRule(user User, rule configRule) *evalResult {
 
 func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 	var value interface{}
-	switch cond.Type {
+	condType := strings.ToLower(cond.Type)
+	op := strings.ToLower(cond.Operator)
+	switch condType {
 	case "public":
 		return &evalResult{Pass: true}
 	case "fail_gate", "pass_gate":
@@ -171,7 +174,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		if !ok {
 			return &evalResult{Pass: false}
 		}
-		result := e.CheckGate(user, dependentGateName)
+		result := e.checkGate(user, dependentGateName)
 		if result.FetchFromServer {
 			return &evalResult{FetchFromServer: true}
 		}
@@ -181,7 +184,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 			"ruleID":    result.Id,
 		}
 		allExposures := append(result.SecondaryExposures, newExposure)
-		if cond.Type == "pass_gate" {
+		if condType == "pass_gate" {
 			return &evalResult{Pass: result.Pass, SecondaryExposures: allExposures}
 		} else {
 			return &evalResult{Pass: !result.Pass, SecondaryExposures: allExposures}
@@ -214,7 +217,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 
 	pass := false
 	server := false
-	switch cond.Operator {
+	switch op {
 	case "gt":
 		pass = compareNumbers(value, cond.TargetValue, func(x, y float64) bool { return x > y })
 	case "gte":
@@ -290,6 +293,17 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		y1, m1, d1 := getTime(value).Date()
 		y2, m2, d2 := getTime(cond.TargetValue).Date()
 		pass = (y1 == y2 && m1 == m2 && d1 == d2)
+	case "in_segment_list", "not_in_segment_list":
+		var inlist bool
+		if v, ok := e.store.idLists[cond.TargetValue.(string)]; ok {
+			h := sha256.Sum256([]byte(value.(string)))
+			inlist = v.ids[base64.StdEncoding.EncodeToString(h[:])[:8]]
+		}
+		if op == "in_segment_list" {
+			pass = inlist
+		} else {
+			pass = !inlist
+		}
 	default:
 		pass = false
 		server = true

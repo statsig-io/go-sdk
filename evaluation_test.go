@@ -71,7 +71,7 @@ func test_helper(apiOverride string, t *testing.T) {
 	for _, entry := range d.Entries {
 		u := entry.User
 		for gate, serverResult := range entry.GatesV2 {
-			sdkResult := c.evaluator.CheckGate(u, gate)
+			sdkResult := c.evaluator.checkGate(u, gate)
 			if sdkResult.Pass != serverResult.Value {
 				t.Errorf("Values are different for gate %s. SDK got %t but server is %t. User is %s",
 					gate, sdkResult.Pass, serverResult.Value, u)
@@ -90,7 +90,7 @@ func test_helper(apiOverride string, t *testing.T) {
 		}
 
 		for config, serverResult := range entry.Configs {
-			sdkResult := c.evaluator.GetConfig(u, config)
+			sdkResult := c.evaluator.getConfig(u, config)
 			if !reflect.DeepEqual(sdkResult.ConfigValue.Value, serverResult.Value) {
 				t.Errorf("Values are different for config %s. SDK got %s but server is %s. User is %s",
 					config, sdkResult.ConfigValue.Value, serverResult.Value, u)
