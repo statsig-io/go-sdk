@@ -50,14 +50,18 @@ func newEvaluator(transport *transport) *evaluator {
 	}
 }
 
-func (e *evaluator) CheckGate(user User, gateName string) *evalResult {
+func (e *evaluator) shutdown() {
+	e.store.stopPolling()
+}
+
+func (e *evaluator) checkGate(user User, gateName string) *evalResult {
 	if gate, hasGate := e.store.featureGates[gateName]; hasGate {
 		return e.eval(user, gate)
 	}
 	return new(evalResult)
 }
 
-func (e *evaluator) GetConfig(user User, configName string) *evalResult {
+func (e *evaluator) getConfig(user User, configName string) *evalResult {
 	if config, hasConfig := e.store.dynamicConfigs[configName]; hasConfig {
 		return e.eval(user, config)
 	}
@@ -170,7 +174,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		if !ok {
 			return &evalResult{Pass: false}
 		}
-		result := e.CheckGate(user, dependentGateName)
+		result := e.checkGate(user, dependentGateName)
 		if result.FetchFromServer {
 			return &evalResult{FetchFromServer: true}
 		}

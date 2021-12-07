@@ -46,7 +46,7 @@ func (c *Client) CheckGate(user User, gate string) bool {
 		return false
 	}
 	user = normalizeUser(user, *c.options)
-	res := c.evaluator.CheckGate(user, gate)
+	res := c.evaluator.checkGate(user, gate)
 	if res.FetchFromServer {
 		serverRes := fetchGate(user, gate, c.transport)
 		res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
@@ -63,7 +63,7 @@ func (c *Client) GetConfig(user User, config string) DynamicConfig {
 		return *NewConfig(config, nil, "")
 	}
 	user = normalizeUser(user, *c.options)
-	res := c.evaluator.GetConfig(user, config)
+	res := c.evaluator.getConfig(user, config)
 	if res.FetchFromServer {
 		serverRes := fetchConfig(user, config, c.transport)
 		res = &evalResult{
@@ -97,6 +97,7 @@ func (c *Client) LogEvent(event Event) {
 // Using any method is undefined after Shutdown() has been called
 func (c *Client) Shutdown() {
 	c.logger.flush(true)
+	c.evaluator.shutdown()
 }
 
 type gateResponse struct {

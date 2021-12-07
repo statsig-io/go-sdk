@@ -110,3 +110,47 @@ func TestStoreSync(t *testing.T) {
 		t.Errorf("list_2 incorrect after 3.2 sec")
 	}
 }
+
+func TestNoIDListStoreSync(t *testing.T) {
+	configSyncCount := 0
+	idListSyncCount := 0
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		if strings.Contains(req.URL.Path, "download_config_specs") {
+			configSyncCount++
+			var in *downloadConfigsInput
+			json.NewDecoder(req.Body).Decode(&in)
+			r := &downloadConfigSpecResponse{
+				HasUpdates:     true,
+				Time:           time.Now().Unix(),
+				FeatureGates:   []configSpec{{Name: "gate_1"}},
+				DynamicConfigs: []configSpec{{Name: "exp_1"}},
+				IDLists:        map[string]bool{},
+			}
+			v, _ := json.Marshal(r)
+			res.Write(v)
+		} else if strings.Contains(req.URL.Path, "download_id_list") {
+			idListSyncCount++
+			r := &downloadIDListResponse{
+				AddIDs:    []string{"1", "2", "3"},
+				RemoveIDs: []string{},
+				Time:      time.Now().Unix(),
+			}
+			v, _ := json.Marshal(r)
+			res.Write(v)
+		}
+	}))
+	defer testServer.Close()
+	opt := &Options{
+		API: testServer.URL,
+	}
+	n := newTransport("secret-123", opt)
+	newStoreInternal(n, time.Second, time.Second)
+	time.Sleep(time.Second * 3)
+	if configSyncCount != 3 {
+		t.Errorf("rulesets were sync'ed for wrong number of times")
+	}
+	if idListSyncCount != 0 {
+		t.Errorf("id list was sync'ed when there is not a list")
+	}
+}
