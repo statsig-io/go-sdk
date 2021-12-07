@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -291,9 +292,10 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 	case "in_segment_list", "not_in_segment_list":
 		var inlist bool
 		if v, ok := e.store.idLists[cond.TargetValue.(string)]; ok {
-			inlist = v.ids[value.(string)]
+			h := sha256.Sum256([]byte(value.(string)))
+			inlist = v.ids[base64.StdEncoding.EncodeToString(h[:])[:8]]
 		}
-		if op == "in_segment" {
+		if op == "in_segment_list" {
 			pass = inlist
 		} else {
 			pass = !inlist

@@ -61,7 +61,6 @@ func TestStoreSync(t *testing.T) {
 	n := newTransport("secret-123", opt)
 	s := newStoreInternal(n, time.Second, time.Second)
 
-	time.Sleep(time.Second)
 	if len(s.featureGates) != 1 {
 		t.Errorf("Wrong number of feature gates after 1 sec")
 	}
@@ -75,7 +74,7 @@ func TestStoreSync(t *testing.T) {
 	firstList := map[string]bool{"1": true, "2": true, "3": true}
 	secondList := map[string]bool{"3": true, "4": true, "5": true}
 
-	// after 1 sec, list_1 should have 1,2,3 and list_2 should not exist yet
+	// initially, list_1 should have 1,2,3 and list_2 should not exist yet
 	if !reflect.DeepEqual(s.idLists["list_1"].ids, firstList) {
 		t.Errorf("list_1 incorrect after 1 sec")
 	}
@@ -84,30 +83,30 @@ func TestStoreSync(t *testing.T) {
 		t.Errorf("list_2 should not exist after 1 sec")
 	}
 
-	time.Sleep(time.Second)
-	// after 2 sec, list_1 should have 3,4,5 and list_2 should be empty
+	time.Sleep(time.Second + time.Millisecond*200)
+	// after 1.2 sec, list_1 should have 3,4,5 and list_2 should be empty
 	if !reflect.DeepEqual(s.idLists["list_1"].ids, secondList) {
-		t.Errorf("list_1 incorrect after 2 sec")
+		t.Errorf("list_1 incorrect after 1.2 sec")
 	}
 	if len(s.idLists["list_2"].ids) != 0 || s.idLists["list_2"].time != int64(0) {
-		t.Errorf("list_2 incorrect after 2 sec")
+		t.Errorf("list_2 incorrect after 1.2 sec")
 	}
 
 	time.Sleep(time.Second)
-	// after 3 sec, list_1 should have 3,4,5 and list_2 should have 1,2,3
+	// after 2.2 sec, list_1 should have 3,4,5 and list_2 should have 1,2,3
 	if !reflect.DeepEqual(s.idLists["list_1"].ids, secondList) {
-		t.Errorf("list_1 incorrect after 3 sec")
+		t.Errorf("list_1 incorrect after 2.2 sec")
 	}
 	if !reflect.DeepEqual(s.idLists["list_2"].ids, firstList) {
-		t.Errorf("list_2 incorrect after 3 sec")
+		t.Errorf("list_2 incorrect after 2.2 sec")
 	}
 
 	time.Sleep(time.Second)
-	// after 4 sec, both lists should be updated to 3,4,5
+	// after 3.2 sec, both lists should be updated to 3,4,5
 	if !reflect.DeepEqual(s.idLists["list_1"].ids, secondList) {
-		t.Errorf("list_1 incorrect after 4 sec")
+		t.Errorf("list_1 incorrect after 3.2 sec")
 	}
 	if !reflect.DeepEqual(s.idLists["list_2"].ids, secondList) {
-		t.Errorf("list_2 incorrect after 4 sec")
+		t.Errorf("list_2 incorrect after 3.2 sec")
 	}
 }
