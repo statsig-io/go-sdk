@@ -3,6 +3,7 @@ package statsig
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
 )
 
@@ -68,6 +69,14 @@ func LogEvent(event Event) {
 		panic(fmt.Errorf("must Initialize() statsig before calling LogEvent"))
 	}
 	instance.LogEvent(event)
+}
+
+// Logs a slice of events to Statsig server immediately
+func LogImmediate(events []Event) (*http.Response, error) {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling LogImmediate"))
+	}
+	return instance.LogImmediate(events)
 }
 
 // Cleans up Statsig, persisting any Event Logs and cleanup processes

@@ -1,7 +1,9 @@
 package statsig
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -91,6 +93,24 @@ func (c *Client) LogEvent(event Event) {
 		return
 	}
 	c.logger.logCustom(event)
+}
+
+func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
+	events_processed := make([]interface{}, len(events))
+	for _, event := range events {
+		event.User = normalizeUser(event.User, *c.options)
+		events_processed = append(events_processed, event)
+	}
+	input := &logEventInput{
+		Events:          events_processed,
+		StatsigMetadata: c.transport.metadata,
+	}
+	body, err := json.Marshal(input)
+
+	if err != nil {
+		return nil, err
+	}
+	return c.transport.doRequest("/log_event", body)
 }
 
 // Cleans up Statsig, persisting any Event Logs and cleanup processes
