@@ -34,7 +34,7 @@ func newTransport(secret string, options *Options) *transport {
 
 	return &transport{
 		api:      api,
-		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.1.0"},
+		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.2.0"},
 		sdkKey:   secret,
 		client:   &http.Client{},
 		options:  options,
@@ -74,18 +74,9 @@ func (transport *transport) postRequestInternal(
 	}
 
 	return retry(retries, time.Duration(backoff), func() (bool, error) {
-		req, err := http.NewRequest("POST", transport.api+endpoint, bytes.NewBuffer(body))
+		response, err := transport.doRequest(endpoint, body)
 		if err != nil {
-			return false, err
-		}
-
-		req.Header.Add("STATSIG-API-KEY", transport.sdkKey)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
-
-		response, err := transport.client.Do(req)
-		if err != nil {
-			return true, err
+			return response != nil, err
 		}
 		defer response.Body.Close()
 
@@ -95,6 +86,19 @@ func (transport *transport) postRequestInternal(
 
 		return shouldRetry(response.StatusCode), fmt.Errorf("http response error code: %d", response.StatusCode)
 	})
+}
+
+func (transport *transport) doRequest(endpoint string, body []byte) (*http.Response, error) {
+	req, err := http.NewRequest("POST", transport.api+endpoint, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("STATSIG-API-KEY", transport.sdkKey)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
+
+	return transport.client.Do(req)
 }
 
 func retry(retries int, backoff time.Duration, fn func() (bool, error)) error {
