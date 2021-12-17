@@ -96,7 +96,10 @@ func (c *Client) LogEvent(event Event) {
 }
 
 func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
-	events_processed := make([]interface{}, len(events))
+	if len(events) > 500 {
+		return nil, fmt.Errorf("The max number of events supported in one batch is 500. Please reduce the slice size and try again.")
+	}
+	events_processed := make([]interface{}, 0)
 	for _, event := range events {
 		event.User = normalizeUser(event.User, *c.options)
 		events_processed = append(events_processed, event)
