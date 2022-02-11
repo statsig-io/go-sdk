@@ -34,7 +34,7 @@ type configTestData struct {
 
 var secret string
 var testAPIs = []string{
-	"http://localhost:3006/v1",
+	"https://api.statsig.com/v1",
 	"https://latest.api.statsig.com/v1",
 }
 
