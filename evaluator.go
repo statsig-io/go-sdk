@@ -279,10 +279,19 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		pass = matched
 
 	// strict equality
-	case "eq":
-		pass = reflect.DeepEqual(value, cond.TargetValue)
-	case "neq":
-		pass = !reflect.DeepEqual(value, cond.TargetValue)
+	case "eq", "neq":
+		equal := false
+		// because certain user values are of string type, which cannot be nil, we should check for both nil and empty string
+		if cond.TargetValue == nil {
+			equal = value == nil || value == ""
+		} else {
+			equal = reflect.DeepEqual(value, cond.TargetValue)
+		}
+		if op == "eq" {
+			pass = equal
+		} else {
+			pass = !equal
+		}
 
 	// time
 	case "before":
