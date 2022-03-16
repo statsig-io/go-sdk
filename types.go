@@ -25,6 +25,7 @@ type Event struct {
 	User      User              `json:"user"`
 	Value     string            `json:"value"`
 	Metadata  map[string]string `json:"metadata"`
+	Time      int64             `json:"time"`
 }
 
 // A json blob configured in the Statsig Console
