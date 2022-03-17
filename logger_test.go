@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 )
 
 func TestLog(t *testing.T) {
@@ -29,41 +30,68 @@ func TestLog(t *testing.T) {
 		Email:  "123@gmail.com",
 	}
 
+	nowSecond := time.Now().Unix()
 	// Test custom logs
 	customEvent := Event{
 		EventName: "test_event",
 		User:      user, Value: "3"}
+	logger.logCustom(customEvent)
+	evt1, ok := logger.events[0].(Event)
+	if !ok {
+		t.Errorf("Custom event type incorrect.")
+	}
+
 	customEventNoPrivate := Event{
 		EventName: "test_event",
-		User:      privateUser, Value: "3"}
-	logger.logCustom(customEvent)
+		User:      privateUser, Value: "3",
+		Time: evt1.Time,
+	}
 
-	if !reflect.DeepEqual(logger.events[0], customEventNoPrivate) {
+	if !reflect.DeepEqual(evt1, customEventNoPrivate) {
 		t.Errorf("Custom event not logged correctly.")
+	}
+	if evt1.Time/1000 < nowSecond-2 || evt1.Time/1000 > nowSecond+2 {
+		t.Errorf("Custom event time not set correctly.")
 	}
 
 	// Test gate exposures
 	exposures := []map[string]string{{"gate": "another_gate", "gateValue": "true", "ruleID": "default"}}
 	logger.logGateExposure(user, "test_gate", true, "rule_id", exposures)
+	evt2, ok := logger.events[1].(exposureEvent)
+	if !ok {
+		t.Errorf("Gate exposure event type incorrect.")
+	}
+
 	gateExposureEvent := exposureEvent{EventName: gateExposureEvent, User: privateUser, Metadata: map[string]string{
 		"gate":      "test_gate",
 		"gateValue": strconv.FormatBool(true),
 		"ruleID":    "rule_id",
-	}, SecondaryExposures: exposures}
+	}, SecondaryExposures: exposures, Time: evt2.Time}
 
-	if !reflect.DeepEqual(logger.events[1], gateExposureEvent) {
+	if !reflect.DeepEqual(evt2, gateExposureEvent) {
 		t.Errorf("Gate exposure not logged correctly.")
+	}
+	if evt2.Time/1000 < nowSecond-2 || evt2.Time/1000 > nowSecond+2 {
+		t.Errorf("Gate exposure event time not set correctly.")
 	}
 
 	// Test config exposures
 	exposures = append(exposures, map[string]string{"gate": "yet_another_gate", "gateValue": "false", "ruleID": ""})
 	logger.logConfigExposure(user, "test_config", "rule_id_config", exposures)
+	evt3, ok := logger.events[2].(exposureEvent)
+	if !ok {
+		t.Errorf("Config exposure event type incorrect.")
+	}
+
 	configExposureEvent := exposureEvent{EventName: configExposureEvent, User: privateUser, Metadata: map[string]string{
 		"config": "test_config",
 		"ruleID": "rule_id_config",
-	}, SecondaryExposures: exposures}
+	}, SecondaryExposures: exposures, Time: evt3.Time}
 
-	if !reflect.DeepEqual(logger.events[2], configExposureEvent) {
+	if !reflect.DeepEqual(evt3, configExposureEvent) {
 		t.Errorf("Config exposure not logged correctly.")
+	}
+	if evt3.Time/1000 < nowSecond-2 || evt3.Time/1000 > nowSecond+2 {
+		t.Errorf("Config exposure event time not set correctly.")
 	}
 }

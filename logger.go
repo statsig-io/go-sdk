@@ -17,6 +17,7 @@ type exposureEvent struct {
 	Value              string              `json:"value"`
 	Metadata           map[string]string   `json:"metadata"`
 	SecondaryExposures []map[string]string `json:"secondaryExposures"`
+	Time               int64               `json:"time"`
 }
 
 type logEventInput struct {
@@ -52,11 +53,17 @@ func (l *logger) backgroundFlush() {
 
 func (l *logger) logCustom(evt Event) {
 	evt.User.PrivateAttributes = nil
+	if evt.Time == 0 {
+		evt.Time = time.Now().Unix() * 1000
+	}
 	l.logInternal(evt)
 }
 
 func (l *logger) logExposure(evt exposureEvent) {
 	evt.User.PrivateAttributes = nil
+	if evt.Time == 0 {
+		evt.Time = time.Now().Unix() * 1000
+	}
 	l.logInternal(evt)
 }
 
