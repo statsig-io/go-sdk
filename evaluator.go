@@ -303,10 +303,11 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		y2, m2, d2 := getTime(cond.TargetValue).Date()
 		pass = (y1 == y2 && m1 == m2 && d1 == d2)
 	case "in_segment_list", "not_in_segment_list":
-		var inlist bool
-		if v, ok := e.store.idLists[cond.TargetValue.(string)]; ok {
+		inlist := false
+		list := e.store.getIDList(cond.TargetValue.(string))
+		if list != nil {
 			h := sha256.Sum256([]byte(value.(string)))
-			inlist = v.ids[base64.StdEncoding.EncodeToString(h[:])[:8]]
+			_, inlist = list.ids.Load(base64.StdEncoding.EncodeToString(h[:])[:8])
 		}
 		if op == "in_segment_list" {
 			pass = inlist

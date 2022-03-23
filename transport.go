@@ -101,6 +101,19 @@ func (transport *transport) doRequest(endpoint string, body []byte) (*http.Respo
 	return transport.client.Do(req)
 }
 
+func (transport *transport) get(url string, headers map[string]string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	return transport.client.Do(req)
+}
+
 func retry(retries int, backoff time.Duration, fn func() (bool, error)) error {
 	for {
 		if retry, err := fn(); retry {

@@ -2,6 +2,10 @@ package statsig
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -49,26 +53,23 @@ type downloadConfigsInput struct {
 }
 
 type idList struct {
-	ids  map[string]bool
-	time int64
+	Name         string `json:"name"`
+	Size         int64  `json:"size"`
+	CreationTime int64  `json:"creationTime"`
+	URL          string `json:"url"`
+	FileID       string `json:"fileID"`
+	ids          sync.Map
 }
 
-type downloadIDListInput struct {
-	ListName        string          `json:"listName"`
-	SinceTime       int64           `json:"sinceTime"`
+type getIDListsInput struct {
 	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
-}
-
-type downloadIDListResponse struct {
-	AddIDs    []string `json:"add_ids"`
-	RemoveIDs []string `json:"remove_ids"`
-	Time      int64    `json:"time"`
 }
 
 type store struct {
 	featureGates       map[string]configSpec
 	dynamicConfigs     map[string]configSpec
 	idLists            map[string]*idList
+	idListsLock        sync.RWMutex
 	lastSyncTime       int64
 	transport          *transport
 	configSyncInterval time.Duration
@@ -117,43 +118,108 @@ func (s *store) fetchConfigSpecs() {
 
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs
-
-		for list := range specs.IDLists {
-			if _, ok := s.idLists[list]; !ok {
-				s.idLists[list] = &idList{ids: make(map[string]bool), time: 0}
-			}
-		}
-		for list := range s.idLists {
-			if _, ok := specs.IDLists[list]; !ok {
-				delete(s.idLists, list)
-			}
-		}
 	}
 }
 
+func (s *store) getIDList(name string) *idList {
+	s.idListsLock.RLock()
+	list, ok := s.idLists[name]
+	s.idListsLock.RUnlock()
+	if ok {
+		return list
+	}
+	return nil
+}
+
+func (s *store) deleteIDList(name string) {
+	s.idListsLock.Lock()
+	delete(s.idLists, name)
+	s.idListsLock.Unlock()
+}
+
 func (s *store) syncIDLists() {
+	var serverLists map[string]idList
+	err := s.transport.postRequest("/get_id_lists", getIDListsInput{StatsigMetadata: s.transport.metadata}, &serverLists)
+	if err != nil {
+		return
+	}
+
 	wg := sync.WaitGroup{}
-	for name, list := range s.idLists {
+	for name, serverList := range serverLists {
+		localList := s.getIDList(name)
+		if localList == nil {
+			localList = &idList{Name: name}
+			s.idListsLock.Lock()
+			s.idLists[name] = localList
+			s.idListsLock.Unlock()
+		}
+
+		// skip if server list is invalid
+		if serverList.URL == "" || serverList.CreationTime < localList.CreationTime || serverList.FileID == "" {
+			continue
+		}
+
+		// reset the local list if returns server list has a newer file
+		if serverList.FileID != localList.FileID && serverList.CreationTime >= localList.CreationTime {
+			localList.URL = serverList.URL
+			localList.FileID = serverList.FileID
+			localList.CreationTime = serverList.CreationTime
+			localList.Size = 0
+			localList.ids = sync.Map{}
+		}
+
+		// skip if server list is not bigger
+		if serverList.Size <= localList.Size {
+			continue
+		}
+
 		wg.Add(1)
 		go func(name string, l *idList) {
 			defer wg.Done()
-			var res downloadIDListResponse
-			err := s.transport.postRequest(
-				"/download_id_list",
-				downloadIDListInput{ListName: name, SinceTime: l.time, StatsigMetadata: s.transport.metadata},
-				&res)
-			if err == nil {
-				for _, id := range res.AddIDs {
-					l.ids[id] = true
-				}
-				for _, id := range res.RemoveIDs {
-					delete(l.ids, id)
-				}
-				l.time = res.Time
+			res, err := s.transport.get(l.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", l.Size)})
+			if err != nil || res == nil {
+				return
 			}
-		}(name, list)
+			defer res.Body.Close()
+
+			length, err := strconv.Atoi(res.Header.Get("content-length"))
+			if err != nil || length <= 0 {
+				return
+			}
+
+			bodyBytes, err := io.ReadAll(res.Body)
+			if err != nil {
+				return
+			}
+			content := string(bodyBytes)
+			if len(content) <= 1 || (string(content[0]) != "-" && string(content[0]) != "+") {
+				s.deleteIDList(name)
+				return
+			}
+
+			lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if len(line) <= 1 {
+					continue
+				}
+				id := line[1:]
+				op := string(line[0])
+				if op == "+" {
+					l.ids.Store(id, true)
+				} else if op == "-" {
+					l.ids.Delete(id)
+				}
+			}
+			l.Size = l.Size + int64(length)
+		}(name, localList)
 	}
 	wg.Wait()
+	for name := range s.idLists {
+		if _, ok := serverLists[name]; !ok {
+			s.deleteIDList(name)
+		}
+	}
 }
 
 func (s *store) pollForIDListChanges() {
