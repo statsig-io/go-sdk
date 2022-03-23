@@ -55,14 +55,14 @@ func (e *evaluator) shutdown() {
 }
 
 func (e *evaluator) checkGate(user User, gateName string) *evalResult {
-	if gate, hasGate := e.store.featureGates[gateName]; hasGate {
+	if gate, hasGate := e.store.getGate(gateName); hasGate {
 		return e.eval(user, gate)
 	}
 	return new(evalResult)
 }
 
 func (e *evaluator) getConfig(user User, configName string) *evalResult {
-	if config, hasConfig := e.store.dynamicConfigs[configName]; hasConfig {
+	if config, hasConfig := e.store.getDynamicConfig(configName); hasConfig {
 		return e.eval(user, config)
 	}
 	return new(evalResult)

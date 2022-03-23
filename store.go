@@ -68,6 +68,7 @@ type getIDListsInput struct {
 type store struct {
 	featureGates       map[string]configSpec
 	dynamicConfigs     map[string]configSpec
+	configsLock        sync.RWMutex
 	idLists            map[string]*idList
 	idListsLock        sync.RWMutex
 	lastSyncTime       int64
@@ -97,6 +98,20 @@ func newStoreInternal(transport *transport, configSyncInterval time.Duration, id
 	return store
 }
 
+func (s *store) getGate(name string) (configSpec, bool) {
+	s.configsLock.RLock()
+	gate, ok := s.featureGates[name]
+	s.configsLock.RUnlock()
+	return gate, ok
+}
+
+func (s *store) getDynamicConfig(name string) (configSpec, bool) {
+	s.configsLock.RLock()
+	config, ok := s.dynamicConfigs[name]
+	s.configsLock.RUnlock()
+	return config, ok
+}
+
 func (s *store) fetchConfigSpecs() {
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
@@ -116,8 +131,10 @@ func (s *store) fetchConfigSpecs() {
 			newConfigs[config.Name] = config
 		}
 
+		s.configsLock.Lock()
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs
+		s.configsLock.Unlock()
 	}
 }
 
