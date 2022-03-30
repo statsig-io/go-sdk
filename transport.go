@@ -2,13 +2,14 @@ package statsig
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -30,18 +31,6 @@ type transport struct {
 	sessionID string
 }
 
-func getSessionID() string {
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		// well, we tried
-		return ""
-	}
-	// this is not a UUID, but will work as a session identifier
-	return fmt.Sprintf("%x-%x-%x-%x-%x",
-		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}
-
 func newTransport(secret string, options *Options) *transport {
 	api := defaultString(options.API, DefaultEndpoint)
 	api = strings.TrimSuffix(api, "/")
@@ -52,7 +41,7 @@ func newTransport(secret string, options *Options) *transport {
 		sdkKey:    secret,
 		client:    &http.Client{},
 		options:   options,
-		sessionID: getSessionID(),
+		sessionID: uuid.New().String(),
 	}
 }
 
