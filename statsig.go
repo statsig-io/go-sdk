@@ -58,7 +58,7 @@ func GetConfig(user User, config string) DynamicConfig {
 // Override the value of a Feature Gate for the given user
 func OverrideGate(gate string, val bool) {
 	if instance == nil {
-		panic(fmt.Errorf("must Initialize() statsig before calling CheckGate"))
+		panic(fmt.Errorf("must Initialize() statsig before calling OverrideGate"))
 	}
 	instance.OverrideGate(gate, val)
 }
@@ -66,7 +66,7 @@ func OverrideGate(gate string, val bool) {
 // Override the DynamicConfig value for the given user
 func OverrideConfig(config string, val map[string]interface{}) {
 	if instance == nil {
-		panic(fmt.Errorf("must Initialize() statsig before calling GetConfig"))
+		panic(fmt.Errorf("must Initialize() statsig before calling OverrideConfig"))
 	}
 	instance.OverrideConfig(config, val)
 }
