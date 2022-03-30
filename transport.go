@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -21,11 +22,24 @@ type statsigMetadata struct {
 }
 
 type transport struct {
-	api      string
-	sdkKey   string
-	metadata statsigMetadata
-	client   *http.Client
-	options  *Options
+	api       string
+	sdkKey    string
+	metadata  statsigMetadata
+	client    *http.Client
+	options   *Options
+	sessionID string
+}
+
+func getSessionID() string {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		// well, we tried
+		return ""
+	}
+	// this is not a UUID, but will work as a session identifier
+	return fmt.Sprintf("%x-%x-%x-%x-%x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
 func newTransport(secret string, options *Options) *transport {
@@ -33,11 +47,12 @@ func newTransport(secret string, options *Options) *transport {
 	api = strings.TrimSuffix(api, "/")
 
 	return &transport{
-		api:      api,
-		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.2.1"},
-		sdkKey:   secret,
-		client:   &http.Client{},
-		options:  options,
+		api:       api,
+		metadata:  statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.2.1"},
+		sdkKey:    secret,
+		client:    &http.Client{},
+		options:   options,
+		sessionID: getSessionID(),
 	}
 }
 
@@ -97,6 +112,7 @@ func (transport *transport) doRequest(endpoint string, body []byte) (*http.Respo
 	req.Header.Add("STATSIG-API-KEY", transport.sdkKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	req.Header.Add("STATSIG-SERVER-SESSION-ID", transport.sessionID)
 
 	return transport.client.Do(req)
 }
