@@ -31,9 +31,19 @@ type transport struct {
 	sessionID string
 }
 
+func getSessionID() string {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+	return uuid.NewString()
+}
+
 func newTransport(secret string, options *Options) *transport {
 	api := defaultString(options.API, DefaultEndpoint)
 	api = strings.TrimSuffix(api, "/")
+	sid := getSessionID()
 
 	return &transport{
 		api:       api,
@@ -41,7 +51,7 @@ func newTransport(secret string, options *Options) *transport {
 		sdkKey:    secret,
 		client:    &http.Client{},
 		options:   options,
-		sessionID: uuid.New().String(),
+		sessionID: sid,
 	}
 }
 
