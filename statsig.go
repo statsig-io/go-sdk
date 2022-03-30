@@ -55,6 +55,22 @@ func GetConfig(user User, config string) DynamicConfig {
 	return instance.GetConfig(user, config)
 }
 
+// Override the value of a Feature Gate for the given user
+func OverrideGate(user User, gate string, val bool) {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling CheckGate"))
+	}
+	instance.OverrideGate(user, gate, val)
+}
+
+// Override the DynamicConfig value for the given user
+func OverrideConfig(user User, config string, val map[string]interface{}) {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetConfig"))
+	}
+	instance.OverrideConfig(user, config, val)
+}
+
 // Gets the DynamicConfig value of an Experiment for the given user
 func GetExperiment(user User, experiment string) DynamicConfig {
 	if instance == nil {

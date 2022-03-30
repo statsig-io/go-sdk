@@ -95,6 +95,16 @@ func (c *Client) LogEvent(event Event) {
 	c.logger.logCustom(event)
 }
 
+// Override the value of a Feature Gate for the given user
+func (c *Client) OverrideGate(user User, gate string, val bool) {
+	c.evaluator.OverrideGate(user, gate, val)
+}
+
+// Override the DynamicConfig value for the given user
+func (c *Client) OverrideConfig(user User, config string, val map[string]interface{}) {
+	c.evaluator.OverrideConfig(user, config, val)
+}
+
 func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 	if len(events) > 500 {
 		return nil, fmt.Errorf("The max number of events supported in one batch is 500. Please reduce the slice size and try again.")
