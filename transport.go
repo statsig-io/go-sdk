@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -21,23 +23,35 @@ type statsigMetadata struct {
 }
 
 type transport struct {
-	api      string
-	sdkKey   string
-	metadata statsigMetadata
-	client   *http.Client
-	options  *Options
+	api       string
+	sdkKey    string
+	metadata  statsigMetadata
+	client    *http.Client
+	options   *Options
+	sessionID string
+}
+
+func getSessionID() string {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+	return uuid.NewString()
 }
 
 func newTransport(secret string, options *Options) *transport {
 	api := defaultString(options.API, DefaultEndpoint)
 	api = strings.TrimSuffix(api, "/")
+	sid := getSessionID()
 
 	return &transport{
-		api:      api,
-		metadata: statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.2.1"},
-		sdkKey:   secret,
-		client:   &http.Client{},
-		options:  options,
+		api:       api,
+		metadata:  statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.2.1"},
+		sdkKey:    secret,
+		client:    &http.Client{},
+		options:   options,
+		sessionID: sid,
 	}
 }
 
@@ -97,6 +111,7 @@ func (transport *transport) doRequest(endpoint string, body []byte) (*http.Respo
 	req.Header.Add("STATSIG-API-KEY", transport.sdkKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	req.Header.Add("STATSIG-SERVER-SESSION-ID", transport.sessionID)
 
 	return transport.client.Do(req)
 }
