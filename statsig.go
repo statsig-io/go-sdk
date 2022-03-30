@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-const DefaultEndpoint = "https://api.statsig.com/v1"
+const DefaultEndpoint = "https://statsigapi.net/v1"
 
 var instance *Client
 var once sync.Once
