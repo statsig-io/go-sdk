@@ -84,12 +84,12 @@ func (e *evaluator) getConfig(user User, configName string) *evalResult {
 }
 
 // Override the value of a Feature Gate for the given user
-func (e *evaluator) OverrideGate(user User, gate string, val bool) {
+func (e *evaluator) OverrideGate(gate string, val bool) {
 	e.gateOverrides[gate] = val
 }
 
 // Override the DynamicConfig value for the given user
-func (e *evaluator) OverrideConfig(user User, config string, val map[string]interface{}) {
+func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
 	e.configOverrides[config] = val
 }
 

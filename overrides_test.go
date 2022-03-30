@@ -1,6 +1,9 @@
 package statsig
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestOverrides(t *testing.T) {
 	c := NewClientWithOptions(secret, &Options{LocalMode: true})
@@ -14,9 +17,15 @@ func TestOverrides(t *testing.T) {
 		t.Errorf("Failed to get default value for a gate when in LocalMode")
 	}
 
-	c.OverrideGate(user, "any_gate", true)
+	c.OverrideGate("any_gate", true)
 	gateOverride := c.CheckGate(user, "any_gate")
 	if gateOverride != true {
+		t.Errorf("Failed to get override value for a gate when in LocalMode")
+	}
+
+	c.OverrideGate("any_gate", false)
+	newGateOverride := c.CheckGate(user, "any_gate")
+	if newGateOverride != false {
 		t.Errorf("Failed to get override value for a gate when in LocalMode")
 	}
 
@@ -28,9 +37,19 @@ func TestOverrides(t *testing.T) {
 	config := make(map[string]interface{})
 	config["test"] = 123
 
-	c.OverrideConfig(user, "any_config", config)
+	c.OverrideConfig("any_config", config)
 	configOverride := c.GetConfig(user, "any_config")
-	if configOverride.Value["test"] != 123 {
+	if !reflect.DeepEqual(configOverride.Value, config) {
+		t.Errorf("Failed to get override value for a config when in LocalMode")
+	}
+
+	newConfig := make(map[string]interface{})
+	newConfig["test"] = 456
+	newConfig["test2"] = "hello"
+
+	c.OverrideConfig("any_config", newConfig)
+	newConfigOverride := c.GetConfig(user, "any_config")
+	if !reflect.DeepEqual(newConfigOverride.Value, newConfig) {
 		t.Errorf("Failed to get override value for a config when in LocalMode")
 	}
 }

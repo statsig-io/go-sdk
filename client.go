@@ -96,13 +96,13 @@ func (c *Client) LogEvent(event Event) {
 }
 
 // Override the value of a Feature Gate for the given user
-func (c *Client) OverrideGate(user User, gate string, val bool) {
-	c.evaluator.OverrideGate(user, gate, val)
+func (c *Client) OverrideGate(gate string, val bool) {
+	c.evaluator.OverrideGate(gate, val)
 }
 
 // Override the DynamicConfig value for the given user
-func (c *Client) OverrideConfig(user User, config string, val map[string]interface{}) {
-	c.evaluator.OverrideConfig(user, config, val)
+func (c *Client) OverrideConfig(config string, val map[string]interface{}) {
+	c.evaluator.OverrideConfig(config, val)
 }
 
 func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
