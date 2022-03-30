@@ -24,7 +24,7 @@ func NewClient(sdkKey string) *Client {
 // Initializes a Statsig Client with the given sdkKey and options
 func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	if len(options.API) == 0 {
-		options.API = "https://api.statsig.com/v1"
+		options.API = "https://statsigapi.net/v1"
 	}
 	transport := newTransport(sdkKey, options)
 	logger := newLogger(transport)
@@ -93,6 +93,16 @@ func (c *Client) LogEvent(event Event) {
 		return
 	}
 	c.logger.logCustom(event)
+}
+
+// Override the value of a Feature Gate for the given user
+func (c *Client) OverrideGate(gate string, val bool) {
+	c.evaluator.OverrideGate(gate, val)
+}
+
+// Override the DynamicConfig value for the given user
+func (c *Client) OverrideConfig(config string, val map[string]interface{}) {
+	c.evaluator.OverrideConfig(config, val)
 }
 
 func (c *Client) LogImmediate(events []Event) (*http.Response, error) {

@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-const DefaultEndpoint = "https://api.statsig.com/v1"
+const DefaultEndpoint = "https://statsigapi.net/v1"
 
 var instance *Client
 var once sync.Once
@@ -53,6 +53,22 @@ func GetConfig(user User, config string) DynamicConfig {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetConfig"))
 	}
 	return instance.GetConfig(user, config)
+}
+
+// Override the value of a Feature Gate for the given user
+func OverrideGate(gate string, val bool) {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling OverrideGate"))
+	}
+	instance.OverrideGate(gate, val)
+}
+
+// Override the DynamicConfig value for the given user
+func OverrideConfig(config string, val map[string]interface{}) {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling OverrideConfig"))
+	}
+	instance.OverrideConfig(config, val)
 }
 
 // Gets the DynamicConfig value of an Experiment for the given user

@@ -34,8 +34,8 @@ type configTestData struct {
 
 var secret string
 var testAPIs = []string{
-	"https://api.statsig.com/v1",
-	"https://latest.api.statsig.com/v1",
+	"https://statsigapi.net/v1",
+	"https://staging.statsigapi.net/v1",
 }
 
 func TestMain(m *testing.M) {
@@ -62,7 +62,8 @@ func test_helper(apiOverride string, t *testing.T) {
 	c := NewClientWithOptions(secret, &Options{API: apiOverride})
 	var d data
 	err := c.transport.postRequest("/rulesets_e2e_test", nil, &d)
-	if err != nil {
+
+	if err != nil || len(d.Entries) == 0 {
 		t.Errorf("Could not download test data")
 	}
 

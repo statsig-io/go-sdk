@@ -17,9 +17,11 @@ import (
 )
 
 type evaluator struct {
-	store         *store
-	countryLookup *countrylookup.CountryLookup
-	uaParser      *uaparser.Parser
+	store           *store
+	gateOverrides   map[string]bool
+	configOverrides map[string]map[string]interface{}
+	countryLookup   *countrylookup.CountryLookup
+	uaParser        *uaparser.Parser
 }
 
 type evalResult struct {
@@ -44,9 +46,11 @@ func newEvaluator(transport *transport) *evaluator {
 	}()
 
 	return &evaluator{
-		store:         store,
-		countryLookup: countryLookup,
-		uaParser:      parser,
+		store:           store,
+		countryLookup:   countryLookup,
+		uaParser:        parser,
+		gateOverrides:   make(map[string]bool),
+		configOverrides: make(map[string]map[string]interface{}),
 	}
 }
 
@@ -55,6 +59,11 @@ func (e *evaluator) shutdown() {
 }
 
 func (e *evaluator) checkGate(user User, gateName string) *evalResult {
+	if gateOverride, hasOverride := e.gateOverrides[gateName]; hasOverride {
+		return &evalResult{
+			Pass: gateOverride,
+			Id:   "override"}
+	}
 	if gate, hasGate := e.store.getGate(gateName); hasGate {
 		return e.eval(user, gate)
 	}
@@ -62,10 +71,26 @@ func (e *evaluator) checkGate(user User, gateName string) *evalResult {
 }
 
 func (e *evaluator) getConfig(user User, configName string) *evalResult {
+	if configOverride, hasOverride := e.configOverrides[configName]; hasOverride {
+		return &evalResult{
+			Pass:        true,
+			ConfigValue: *NewConfig(configName, configOverride, "override"),
+			Id:          "override"}
+	}
 	if config, hasConfig := e.store.getDynamicConfig(configName); hasConfig {
 		return e.eval(user, config)
 	}
 	return new(evalResult)
+}
+
+// Override the value of a Feature Gate for the given user
+func (e *evaluator) OverrideGate(gate string, val bool) {
+	e.gateOverrides[gate] = val
+}
+
+// Override the DynamicConfig value for the given user
+func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
+	e.configOverrides[config] = val
 }
 
 func (e *evaluator) eval(user User, spec configSpec) *evalResult {
