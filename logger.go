@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -31,6 +32,7 @@ type logger struct {
 	events    []interface{}
 	transport *transport
 	tick      *time.Ticker
+	mu        sync.Mutex
 }
 
 func newLogger(transport *transport) *logger {
@@ -68,6 +70,9 @@ func (l *logger) logExposure(evt exposureEvent) {
 }
 
 func (l *logger) logInternal(evt interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	l.events = append(l.events, evt)
 	if len(l.events) >= maxEvents {
 		l.flush(false)
@@ -113,6 +118,9 @@ func (l *logger) logConfigExposure(
 }
 
 func (l *logger) flush(closing bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	if closing {
 		l.tick.Stop()
 	}
