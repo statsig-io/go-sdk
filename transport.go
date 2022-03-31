@@ -47,7 +47,7 @@ func newTransport(secret string, options *Options) *transport {
 
 	return &transport{
 		api:       api,
-		metadata:  statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.3.0"},
+		metadata:  statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.3.1"},
 		sdkKey:    secret,
 		client:    &http.Client{},
 		options:   options,
