@@ -25,11 +25,14 @@ type evaluator struct {
 }
 
 type evalResult struct {
-	Pass               bool
-	ConfigValue        DynamicConfig
-	FetchFromServer    bool
-	Id                 string
-	SecondaryExposures []map[string]string
+	Pass                          bool
+	ConfigValue                   DynamicConfig
+	FetchFromServer               bool
+	Id                            string
+	SecondaryExposures            []map[string]string
+	UndelegatedSecondaryExposures []map[string]string
+	ConfigDelegate                string
+	ExplicitParamters             map[string]bool
 }
 
 const dynamicConfigType = "dynamic_config"
@@ -83,6 +86,13 @@ func (e *evaluator) getConfig(user User, configName string) *evalResult {
 	return new(evalResult)
 }
 
+func (e *evaluator) getLayer(user User, name string) *evalResult {
+	if config, hasConfig := e.store.getLayerConfig(name); hasConfig {
+		return e.eval(user, config)
+	}
+	return new(evalResult)
+}
+
 // Override the value of a Feature Gate for the given user
 func (e *evaluator) OverrideGate(gate string, val bool) {
 	e.gateOverrides[gate] = val
@@ -113,6 +123,12 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 			}
 			exposures = append(exposures, r.SecondaryExposures...)
 			if r.Pass {
+
+				delegatedResult := e.evalDelegate(user, rule, exposures)
+				if delegatedResult != nil {
+					return delegatedResult
+				}
+
 				pass := evalPassPercent(user, rule, spec)
 				if isDynamicConfig {
 					if pass {
@@ -145,6 +161,25 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 			SecondaryExposures: exposures}
 	}
 	return &evalResult{Pass: false, Id: defaultRuleID, SecondaryExposures: exposures}
+}
+
+func (e *evaluator) evalDelegate(user User, rule configRule, exposures []map[string]string) *evalResult {
+	config, hasConfig := e.store.getDynamicConfig(rule.ConfigDelegate)
+	if !hasConfig {
+		return nil
+	}
+
+	result := e.eval(user, config)
+	result.ConfigDelegate = rule.ConfigDelegate
+	result.SecondaryExposures = append(exposures, result.SecondaryExposures...)
+	result.UndelegatedSecondaryExposures = exposures
+
+	explicitParams := map[string]bool{}
+	for _, s := range config.ExplicitParamters {
+		explicitParams[s] = true
+	}
+	result.ExplicitParamters = explicitParams
+	return result
 }
 
 func evalPassPercent(user User, rule configRule, spec configSpec) bool {

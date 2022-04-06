@@ -16,6 +16,7 @@ type entry struct {
 	Gates   map[string]bool           `json:"feature_gates"`
 	GatesV2 map[string]gateTestData   `json:"feature_gates_v2"`
 	Configs map[string]configTestData `json:"dynamic_configs"`
+	Layers  map[string]layerTestData  `json:"layer_configs"`
 }
 
 type gateTestData struct {
@@ -30,6 +31,14 @@ type configTestData struct {
 	Value              map[string]interface{} `json:"value"`
 	RuleID             string                 `json:"rule_id"`
 	SecondaryExposures []map[string]string    `json:"secondary_exposures"`
+}
+
+type layerTestData struct {
+	Name                          string                 `json:"name"`
+	Value                         map[string]interface{} `json:"value"`
+	RuleID                        string                 `json:"rule_id"`
+	SecondaryExposures            []map[string]string    `json:"secondary_exposures"`
+	UndelegatedSecondaryExposures []map[string]string    `json:"undelegated_secondary_exposures"`
 }
 
 var secret string
@@ -67,7 +76,11 @@ func test_helper(apiOverride string, t *testing.T) {
 		t.Errorf("Could not download test data")
 	}
 
-	var totalChecks = 3 * (len(d.Entries[0].GatesV2) + len(d.Entries[0].Configs)) * len(d.Entries)
+	gateChecks := len(d.Entries[0].GatesV2) * 3
+	configChecks := len(d.Entries[0].Configs) * 3
+	layerChecks := len(d.Entries[0].Layers) * 4
+
+	var totalChecks = (gateChecks + configChecks + layerChecks) * len(d.Entries)
 	var checks = 0
 	for _, entry := range d.Entries {
 		u := entry.User
@@ -107,6 +120,30 @@ func test_helper(apiOverride string, t *testing.T) {
 					config, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
 			}
 			checks += 3
+		}
+
+		for layer, serverResult := range entry.Layers {
+			sdkResult := c.evaluator.getLayer(u, layer)
+			if !reflect.DeepEqual(sdkResult.ConfigValue.Value, serverResult.Value) {
+				t.Errorf("Values are different for layer %s. SDK got %s but server is %s. User is %s",
+					layer, sdkResult.ConfigValue.Value, serverResult.Value, u)
+			}
+
+			if sdkResult.Id != serverResult.RuleID {
+				t.Errorf("Rule IDs are different for layer %s. SDK got %s but server is %s",
+					layer, sdkResult.Id, serverResult.RuleID)
+			}
+
+			if !compare_exposures(sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
+				t.Errorf("Secondary exposures are different for layer %s. SDK got %s but server is %s",
+					layer, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
+			}
+
+			if !compare_exposures(sdkResult.UndelegatedSecondaryExposures, serverResult.UndelegatedSecondaryExposures) {
+				t.Errorf("Undelegated Secondary exposures are different for layer %s. SDK got %s but server is %s",
+					layer, sdkResult.UndelegatedSecondaryExposures, serverResult.UndelegatedSecondaryExposures)
+			}
+			checks += 4
 		}
 	}
 	if totalChecks != checks {

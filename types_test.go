@@ -6,29 +6,7 @@ import (
 	"testing"
 )
 
-func TestBasic(t *testing.T) {
-	jsonMap := make(map[string]interface{})
-	json.Unmarshal(
-		[]byte(
-			`{
-				"Boolean": true,
-				"Number": 143.7,
-				"String": "str",
-				"Object": {
-					"NestedBool": false,
-					"NestedNum": 37
-				},
-				"Array":[1,2,3]
-			}`,
-		),
-		&jsonMap,
-	)
-	c := NewConfig(
-		"test",
-		jsonMap,
-		"rule_id",
-	)
-
+func doValidation(t *testing.T, c *configBase) {
 	if c.Name != "test" {
 		t.Errorf("Failed to set name")
 	}
@@ -65,6 +43,35 @@ func TestBasic(t *testing.T) {
 	if c.GetBool("Object", false) {
 		t.Errorf("Failed to use fallback boolean")
 	}
+}
+
+func TestBasic(t *testing.T) {
+	jsonMap := make(map[string]interface{})
+	json.Unmarshal(
+		[]byte(
+			`{
+				"Boolean": true,
+				"Number": 143.7,
+				"String": "str",
+				"Object": {
+					"NestedBool": false,
+					"NestedNum": 37
+				},
+				"Array":[1,2,3]
+			}`,
+		),
+		&jsonMap,
+	)
+
+	c := NewConfig(
+		"test",
+		jsonMap,
+		"rule_id",
+	)
+	doValidation(t, &c.configBase)
+
+	l := NewLayer("test", jsonMap, "rule_id", nil)
+	doValidation(t, &l.configBase)
 
 	fallbackValues := make([]interface{}, 0)
 	fallbackValues = append(fallbackValues, 4, 5, 6)
