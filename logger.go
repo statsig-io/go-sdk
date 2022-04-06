@@ -10,6 +10,7 @@ const (
 	maxEvents           = 500
 	gateExposureEvent   = "statsig::gate_exposure"
 	configExposureEvent = "statsig::config_exposure"
+	layerExposureEvent  = "statsig::layer_exposure"
 )
 
 type exposureEvent struct {
@@ -111,6 +112,36 @@ func (l *logger) logConfigExposure(
 		Metadata: map[string]string{
 			"config": configName,
 			"ruleID": ruleID,
+		},
+		SecondaryExposures: exposures,
+	}
+	l.logExposure(*evt)
+}
+
+func (l *logger) logLayerExposure(
+	user User,
+	config configBase,
+	parameterName string,
+	evalResult evalResult,
+) {
+	allocatedExperiment := ""
+	exposures := evalResult.UndelegatedSecondaryExposures
+	isExplicit := evalResult.ExplicitParamters[parameterName]
+
+	if isExplicit {
+		allocatedExperiment = evalResult.ConfigDelegate
+		exposures = evalResult.SecondaryExposures
+	}
+
+	evt := &exposureEvent{
+		User:      user,
+		EventName: layerExposureEvent,
+		Metadata: map[string]string{
+			"config":              config.Name,
+			"ruleID":              config.RuleID,
+			"allocatedExperiment": allocatedExperiment,
+			"parameterName":       parameterName,
+			"isExplicitParameter": strconv.FormatBool(isExplicit),
 		},
 		SecondaryExposures: exposures,
 	}

@@ -11,13 +11,14 @@ import (
 )
 
 type configSpec struct {
-	Name         string          `json:"name"`
-	Type         string          `json:"type"`
-	Salt         string          `json:"salt"`
-	Enabled      bool            `json:"enabled"`
-	Rules        []configRule    `json:"rules"`
-	DefaultValue json.RawMessage `json:"defaultValue"`
-	IDType       string          `json:"idType"`
+	Name              string          `json:"name"`
+	Type              string          `json:"type"`
+	Salt              string          `json:"salt"`
+	Enabled           bool            `json:"enabled"`
+	Rules             []configRule    `json:"rules"`
+	DefaultValue      json.RawMessage `json:"defaultValue"`
+	IDType            string          `json:"idType"`
+	ExplicitParamters []string        `json:"explicitParameters"`
 }
 
 type configRule struct {
@@ -28,6 +29,7 @@ type configRule struct {
 	Conditions     []configCondition `json:"conditions"`
 	ReturnValue    json.RawMessage   `json:"returnValue"`
 	IDType         string            `json:"idType"`
+	ConfigDelegate string            `json:"configDelegate"`
 }
 
 type configCondition struct {
@@ -44,6 +46,7 @@ type downloadConfigSpecResponse struct {
 	Time           int64           `json:"time"`
 	FeatureGates   []configSpec    `json:"feature_gates"`
 	DynamicConfigs []configSpec    `json:"dynamic_configs"`
+	LayerConfigs   []configSpec    `json:"layer_configs"`
 	IDLists        map[string]bool `json:"id_lists"`
 }
 
@@ -68,6 +71,7 @@ type getIDListsInput struct {
 type store struct {
 	featureGates       map[string]configSpec
 	dynamicConfigs     map[string]configSpec
+	layerConfigs       map[string]configSpec
 	configsLock        sync.RWMutex
 	idLists            map[string]*idList
 	idListsLock        sync.RWMutex
@@ -112,6 +116,13 @@ func (s *store) getDynamicConfig(name string) (configSpec, bool) {
 	return config, ok
 }
 
+func (s *store) getLayerConfig(name string) (configSpec, bool) {
+	s.configsLock.RLock()
+	config, ok := s.layerConfigs[name]
+	s.configsLock.RUnlock()
+	return config, ok
+}
+
 func (s *store) fetchConfigSpecs() {
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
@@ -131,9 +142,15 @@ func (s *store) fetchConfigSpecs() {
 			newConfigs[config.Name] = config
 		}
 
+		newLayers := make(map[string]configSpec)
+		for _, layer := range specs.LayerConfigs {
+			newLayers[layer.Name] = layer
+		}
+
 		s.configsLock.Lock()
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs
+		s.layerConfigs = newLayers
 		s.configsLock.Unlock()
 	}
 }

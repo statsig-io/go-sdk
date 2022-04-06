@@ -67,10 +67,7 @@ func (c *Client) GetConfig(user User, config string) DynamicConfig {
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.getConfig(user, config)
 	if res.FetchFromServer {
-		serverRes := fetchConfig(user, config, c.transport)
-		res = &evalResult{
-			ConfigValue: *NewConfig(config, serverRes.Value, serverRes.RuleID),
-			Id:          serverRes.RuleID}
+		res = c.fetchConfigFromServer(user, config)
 	} else {
 		c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures)
 	}
@@ -84,6 +81,27 @@ func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 		return *NewConfig(experiment, nil, "")
 	}
 	return c.GetConfig(user, experiment)
+}
+
+// Gets the Layer object for the given user
+func (c *Client) GetLayer(user User, layer string) Layer {
+	if user.UserID == "" {
+		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
+		return *NewLayer(layer, nil, "", nil)
+	}
+
+	user = normalizeUser(user, *c.options)
+	res := c.evaluator.getLayer(user, layer)
+
+	if res.FetchFromServer {
+		res = c.fetchConfigFromServer(user, layer)
+	}
+
+	logFunc := func(config configBase, parameterName string) {
+		c.logger.logLayerExposure(user, config, parameterName, *res)
+	}
+
+	return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, &logFunc)
 }
 
 // Logs an event to Statsig for analysis in the Statsig Console
@@ -208,4 +226,12 @@ func normalizeUser(user User, options Options) User {
 	}
 	user.StatsigEnvironment = env
 	return user
+}
+
+func (c *Client) fetchConfigFromServer(user User, configName string) *evalResult {
+	serverRes := fetchConfig(user, configName, c.transport)
+	return &evalResult{
+		ConfigValue: *NewConfig(configName, serverRes.Value, serverRes.RuleID),
+		Id:          serverRes.RuleID,
+	}
 }

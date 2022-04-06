@@ -4,19 +4,20 @@ package statsig
 import (
 	"fmt"
 	"net/http"
-	"sync"
 )
 
 const DefaultEndpoint = "https://statsigapi.net/v1"
 
 var instance *Client
-var once sync.Once
 
 // Initializes the global Statsig instance with the given sdkKey
 func Initialize(sdkKey string) {
-	once.Do(func() {
-		instance = NewClient(sdkKey)
-	})
+	if instance != nil {
+		fmt.Println("Statsig is already initialized.")
+		return
+	}
+
+	instance = NewClient(sdkKey)
 }
 
 // Advanced options for configuring the Statsig SDK
@@ -34,9 +35,12 @@ type Environment struct {
 
 // Initializes the global Statsig instance with the given sdkKey and options
 func InitializeWithOptions(sdkKey string, options *Options) {
-	once.Do(func() {
-		instance = NewClientWithOptions(sdkKey, options)
-	})
+	if instance != nil {
+		fmt.Println("Statsig is already initialized.")
+		return
+	}
+
+	instance = NewClientWithOptions(sdkKey, options)
 }
 
 // Checks the value of a Feature Gate for the given user
@@ -79,6 +83,14 @@ func GetExperiment(user User, experiment string) DynamicConfig {
 	return instance.GetExperiment(user, experiment)
 }
 
+// Gets the Layer object for the given user
+func GetLayer(user User, layer string) Layer {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetLayer"))
+	}
+	return instance.GetLayer(user, layer)
+}
+
 // Logs an event to the Statsig console
 func LogEvent(event Event) {
 	if instance == nil {
@@ -102,4 +114,5 @@ func Shutdown() {
 		return
 	}
 	instance.Shutdown()
+	instance = nil
 }
