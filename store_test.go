@@ -52,7 +52,7 @@ func TestStoreSync(t *testing.T) {
 			case 0:
 				r = map[string]idList{
 					"list_1": {Name: "list_1", Size: 3, URL: baseURL + "/list_1", CreationTime: 1, FileID: "file_id_1"},
-					"list_2": {Name: "list_1", Size: 3, URL: baseURL + "/list_2", CreationTime: 1, FileID: "file_id_2"},
+					"list_2": {Name: "list_2", Size: 3, URL: baseURL + "/list_2", CreationTime: 1, FileID: "file_id_2"},
 				}
 			case 1:
 				r = map[string]idList{

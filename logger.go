@@ -155,7 +155,6 @@ func (l *logger) flush(closing bool) {
 	l.flushInternal(closing)
 }
 
-
 func (l *logger) flushInternal(closing bool) {
 	if closing {
 		l.tick.Stop()
