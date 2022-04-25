@@ -75,7 +75,7 @@ func (l *logger) logInternal(evt interface{}) {
 
 	l.events = append(l.events, evt)
 	if len(l.events) >= maxEvents {
-		l.flush(false)
+		l.flushInternal(false)
 	}
 }
 
@@ -121,6 +121,11 @@ func (l *logger) flush(closing bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	l.flushInternal(closing)
+}
+
+
+func (l *logger) flushInternal(closing bool) {
 	if closing {
 		l.tick.Stop()
 	}
