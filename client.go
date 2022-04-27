@@ -211,13 +211,11 @@ func fetchConfig(user User, configName string, t *transport) configResponse {
 }
 
 func normalizeUser(user User, options Options) User {
-	var env map[string]string
-	if len(options.Environment.Params) > 0 {
-		env = options.Environment.Params
-	} else {
-		env = make(map[string]string)
+	env := make(map[string]string)
+	// Copy to avoid data race. We modify the map below.
+	for k, v := range options.Environment.Params {
+		env[k] = v
 	}
-
 	if options.Environment.Tier != "" {
 		env["tier"] = options.Environment.Tier
 	}
