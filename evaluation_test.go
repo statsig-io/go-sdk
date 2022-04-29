@@ -48,7 +48,7 @@ var testAPIs = []string{
 }
 
 func TestMain(m *testing.M) {
-	secret = "secret-9IWfdzNwExEYHEW4YfOQcFZ4xreZyFkbOXHaNbPsMwW"
+	secret = os.Getenv("test_api_key")
 	if secret == "" {
 		absPath, _ := filepath.Abs("../ops/secrets/prod_keys/statsig-rulesets-eval-consistency-test-secret.key")
 		bytes, err := os.ReadFile(absPath)
