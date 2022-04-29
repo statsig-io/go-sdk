@@ -80,6 +80,7 @@ type store struct {
 	configSyncInterval time.Duration
 	idListSyncInterval time.Duration
 	shutdown           bool
+	shutdownLock       sync.Mutex
 }
 
 func newStore(transport *transport) *store {
@@ -257,23 +258,37 @@ func (s *store) syncIDLists() {
 }
 
 func (s *store) pollForIDListChanges() {
-	time.Sleep(s.idListSyncInterval)
-	if s.shutdown {
-		return
+	for {
+		time.Sleep(s.idListSyncInterval)
+		stop := func() bool {
+			s.shutdownLock.Lock()
+			defer s.shutdownLock.Unlock()
+			return s.shutdown
+		}()
+		if stop {
+			break
+		}
+		s.syncIDLists()
 	}
-	s.syncIDLists()
-	s.pollForIDListChanges()
 }
 
 func (s *store) pollForRulesetChanges() {
-	time.Sleep(s.configSyncInterval)
-	if s.shutdown {
-		return
+	for {
+		time.Sleep(s.configSyncInterval)
+		stop := func() bool {
+			s.shutdownLock.Lock()
+			defer s.shutdownLock.Unlock()
+			return s.shutdown
+		}()
+		if stop {
+			break
+		}
+		s.fetchConfigSpecs()
 	}
-	s.fetchConfigSpecs()
-	s.pollForRulesetChanges()
 }
 
 func (s *store) stopPolling() {
+	s.shutdownLock.Lock()
+	defer s.shutdownLock.Unlock()
 	s.shutdown = true
 }
