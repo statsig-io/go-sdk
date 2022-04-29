@@ -114,5 +114,10 @@ func Shutdown() {
 		return
 	}
 	instance.Shutdown()
+	clearInstance()
+}
+
+// This is it's own private method so we can call it in test
+func clearInstance() {
 	instance = nil
 }

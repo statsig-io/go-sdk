@@ -117,6 +117,18 @@ func (d *configBase) GetSlice(key string, fallback []interface{}) []interface{} 
 	if v, ok := d.Value[key]; ok {
 		switch val := v.(type) {
 		case []interface{}:
+			logExposure(d, key)
+			return val
+		}
+	}
+	return fallback
+}
+
+func (d *configBase) GetMap(key string, fallback map[string]interface{}) map[string]interface{} {
+	if v, ok := d.Value[key]; ok {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			logExposure(d, key)
 			return val
 		}
 	}
