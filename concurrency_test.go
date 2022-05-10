@@ -14,7 +14,7 @@ import (
 )
 
 func TestCallingAPIsConcurrently(t *testing.T) {
-	flushedEvents := make([]Event, 0)
+	flushedEventCount := 0
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
@@ -33,7 +33,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 			buf.ReadFrom(req.Body)
 
 			json.Unmarshal(buf.Bytes(), &input)
-			flushedEvents = input.Events
+			flushedEventCount += len(input.Events)
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			baseURL := "http://" + req.Host
 			r := map[string]idList{
@@ -90,7 +90,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 				if !CheckGate(statsigUser, "on_for_statsig_email") || CheckGate(user, "on_for_statsig_email") {
 					t.Error("statsig user should pass statsig email gate and regular user should fail")
 				}
-
+				LogEvent(Event{EventName: "test_event_2", User: statsigUser})
 				exp := GetExperiment(statsigUser, "sample_experiment")
 				if !exp.GetBool("layer_param", false) {
 					t.Error("sample_experiment layer_param not correct")
@@ -99,24 +99,30 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 				if config.GetNumber("number", 420) != 7 {
 					t.Error("test_config number not correct")
 				}
+				LogEvent(Event{EventName: "test_event_3", User: statsigUser})
 				layer := GetLayer(statsigUser, "a_layer")
 				if !layer.GetBool("layer_param", false) {
 					t.Error("sample_experiment layer_param not correct")
 				}
-				LogEvent(Event{EventName: "test_event_2", User: statsigUser})
+				LogEvent(Event{EventName: "test_event_4", User: statsigUser})
 			}
 		}()
 	}
 	wg.Wait()
 
-	// 10 go routines x 10 loops each x 9 events (2 log event + 7 exposure events) = 900
-	if len(instance.logger.events) != 900 {
-		t.Error("Some events were dropped when calling APIs concurrently")
+	// 10 go routines x 10 loops each x 9 events (4 log event + 7 exposure events) = 1100 total events should have been logged.
+
+	// only 100 should still be in the logger now because the first 1000 would have been cut and triggered a flush
+	if len(instance.logger.events) != 100 {
+		t.Error("Incorrect number of events batched in the logger")
 	}
 
 	Shutdown()
-	if len(flushedEvents) != 900 {
-		t.Error("Not all events were flushed at shutdown")
+
+	// wait a little to allow the async flush to be executed
+	time.Sleep(time.Second)
+	if flushedEventCount != 1100 {
+		t.Error("Not all events were flushed eventually")
 	}
 }
 
