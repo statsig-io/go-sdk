@@ -113,22 +113,22 @@ func newStoreInternal(transport *transport, configSyncInterval time.Duration, id
 
 func (s *store) getGate(name string) (configSpec, bool) {
 	s.configsLock.RLock()
+	defer s.configsLock.RUnlock()
 	gate, ok := s.featureGates[name]
-	s.configsLock.RUnlock()
 	return gate, ok
 }
 
 func (s *store) getDynamicConfig(name string) (configSpec, bool) {
 	s.configsLock.RLock()
+	defer s.configsLock.RUnlock()
 	config, ok := s.dynamicConfigs[name]
-	s.configsLock.RUnlock()
 	return config, ok
 }
 
 func (s *store) getLayerConfig(name string) (configSpec, bool) {
 	s.configsLock.RLock()
+	defer s.configsLock.RUnlock()
 	config, ok := s.layerConfigs[name]
-	s.configsLock.RUnlock()
 	return config, ok
 }
 
@@ -166,8 +166,8 @@ func (s *store) fetchConfigSpecs() {
 
 func (s *store) getIDList(name string) *idList {
 	s.idListsLock.RLock()
+	defer s.idListsLock.RUnlock()
 	list, ok := s.idLists[name]
-	s.idListsLock.RUnlock()
 	if ok {
 		return list
 	}
@@ -176,8 +176,8 @@ func (s *store) getIDList(name string) *idList {
 
 func (s *store) deleteIDList(name string) {
 	s.idListsLock.Lock()
+	defer s.idListsLock.Unlock()
 	delete(s.idLists, name)
-	s.idListsLock.Unlock()
 }
 
 func (s *store) syncIDLists() {

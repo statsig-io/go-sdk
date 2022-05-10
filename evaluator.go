@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/statsig-io/ip3country-go/pkg/countrylookup"
@@ -17,11 +18,13 @@ import (
 )
 
 type evaluator struct {
-	store           *store
-	gateOverrides   map[string]bool
-	configOverrides map[string]map[string]interface{}
-	countryLookup   *countrylookup.CountryLookup
-	uaParser        *uaparser.Parser
+	store               *store
+	gateOverrides       map[string]bool
+	gateOverridesLock   sync.RWMutex
+	configOverrides     map[string]map[string]interface{}
+	configOverridesLock sync.RWMutex
+	countryLookup       *countrylookup.CountryLookup
+	uaParser            *uaparser.Parser
 }
 
 type evalResult struct {
@@ -62,7 +65,7 @@ func (e *evaluator) shutdown() {
 }
 
 func (e *evaluator) checkGate(user User, gateName string) *evalResult {
-	if gateOverride, hasOverride := e.gateOverrides[gateName]; hasOverride {
+	if gateOverride, hasOverride := e.getGateOverride(gateName); hasOverride {
 		return &evalResult{
 			Pass: gateOverride,
 			Id:   "override"}
@@ -74,7 +77,7 @@ func (e *evaluator) checkGate(user User, gateName string) *evalResult {
 }
 
 func (e *evaluator) getConfig(user User, configName string) *evalResult {
-	if configOverride, hasOverride := e.configOverrides[configName]; hasOverride {
+	if configOverride, hasOverride := e.getConfigOverride(configName); hasOverride {
 		return &evalResult{
 			Pass:        true,
 			ConfigValue: *NewConfig(configName, configOverride, "override"),
@@ -93,13 +96,31 @@ func (e *evaluator) getLayer(user User, name string) *evalResult {
 	return new(evalResult)
 }
 
+func (e *evaluator) getGateOverride(name string) (bool, bool) {
+	e.gateOverridesLock.RLock()
+	defer e.gateOverridesLock.RUnlock()
+	gate, ok := e.gateOverrides[name]
+	return gate, ok
+}
+
+func (e *evaluator) getConfigOverride(name string) (map[string]interface{}, bool) {
+	e.configOverridesLock.RLock()
+	defer e.configOverridesLock.RUnlock()
+	config, ok := e.configOverrides[name]
+	return config, ok
+}
+
 // Override the value of a Feature Gate for the given user
 func (e *evaluator) OverrideGate(gate string, val bool) {
+	e.gateOverridesLock.Lock()
+	defer e.gateOverridesLock.Unlock()
 	e.gateOverrides[gate] = val
 }
 
 // Override the DynamicConfig value for the given user
 func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
+	e.configOverridesLock.Lock()
+	defer e.configOverridesLock.Unlock()
 	e.configOverrides[config] = val
 }
 

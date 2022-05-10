@@ -209,3 +209,62 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 	wg.Wait()
 	client.Shutdown()
 }
+
+func TestOverrideAPIsConcurrency(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		defer req.Body.Close()
+		res.WriteHeader(http.StatusOK)
+		if strings.Contains(req.URL.Path, "download_config_specs") {
+			var in *downloadConfigsInput
+			bytes, _ := ioutil.ReadFile("download_config_specs.json")
+			json.NewDecoder(req.Body).Decode(&in)
+			res.Write(bytes)
+		}
+	}))
+
+	defer testServer.Close()
+	options := &Options{
+		API: testServer.URL,
+		Environment: Environment{
+			Params: map[string]string{
+				"foo": "bar",
+			},
+			Tier: "awesome_land",
+		},
+	}
+
+	client := NewClientWithOptions("secret-Key", options)
+
+	const (
+		goroutines = 10
+		duration   = time.Second * 3
+	)
+	user := User{
+		UserID: "regular_user_id",
+		Email:  "u@gmail.com",
+	}
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	start := time.Now()
+	for g := 0; g < goroutines; g++ {
+		go func() {
+			defer wg.Done()
+			for time.Since(start) < duration {
+				client.OverrideGate("always_on_gate", true)
+				client.OverrideGate("always_on_gate", false)
+				client.OverrideConfig("test_config", map[string]interface{}{"v": "123"})
+			}
+		}()
+	}
+	wg.Wait()
+
+	if client.CheckGate(user, "always_on_gate") {
+		t.Error("gate should have been overridden to off")
+	}
+	config := client.GetConfig(user, "test_config")
+	if config.GetString("v", "str") != "123" {
+		t.Error("config should have been overridden to have 123")
+	}
+
+	client.Shutdown()
+}
