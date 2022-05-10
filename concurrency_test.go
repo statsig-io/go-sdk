@@ -152,7 +152,7 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 			res.Write(v)
 		} else if strings.Contains(req.URL.Path, "list_1") {
 			res.Write([]byte(idListContent))
-			idListContent = fmt.Sprintf("+%d\n-%d\n", 1, 1)
+			idListContent = fmt.Sprintf("+%d\n-%d\n", idlistSyncCount, idlistSyncCount)
 			idListSize += len(idListContent)
 		}
 	}))
