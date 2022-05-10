@@ -83,8 +83,16 @@ type store struct {
 	shutdownLock       sync.Mutex
 }
 
-func newStore(transport *transport) *store {
-	return newStoreInternal(transport, 10*time.Second, time.Minute)
+func newStore(transport *transport, options *Options) *store {
+	configSyncInterval := 10 * time.Second
+	idListSyncInterval := time.Minute
+	if options.ConfigSyncInterval > 0 {
+		configSyncInterval = options.ConfigSyncInterval
+	}
+	if options.IDListSyncInterval > 0 {
+		idListSyncInterval = options.IDListSyncInterval
+	}
+	return newStoreInternal(transport, configSyncInterval, idListSyncInterval)
 }
 
 func newStoreInternal(transport *transport, configSyncInterval time.Duration, idListSyncInterval time.Duration) *store {

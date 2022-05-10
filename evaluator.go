@@ -37,8 +37,8 @@ type evalResult struct {
 
 const dynamicConfigType = "dynamic_config"
 
-func newEvaluator(transport *transport) *evaluator {
-	store := newStore(transport)
+func newEvaluator(transport *transport, options *Options) *evaluator {
+	store := newStore(transport, options)
 	parser := uaparser.NewFromSaved()
 	countryLookup := countrylookup.New()
 	defer func() {
@@ -364,10 +364,12 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		pass = (y1 == y2 && m1 == m2 && d1 == d2)
 	case "in_segment_list", "not_in_segment_list":
 		inlist := false
-		list := e.store.getIDList(cond.TargetValue.(string))
-		if list != nil {
-			h := sha256.Sum256([]byte(value.(string)))
-			_, inlist = list.ids.Load(base64.StdEncoding.EncodeToString(h[:])[:8])
+		if reflect.TypeOf(cond.TargetValue).String() == "string" && reflect.TypeOf(value).String() == "string" {
+			list := e.store.getIDList(cond.TargetValue.(string))
+			if list != nil {
+				h := sha256.Sum256([]byte(value.(string)))
+				_, inlist = list.ids.Load(base64.StdEncoding.EncodeToString(h[:])[:8])
+			}
 		}
 		if op == "in_segment_list" {
 			pass = inlist

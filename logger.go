@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	maxEvents           = 500
+	maxEvents           = 1000
 	gateExposureEvent   = "statsig::gate_exposure"
 	configExposureEvent = "statsig::config_exposure"
 	layerExposureEvent  = "statsig::layer_exposure"
