@@ -98,6 +98,19 @@ func (d *configBase) GetNumber(key string, fallback float64) float64 {
 	return fallback
 }
 
+// Gets the int64 value at the given key in the DynamicConfig
+// Returns the fallback int64 if the item at the given key is not found or not of type int64
+func (d *configBase) GetInt(key string, fallback int64) int64 {
+	if v, ok := d.Value[key]; ok {
+		switch val := v.(type) {
+		case int64:
+			logExposure(d, key)
+			return val
+		}
+	}
+	return fallback
+}
+
 // Gets the boolean value at the given key in the DynamicConfig
 // Returns the fallback boolean if the item at the given key is not found or not of type boolean
 func (d *configBase) GetBool(key string, fallback bool) bool {
