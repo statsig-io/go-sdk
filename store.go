@@ -83,8 +83,16 @@ type store struct {
 	shutdownLock       sync.Mutex
 }
 
-func newStore(transport *transport) *store {
-	return newStoreInternal(transport, 10*time.Second, time.Minute)
+func newStore(transport *transport, options *Options) *store {
+	configSyncInterval := 10 * time.Second
+	idListSyncInterval := time.Minute
+	if options.ConfigSyncInterval > 0 {
+		configSyncInterval = options.ConfigSyncInterval
+	}
+	if options.IDListSyncInterval > 0 {
+		idListSyncInterval = options.IDListSyncInterval
+	}
+	return newStoreInternal(transport, configSyncInterval, idListSyncInterval)
 }
 
 func newStoreInternal(transport *transport, configSyncInterval time.Duration, idListSyncInterval time.Duration) *store {
@@ -105,22 +113,22 @@ func newStoreInternal(transport *transport, configSyncInterval time.Duration, id
 
 func (s *store) getGate(name string) (configSpec, bool) {
 	s.configsLock.RLock()
+	defer s.configsLock.RUnlock()
 	gate, ok := s.featureGates[name]
-	s.configsLock.RUnlock()
 	return gate, ok
 }
 
 func (s *store) getDynamicConfig(name string) (configSpec, bool) {
 	s.configsLock.RLock()
+	defer s.configsLock.RUnlock()
 	config, ok := s.dynamicConfigs[name]
-	s.configsLock.RUnlock()
 	return config, ok
 }
 
 func (s *store) getLayerConfig(name string) (configSpec, bool) {
 	s.configsLock.RLock()
+	defer s.configsLock.RUnlock()
 	config, ok := s.layerConfigs[name]
-	s.configsLock.RUnlock()
 	return config, ok
 }
 
@@ -158,8 +166,8 @@ func (s *store) fetchConfigSpecs() {
 
 func (s *store) getIDList(name string) *idList {
 	s.idListsLock.RLock()
+	defer s.idListsLock.RUnlock()
 	list, ok := s.idLists[name]
-	s.idListsLock.RUnlock()
 	if ok {
 		return list
 	}
@@ -168,8 +176,8 @@ func (s *store) getIDList(name string) *idList {
 
 func (s *store) deleteIDList(name string) {
 	s.idListsLock.Lock()
+	defer s.idListsLock.Unlock()
 	delete(s.idLists, name)
-	s.idListsLock.Unlock()
 }
 
 func (s *store) syncIDLists() {

@@ -4,6 +4,7 @@ package statsig
 import (
 	"fmt"
 	"net/http"
+	"time"
 )
 
 const DefaultEndpoint = "https://statsigapi.net/v1"
@@ -22,9 +23,11 @@ func Initialize(sdkKey string) {
 
 // Advanced options for configuring the Statsig SDK
 type Options struct {
-	API         string      `json:"api"`
-	Environment Environment `json:"environment"`
-	LocalMode   bool        `json:"localMode"`
+	API                string      `json:"api"`
+	Environment        Environment `json:"environment"`
+	LocalMode          bool        `json:"localMode"`
+	ConfigSyncInterval time.Duration
+	IDListSyncInterval time.Duration
 }
 
 // See https://docs.statsig.com/guides/usingEnvironments

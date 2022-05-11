@@ -28,7 +28,7 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	}
 	transport := newTransport(sdkKey, options)
 	logger := newLogger(transport)
-	evaluator := newEvaluator(transport)
+	evaluator := newEvaluator(transport, options)
 	if !options.LocalMode && !strings.HasPrefix(sdkKey, "secret") {
 		panic("Must provide a valid SDK key.")
 	}
