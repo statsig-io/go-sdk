@@ -7,17 +7,18 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 func TestStoreSync(t *testing.T) {
 	type requestCounter struct {
-		configsCount int
-		idlistsCount int
-		list1Count   int
-		list2Count   int
-		list3Count   int
+		configsCount int32
+		idlistsCount int32
+		list1Count   int32
+		list2Count   int32
+		list3Count   int32
 	}
 	counter := &requestCounter{}
 
@@ -44,7 +45,8 @@ func TestStoreSync(t *testing.T) {
 			}
 			v, _ := json.Marshal(r)
 			res.Write(v)
-			counter.configsCount++
+			incrementCounter(&counter.configsCount)
+			// counter.configsCount++
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			var r map[string]idList
 			baseURL := "http://" + req.Host
@@ -80,10 +82,11 @@ func TestStoreSync(t *testing.T) {
 			}
 			v, _ := json.Marshal(r)
 			res.Write(v)
-			counter.idlistsCount++
+			incrementCounter(&counter.idlistsCount)
 		} else if strings.Contains(req.URL.Path, "list_1") {
 			var r string
-			switch counter.list1Count {
+			switch atomic.LoadInt32(&counter.list1Count) {
+			// switch counter.list1Count {
 			case 0:
 				r = "+1\n"
 			case 1:
@@ -96,13 +99,13 @@ func TestStoreSync(t *testing.T) {
 				r = "+3\n+4\n+5\n+4\n-4\n+6\n"
 			}
 			res.Write([]byte(r))
-			counter.list1Count++
+			incrementCounter(&counter.list1Count)
 		} else if strings.Contains(req.URL.Path, "list_2") {
 			res.Write([]byte("+a\n"))
-			counter.list2Count++
+			incrementCounter(&counter.list2Count)
 		} else if strings.Contains(req.URL.Path, "list_3") {
 			res.Write([]byte("+0\n"))
-			counter.list3Count++
+			incrementCounter(&counter.list3Count)
 		}
 	}))
 
@@ -113,10 +116,10 @@ func TestStoreSync(t *testing.T) {
 	n := newTransport("secret-123", opt)
 	s := newStoreInternal(n, time.Second, time.Second)
 
-	if len(s.featureGates) != 1 {
+	if len(s.getAllGates()) != 1 {
 		t.Errorf("Wrong number of feature gates after initialize")
 	}
-	if len(s.dynamicConfigs) != 1 {
+	if len(s.getAllConfigs()) != 1 {
 		t.Errorf("Wrong number of configs after initialize")
 	}
 
@@ -135,13 +138,13 @@ func TestStoreSync(t *testing.T) {
 		t.Errorf("list_3 should be nil after initialize")
 	}
 
-	if counter.configsCount != 1 {
+	if getCounter(&counter.configsCount) != 1 {
 		t.Errorf("download_config_specs should have been called 1 time")
 	}
-	if counter.idlistsCount != 1 {
+	if getCounter(&counter.idlistsCount) != 1 {
 		t.Errorf("get_id_lists should have been called 1 time")
 	}
-	if counter.list1Count != 1 || counter.list2Count != 1 || counter.list3Count != 0 {
+	if getCounter(&counter.list1Count) != 1 || getCounter(&counter.list2Count) != 1 || getCounter(&counter.list3Count) != 0 {
 		t.Errorf("individual id list download count is incorrect after initialize")
 	}
 
@@ -157,13 +160,13 @@ func TestStoreSync(t *testing.T) {
 		t.Errorf("list_3 should be nil after 1 second")
 	}
 
-	if counter.configsCount != 2 {
+	if getCounter(&counter.configsCount) != 2 {
 		t.Errorf("download_config_specs should have been called 2 times")
 	}
-	if counter.idlistsCount != 2 {
+	if getCounter(&counter.idlistsCount) != 2 {
 		t.Errorf("get_id_lists should have been called 2 times")
 	}
-	if counter.list1Count != 2 || counter.list2Count != 1 || counter.list3Count != 0 {
+	if getCounter(&counter.list1Count) != 2 || getCounter(&counter.list2Count) != 1 || getCounter(&counter.list3Count) != 0 {
 		t.Errorf("individual id list download count is incorrect after 1 second")
 	}
 
@@ -179,13 +182,13 @@ func TestStoreSync(t *testing.T) {
 		t.Errorf("list_3 should be nil after 2 seconds")
 	}
 
-	if counter.configsCount != 3 {
+	if getCounter(&counter.configsCount) != 3 {
 		t.Errorf("download_config_specs should have been called 3 times")
 	}
-	if counter.idlistsCount != 3 {
+	if getCounter(&counter.idlistsCount) != 3 {
 		t.Errorf("get_id_lists should have been called 3 times")
 	}
-	if counter.list1Count != 3 || counter.list2Count != 1 || counter.list3Count != 0 {
+	if getCounter(&counter.list1Count) != 3 || getCounter(&counter.list2Count) != 1 || getCounter(&counter.list3Count) != 0 {
 		t.Errorf("individual id list download count is incorrect after 2 seconds")
 	}
 
@@ -201,13 +204,13 @@ func TestStoreSync(t *testing.T) {
 		t.Errorf("list_3 should be nil after 3 seconds")
 	}
 
-	if counter.configsCount != 4 {
+	if getCounter(&counter.configsCount) != 4 {
 		t.Errorf("download_config_specs should have been called 4 times")
 	}
-	if counter.idlistsCount != 4 {
+	if getCounter(&counter.idlistsCount) != 4 {
 		t.Errorf("get_id_lists should have been called 4 times")
 	}
-	if counter.list1Count != 3 || counter.list2Count != 1 || counter.list3Count != 0 {
+	if getCounter(&counter.list1Count) != 3 || getCounter(&counter.list2Count) != 1 || getCounter(&counter.list3Count) != 0 {
 		t.Errorf("individual id list download count is incorrect after 3 seconds")
 	}
 
@@ -223,13 +226,13 @@ func TestStoreSync(t *testing.T) {
 		t.Errorf("list_3 should not be nil anymore after 4 seconds")
 	}
 
-	if counter.configsCount != 5 {
+	if getCounter(&counter.configsCount) != 5 {
 		t.Errorf("download_config_specs should have been called 5 times")
 	}
-	if counter.idlistsCount != 5 {
+	if getCounter(&counter.idlistsCount) != 5 {
 		t.Errorf("get_id_lists should have been called 5 times")
 	}
-	if counter.list1Count != 4 || counter.list2Count != 1 || counter.list3Count != 1 {
+	if getCounter(&counter.list1Count) != 4 || getCounter(&counter.list2Count) != 1 || getCounter(&counter.list3Count) != 1 {
 		t.Errorf("individual id list download count is incorrect after 4 seconds")
 	}
 
@@ -246,21 +249,22 @@ func TestStoreSync(t *testing.T) {
 		t.Errorf("list_3 is incorrect after 5 seconds")
 	}
 
-	if counter.configsCount != 6 {
+	if getCounter(&counter.configsCount) != 6 {
 		t.Errorf("download_config_specs should have been called 6 times")
 	}
-	if counter.idlistsCount != 6 {
+	if getCounter(&counter.idlistsCount) != 6 {
 		t.Errorf("get_id_lists should have been called 6 times")
 	}
-	if counter.list1Count != 5 || counter.list2Count != 1 || counter.list3Count != 1 {
+	if getCounter(&counter.list1Count) != 5 || getCounter(&counter.list2Count) != 1 || getCounter(&counter.list3Count) != 1 {
 		t.Errorf("individual id list download count is incorrect after 5 seconds")
 	}
 }
 
 func compareIDLists(l1 *idList, l2 *idList) bool {
-	if l1.Name != l2.Name || l1.Size != l2.Size || l1.URL != l2.URL || l1.CreationTime != l2.CreationTime || l1.FileID != l2.FileID {
+	if l1.Name != l2.Name || atomic.LoadInt64(&l1.Size) != atomic.LoadInt64(&l2.Size) || l1.URL != l2.URL || l1.CreationTime != l2.CreationTime || l1.FileID != l2.FileID {
 		return false
 	}
+
 	ids1 := unsyncIDList(&l1.ids)
 	ids2 := unsyncIDList(&l2.ids)
 	return reflect.DeepEqual(ids1, ids2)
@@ -281,4 +285,30 @@ func idListMapToSyncMap(m map[string]bool) *sync.Map {
 		mm.Store(k, true)
 	}
 	return &mm
+}
+
+func getCounter(val *int32) int32 {
+	return atomic.LoadInt32(val)
+}
+
+func incrementCounter(val *int32) {
+	atomic.AddInt32((*int32)(val), 1)
+}
+
+func (s *store) getAllGates() map[string]configSpec {
+	s.configsLock.RLock()
+	defer s.configsLock.RUnlock()
+	return s.featureGates
+}
+
+func (s *store) getAllConfigs() map[string]configSpec {
+	s.configsLock.RLock()
+	defer s.configsLock.RUnlock()
+	return s.dynamicConfigs
+}
+
+func (s *store) getAllLayers() map[string]configSpec {
+	s.configsLock.RLock()
+	defer s.configsLock.RUnlock()
+	return s.layerConfigs
 }

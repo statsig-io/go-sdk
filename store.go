@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -180,6 +181,12 @@ func (s *store) deleteIDList(name string) {
 	delete(s.idLists, name)
 }
 
+func (s *store) setIDList(name string, list *idList) {
+	s.idListsLock.Lock()
+	defer s.idListsLock.Unlock()
+	s.idLists[name] = list
+}
+
 func (s *store) syncIDLists() {
 	var serverLists map[string]idList
 	err := s.transport.postRequest("/get_id_lists", getIDListsInput{StatsigMetadata: s.transport.metadata}, &serverLists)
@@ -192,9 +199,7 @@ func (s *store) syncIDLists() {
 		localList := s.getIDList(name)
 		if localList == nil {
 			localList = &idList{Name: name}
-			s.idListsLock.Lock()
-			s.idLists[name] = localList
-			s.idListsLock.Unlock()
+			s.setIDList(name, localList)
 		}
 
 		// skip if server list is invalid
@@ -204,11 +209,15 @@ func (s *store) syncIDLists() {
 
 		// reset the local list if returns server list has a newer file
 		if serverList.FileID != localList.FileID && serverList.CreationTime >= localList.CreationTime {
-			localList.URL = serverList.URL
-			localList.FileID = serverList.FileID
-			localList.CreationTime = serverList.CreationTime
-			localList.Size = 0
-			localList.ids = sync.Map{}
+			localList = &idList{
+				Name:         localList.Name,
+				Size:         0,
+				CreationTime: serverList.CreationTime,
+				URL:          serverList.URL,
+				FileID:       serverList.FileID,
+				ids:          sync.Map{},
+			}
+			s.setIDList(name, localList)
 		}
 
 		// skip if server list is not bigger
@@ -254,7 +263,7 @@ func (s *store) syncIDLists() {
 					l.ids.Delete(id)
 				}
 			}
-			l.Size = l.Size + int64(length)
+			atomic.AddInt64((&l.Size), int64(length))
 		}(name, localList)
 	}
 	wg.Wait()
