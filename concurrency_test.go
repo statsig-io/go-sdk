@@ -34,7 +34,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 			buf.ReadFrom(req.Body)
 
 			json.Unmarshal(buf.Bytes(), &input)
-			atomic.AddInt32((&flushedEventCount), int32(len(input.Events)))
+			atomic.AddInt32(&flushedEventCount, int32(len(input.Events)))
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			baseURL := "http://" + req.Host
 			r := map[string]idList{

@@ -46,7 +46,6 @@ func TestStoreSync(t *testing.T) {
 			v, _ := json.Marshal(r)
 			res.Write(v)
 			incrementCounter(&counter.configsCount)
-			// counter.configsCount++
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			var r map[string]idList
 			baseURL := "http://" + req.Host
@@ -86,7 +85,6 @@ func TestStoreSync(t *testing.T) {
 		} else if strings.Contains(req.URL.Path, "list_1") {
 			var r string
 			switch atomic.LoadInt32(&counter.list1Count) {
-			// switch counter.list1Count {
 			case 0:
 				r = "+1\n"
 			case 1:
@@ -116,10 +114,10 @@ func TestStoreSync(t *testing.T) {
 	n := newTransport("secret-123", opt)
 	s := newStoreInternal(n, time.Second, time.Second)
 
-	if len(s.getAllGates()) != 1 {
+	if s.getGatesCount() != 1 {
 		t.Errorf("Wrong number of feature gates after initialize")
 	}
-	if len(s.getAllConfigs()) != 1 {
+	if s.getConfigsCount() != 1 {
 		t.Errorf("Wrong number of configs after initialize")
 	}
 
@@ -292,23 +290,17 @@ func getCounter(val *int32) int32 {
 }
 
 func incrementCounter(val *int32) {
-	atomic.AddInt32((*int32)(val), 1)
+	atomic.AddInt32(val, 1)
 }
 
-func (s *store) getAllGates() map[string]configSpec {
+func (s *store) getGatesCount() int {
 	s.configsLock.RLock()
 	defer s.configsLock.RUnlock()
-	return s.featureGates
+	return len(s.featureGates)
 }
 
-func (s *store) getAllConfigs() map[string]configSpec {
+func (s *store) getConfigsCount() int {
 	s.configsLock.RLock()
 	defer s.configsLock.RUnlock()
-	return s.dynamicConfigs
-}
-
-func (s *store) getAllLayers() map[string]configSpec {
-	s.configsLock.RLock()
-	defer s.configsLock.RUnlock()
-	return s.layerConfigs
+	return len(s.dynamicConfigs)
 }
