@@ -9,12 +9,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 func TestCallingAPIsConcurrently(t *testing.T) {
-	flushedEventCount := 0
+	flushedEventCount := int32(0)
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
@@ -33,7 +34,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 			buf.ReadFrom(req.Body)
 
 			json.Unmarshal(buf.Bytes(), &input)
-			flushedEventCount += len(input.Events)
+			atomic.AddInt32(&flushedEventCount, int32(len(input.Events)))
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			baseURL := "http://" + req.Host
 			r := map[string]idList{
@@ -68,6 +69,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
 	for g := 0; g < goroutines; g++ {
+		g := g
 		go func() {
 			defer wg.Done()
 			statsigUser := User{
@@ -121,7 +123,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 
 	// wait a little to allow the async flush to be executed
 	time.Sleep(time.Second)
-	if flushedEventCount != 1100 {
+	if atomic.LoadInt32(&flushedEventCount) != 1100 {
 		t.Error("Not all events were flushed eventually")
 	}
 }
@@ -181,6 +183,7 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 	wg.Add(goroutines)
 	start := time.Now()
 	for g := 0; g < goroutines; g++ {
+		g := g
 		go func() {
 			defer wg.Done()
 			statsigUser := User{
