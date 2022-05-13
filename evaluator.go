@@ -518,7 +518,6 @@ func getNumericValue(a interface{}) (float64, bool) {
 	case float64:
 		return a, true
 	case string:
-		// s := string(a)
 		f, err := strconv.ParseFloat(a, 64)
 		if err == nil {
 			return f, true
