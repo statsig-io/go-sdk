@@ -119,7 +119,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 		t.Error("Incorrect number of events batched in the logger")
 	}
 
-	Shutdown()
+	shutDownAndClearInstance()
 
 	// wait a little to allow the async flush to be executed
 	time.Sleep(time.Second)

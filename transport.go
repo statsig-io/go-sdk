@@ -25,7 +25,7 @@ type statsigMetadata struct {
 type transport struct {
 	api       string
 	sdkKey    string
-	metadata  statsigMetadata
+	metadata  statsigMetadata // Safe to read from but not thread safe to write into. If value needs to change, please ensure thread safety.
 	client    *http.Client
 	options   *Options
 	sessionID string

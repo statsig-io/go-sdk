@@ -53,7 +53,7 @@ func TestLayerExposure(t *testing.T) {
 	t.Run("does not log on getLayer", func(t *testing.T) {
 		start()
 		GetLayer(user, "unallocated_layer")
-		Shutdown()
+		shutDownAndClearInstance()
 
 		if len(events) != 0 {
 			t.Errorf("Should receive exactly one log_event")
@@ -66,7 +66,7 @@ func TestLayerExposure(t *testing.T) {
 		start()
 		layer := GetLayer(user, "unallocated_layer")
 		layer.GetString("a_string", "err")
-		Shutdown()
+		shutDownAndClearInstance()
 
 		if len(events) != 0 {
 			t.Errorf("Should receive exactly one log_event")
@@ -81,7 +81,7 @@ func TestLayerExposure(t *testing.T) {
 		layer.GetString("an_int", "err")
 		layer.GetBool("an_int", false)
 		layer.GetSlice("an_int", make([]interface{}, 0))
-		Shutdown()
+		shutDownAndClearInstance()
 
 		if len(events) != 0 {
 			t.Errorf("Should receive exactly one log_event")
@@ -94,7 +94,7 @@ func TestLayerExposure(t *testing.T) {
 		start()
 		layer := GetLayer(user, "unallocated_layer")
 		layer.GetNumber("an_int", 0)
-		Shutdown()
+		shutDownAndClearInstance()
 
 		if len(events) != 1 {
 			t.Errorf("Should receive exactly one log_event")
@@ -118,7 +118,7 @@ func TestLayerExposure(t *testing.T) {
 		layer := GetLayer(user, "explicit_vs_implicit_parameter_layer")
 		layer.GetNumber("an_int", 0)
 		layer.GetString("a_string", "err")
-		Shutdown()
+		shutDownAndClearInstance()
 
 		if len(events) != 2 {
 			t.Errorf("Should receive exactly two log_events")
@@ -151,7 +151,7 @@ func TestLayerExposure(t *testing.T) {
 		start()
 		layer := GetLayer(User{UserID: "dloomb", Email: "d@n.loomb"}, "unallocated_layer")
 		layer.GetNumber("an_int", 0)
-		Shutdown()
+		shutDownAndClearInstance()
 
 		if len(events) != 1 {
 			t.Errorf("Should receive exactly one log_event")
