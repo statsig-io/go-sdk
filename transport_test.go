@@ -70,7 +70,7 @@ func TestRetries(t *testing.T) {
 				Name: "test",
 			}
 			res.WriteHeader(http.StatusOK)
-			json.NewEncoder(res).Encode(output)
+			_ = json.NewEncoder(res).Encode(output)
 		}
 	}))
 	defer func() { testServer.Close() }()

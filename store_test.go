@@ -27,7 +27,7 @@ func TestStoreSync(t *testing.T) {
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			var in *downloadConfigsInput
 			var r *downloadConfigSpecResponse
-			json.NewDecoder(req.Body).Decode(&in)
+			_ = json.NewDecoder(req.Body).Decode(&in)
 			if counter.configsCount == 0 {
 				r = &downloadConfigSpecResponse{
 					HasUpdates:     true,
@@ -44,7 +44,7 @@ func TestStoreSync(t *testing.T) {
 				}
 			}
 			v, _ := json.Marshal(r)
-			res.Write(v)
+			_, _ = res.Write(v)
 			incrementCounter(&counter.configsCount)
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			var r map[string]idList
@@ -80,7 +80,7 @@ func TestStoreSync(t *testing.T) {
 				}
 			}
 			v, _ := json.Marshal(r)
-			res.Write(v)
+			_, _ = res.Write(v)
 			incrementCounter(&counter.idlistsCount)
 		} else if strings.Contains(req.URL.Path, "list_1") {
 			var r string
@@ -96,13 +96,13 @@ func TestStoreSync(t *testing.T) {
 			default:
 				r = "+3\n+4\n+5\n+4\n-4\n+6\n"
 			}
-			res.Write([]byte(r))
+			_, _ = res.Write([]byte(r))
 			incrementCounter(&counter.list1Count)
 		} else if strings.Contains(req.URL.Path, "list_2") {
-			res.Write([]byte("+a\n"))
+			_, _ = res.Write([]byte("+a\n"))
 			incrementCounter(&counter.list2Count)
 		} else if strings.Contains(req.URL.Path, "list_3") {
-			res.Write([]byte("+0\n"))
+			_, _ = res.Write([]byte("+0\n"))
 			incrementCounter(&counter.list3Count)
 		}
 	}))
@@ -125,11 +125,11 @@ func TestStoreSync(t *testing.T) {
 		t.Errorf("Wrong number of id lists after initialize")
 	}
 	if !compareIDLists(s.getIDList("list_1"),
-		&idList{Name: "list_1", Size: 3, URL: testServer.URL + "/list_1", CreationTime: 1, FileID: "file_id_1", ids: *idListMapToSyncMap(map[string]bool{"1": true})}) {
+		&idList{Name: "list_1", Size: 3, URL: testServer.URL + "/list_1", CreationTime: 1, FileID: "file_id_1", ids: idListMapToSyncMap(map[string]bool{"1": true})}) {
 		t.Errorf("list_1 is incorrect after initialize")
 	}
 	if !compareIDLists(s.getIDList("list_2"),
-		&idList{Name: "list_2", Size: 3, URL: testServer.URL + "/list_2", CreationTime: 1, FileID: "file_id_2", ids: *idListMapToSyncMap(map[string]bool{"a": true})}) {
+		&idList{Name: "list_2", Size: 3, URL: testServer.URL + "/list_2", CreationTime: 1, FileID: "file_id_2", ids: idListMapToSyncMap(map[string]bool{"a": true})}) {
 		t.Errorf("list_2 is incorrect after initialize")
 	}
 	if s.getIDList("list_3") != nil {
@@ -148,7 +148,7 @@ func TestStoreSync(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 1100)
 	if !compareIDLists(s.getIDList("list_1"),
-		&idList{Name: "list_1", Size: 9, URL: testServer.URL + "/list_1", CreationTime: 1, FileID: "file_id_1", ids: *idListMapToSyncMap(map[string]bool{"2": true})}) {
+		&idList{Name: "list_1", Size: 9, URL: testServer.URL + "/list_1", CreationTime: 1, FileID: "file_id_1", ids: idListMapToSyncMap(map[string]bool{"2": true})}) {
 		t.Errorf("list_1 is incorrect after 1 second")
 	}
 	if s.getIDList("list_2") != nil {
@@ -170,7 +170,7 @@ func TestStoreSync(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 1100)
 	if !compareIDLists(s.getIDList("list_1"),
-		&idList{Name: "list_1", Size: 3, URL: testServer.URL + "/list_1", CreationTime: 3, FileID: "file_id_1_a", ids: *idListMapToSyncMap(map[string]bool{"3": true})}) {
+		&idList{Name: "list_1", Size: 3, URL: testServer.URL + "/list_1", CreationTime: 3, FileID: "file_id_1_a", ids: idListMapToSyncMap(map[string]bool{"3": true})}) {
 		t.Errorf("list_1 is incorrect after 2 seconds")
 	}
 	if s.getIDList("list_2") != nil {
@@ -192,7 +192,7 @@ func TestStoreSync(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 1100)
 	if !compareIDLists(s.getIDList("list_1"),
-		&idList{Name: "list_1", Size: 3, URL: testServer.URL + "/list_1", CreationTime: 3, FileID: "file_id_1_a", ids: *idListMapToSyncMap(map[string]bool{"3": true})}) {
+		&idList{Name: "list_1", Size: 3, URL: testServer.URL + "/list_1", CreationTime: 3, FileID: "file_id_1_a", ids: idListMapToSyncMap(map[string]bool{"3": true})}) {
 		t.Errorf("list_1 should NOT have changed after 3 seconds because response was pointing to the older url")
 	}
 	if s.getIDList("list_2") != nil {
@@ -220,7 +220,7 @@ func TestStoreSync(t *testing.T) {
 		t.Errorf("list_2 should be nil after 4 seconds")
 	}
 	if !compareIDLists(s.getIDList("list_3"),
-		&idList{Name: "list_3", Size: 3, URL: testServer.URL + "/list_3", CreationTime: 5, FileID: "file_id_3", ids: *idListMapToSyncMap(map[string]bool{"0": true})}) {
+		&idList{Name: "list_3", Size: 3, URL: testServer.URL + "/list_3", CreationTime: 5, FileID: "file_id_3", ids: idListMapToSyncMap(map[string]bool{"0": true})}) {
 		t.Errorf("list_3 should not be nil anymore after 4 seconds")
 	}
 
@@ -236,14 +236,14 @@ func TestStoreSync(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 1100)
 	if !compareIDLists(s.getIDList("list_1"),
-		&idList{Name: "list_1", Size: 18, URL: testServer.URL + "/list_1", CreationTime: 3, FileID: "file_id_1_a", ids: *idListMapToSyncMap(map[string]bool{"3": true, "5": true, "6": true})}) {
+		&idList{Name: "list_1", Size: 18, URL: testServer.URL + "/list_1", CreationTime: 3, FileID: "file_id_1_a", ids: idListMapToSyncMap(map[string]bool{"3": true, "5": true, "6": true})}) {
 		t.Errorf("list_1 is incorrect after 5 seconds")
 	}
 	if s.getIDList("list_2") != nil {
 		t.Errorf("list_2 should be nil after 5 seconds")
 	}
 	if !compareIDLists(s.getIDList("list_3"),
-		&idList{Name: "list_3", Size: 3, URL: testServer.URL + "/list_3", CreationTime: 5, FileID: "file_id_3", ids: *idListMapToSyncMap(map[string]bool{"0": true})}) {
+		&idList{Name: "list_3", Size: 3, URL: testServer.URL + "/list_3", CreationTime: 5, FileID: "file_id_3", ids: idListMapToSyncMap(map[string]bool{"0": true})}) {
 		t.Errorf("list_3 is incorrect after 5 seconds")
 	}
 
@@ -263,8 +263,8 @@ func compareIDLists(l1 *idList, l2 *idList) bool {
 		return false
 	}
 
-	ids1 := unsyncIDList(&l1.ids)
-	ids2 := unsyncIDList(&l2.ids)
+	ids1 := unsyncIDList(l1.ids)
+	ids2 := unsyncIDList(l2.ids)
 	return reflect.DeepEqual(ids1, ids2)
 }
 
@@ -279,7 +279,7 @@ func unsyncIDList(m *sync.Map) map[string]bool {
 
 func idListMapToSyncMap(m map[string]bool) *sync.Map {
 	mm := sync.Map{}
-	for k, _ := range m {
+	for k := range m {
 		mm.Store(k, true)
 	}
 	return &mm

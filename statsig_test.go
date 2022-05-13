@@ -23,9 +23,9 @@ func TestLogImmediate(t *testing.T) {
 			input := &requestInput{}
 			defer req.Body.Close()
 			buf := new(bytes.Buffer)
-			buf.ReadFrom(req.Body)
+			_, _ = buf.ReadFrom(req.Body)
 
-			json.Unmarshal(buf.Bytes(), &input)
+			_ = json.Unmarshal(buf.Bytes(), &input)
 			env = input.Events[0].User.StatsigEnvironment["tier"]
 		}
 

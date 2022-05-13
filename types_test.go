@@ -47,7 +47,7 @@ func doValidation(t *testing.T, c *configBase) {
 
 func TestBasic(t *testing.T) {
 	jsonMap := make(map[string]interface{})
-	json.Unmarshal(
+	_ = json.Unmarshal(
 		[]byte(
 			`{
 				"Boolean": true,

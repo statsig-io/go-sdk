@@ -10,9 +10,7 @@ import (
 )
 
 func TestLog(t *testing.T) {
-	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		return
-	}))
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {}))
 	defer testServer.Close()
 	opt := &Options{
 		API: testServer.URL,

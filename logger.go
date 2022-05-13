@@ -178,5 +178,5 @@ func (l *logger) sendEvents(events []interface{}) {
 		StatsigMetadata: l.transport.metadata,
 	}
 	var res logEventResponse
-	l.transport.retryablePostRequest("/log_event", input, &res, maxRetries)
+	_ = l.transport.retryablePostRequest("/log_event", input, &res, maxRetries)
 }

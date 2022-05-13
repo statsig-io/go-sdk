@@ -504,22 +504,22 @@ func getHash(key string) uint64 {
 }
 
 func getNumericValue(a interface{}) (float64, bool) {
-	switch a.(type) {
+	switch a := a.(type) {
 	case int:
-		return float64(a.(int)), true
+		return float64(a), true
 	case int32:
-		return float64(a.(int32)), true
+		return float64(a), true
 	case int64:
-		return float64(a.(int64)), true
+		return float64(a), true
 	case uint64:
-		return float64(a.(uint64)), true
+		return float64(a), true
 	case float32:
-		return float64(a.(float32)), true
+		return float64(a), true
 	case float64:
-		return a.(float64), true
+		return a, true
 	case string:
-		s := string(a.(string))
-		f, err := strconv.ParseFloat(s, 64)
+		// s := string(a)
+		f, err := strconv.ParseFloat(a, 64)
 		if err == nil {
 			return f, true
 		}
@@ -626,21 +626,21 @@ func arrayAny(arr interface{}, val interface{}, fun func(x, y interface{}) bool)
 func getTime(a interface{}) time.Time {
 	var t_sec time.Time
 	var t_msec time.Time
-	switch a.(type) {
+	switch a := a.(type) {
 	case float64:
-		t_sec = time.Unix(int64(a.(float64)), 0)
-		t_msec = time.Unix(int64(a.(float64))/1000, 0)
+		t_sec = time.Unix(int64(a), 0)
+		t_msec = time.Unix(int64(a)/1000, 0)
 	case int64:
-		t_sec = time.Unix(a.(int64), 0)
-		t_msec = time.Unix(a.(int64)/1000, 0)
+		t_sec = time.Unix(a, 0)
+		t_msec = time.Unix(a/1000, 0)
 	case int32:
-		t_sec = time.Unix(int64(a.(int32)), 0)
-		t_msec = time.Unix(int64(a.(int32))/1000, 0)
+		t_sec = time.Unix(int64(a), 0)
+		t_msec = time.Unix(int64(a)/1000, 0)
 	case int:
-		t_sec = time.Unix(int64(a.(int)), 0)
-		t_msec = time.Unix(int64(a.(int))/1000, 0)
+		t_sec = time.Unix(int64(a), 0)
+		t_msec = time.Unix(int64(a)/1000, 0)
 	case string:
-		v, err := strconv.ParseInt(a.(string), 10, 64)
+		v, err := strconv.ParseInt(a, 10, 64)
 		if err != nil {
 			t_sec = time.Unix(v, 0)
 			t_msec = time.Unix(v/1000, 0)
