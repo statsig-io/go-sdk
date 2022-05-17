@@ -117,10 +117,10 @@ func Shutdown() {
 		return
 	}
 	instance.Shutdown()
-	clearInstance()
 }
 
-// This is it's own private method so we can call it in test
-func clearInstance() {
+// For test only so we can clear the shared instance. Not thread safe.
+func shutDownAndClearInstance() {
+	Shutdown()
 	instance = nil
 }
