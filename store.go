@@ -62,7 +62,7 @@ type idList struct {
 	CreationTime int64  `json:"creationTime"`
 	URL          string `json:"url"`
 	FileID       string `json:"fileID"`
-	ids          sync.Map
+	ids          *sync.Map
 }
 
 type getIDListsInput struct {
@@ -139,7 +139,7 @@ func (s *store) fetchConfigSpecs() {
 		StatsigMetadata: s.transport.metadata,
 	}
 	var specs downloadConfigSpecResponse
-	s.transport.postRequest("/download_config_specs", input, &specs)
+	_ = s.transport.postRequest("/download_config_specs", input, &specs)
 	s.lastSyncTime = specs.Time
 	if specs.HasUpdates {
 		newGates := make(map[string]configSpec)
@@ -215,7 +215,7 @@ func (s *store) syncIDLists() {
 				CreationTime: serverList.CreationTime,
 				URL:          serverList.URL,
 				FileID:       serverList.FileID,
-				ids:          sync.Map{},
+				ids:          &sync.Map{},
 			}
 			s.setIDList(name, localList)
 		}

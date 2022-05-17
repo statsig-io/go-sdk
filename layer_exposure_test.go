@@ -19,8 +19,8 @@ func TestLayerExposure(t *testing.T) {
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			var in *downloadConfigsInput
 			bytes, _ := ioutil.ReadFile("layer_exposure_download_config_specs.json")
-			json.NewDecoder(req.Body).Decode(&in)
-			res.Write(bytes)
+			_ = json.NewDecoder(req.Body).Decode(&in)
+			_, _ = res.Write(bytes)
 		} else if strings.Contains(req.URL.Path, "log_event") {
 			type requestInput struct {
 				Events          []Event         `json:"events"`
@@ -29,9 +29,9 @@ func TestLayerExposure(t *testing.T) {
 			input := &requestInput{}
 			defer req.Body.Close()
 			buf := new(bytes.Buffer)
-			buf.ReadFrom(req.Body)
+			_, _ = buf.ReadFrom(req.Body)
 
-			json.Unmarshal(buf.Bytes(), &input)
+			_ = json.Unmarshal(buf.Bytes(), &input)
 			events = input.Events
 		}
 	}))

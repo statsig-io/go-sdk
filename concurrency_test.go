@@ -19,10 +19,8 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			var in *downloadConfigsInput
 			bytes, _ := ioutil.ReadFile("download_config_specs.json")
-			json.NewDecoder(req.Body).Decode(&in)
-			res.Write(bytes)
+			_, _ = res.Write(bytes)
 		} else if strings.Contains(req.URL.Path, "log_event") {
 			type requestInput struct {
 				Events          []Event         `json:"events"`
@@ -31,9 +29,9 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 			input := &requestInput{}
 			defer req.Body.Close()
 			buf := new(bytes.Buffer)
-			buf.ReadFrom(req.Body)
+			_, _ = buf.ReadFrom(req.Body)
 
-			json.Unmarshal(buf.Bytes(), &input)
+			_ = json.Unmarshal(buf.Bytes(), &input)
 			atomic.AddInt32(&flushedEventCount, int32(len(input.Events)))
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			baseURL := "http://" + req.Host
@@ -42,9 +40,9 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 				"list_2": {Name: "list_2", Size: 3, URL: baseURL + "/list_2", CreationTime: 1, FileID: "file_id_2"},
 			}
 			v, _ := json.Marshal(r)
-			res.Write(v)
+			_, _ = res.Write(v)
 		} else if strings.Contains(req.URL.Path, "list_1") {
-			res.Write([]byte("+7/rrkvF6\n"))
+			_, _ = res.Write([]byte("+7/rrkvF6\n"))
 		}
 	}))
 
@@ -141,8 +139,8 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 			configSyncCount++
 			var in *downloadConfigsInput
 			bytes, _ := ioutil.ReadFile("download_config_specs.json")
-			json.NewDecoder(req.Body).Decode(&in)
-			res.Write(bytes)
+			_ = json.NewDecoder(req.Body).Decode(&in)
+			_, _ = res.Write(bytes)
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			idlistSyncCount++
 			baseURL := "http://" + req.Host
@@ -151,9 +149,9 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 			}
 
 			v, _ := json.Marshal(r)
-			res.Write(v)
+			_, _ = res.Write(v)
 		} else if strings.Contains(req.URL.Path, "list_1") {
-			res.Write([]byte(idListContent))
+			_, _ = res.Write([]byte(idListContent))
 			idListContent = fmt.Sprintf("+%d\n-%d\n", idlistSyncCount, idlistSyncCount)
 			idListSize += len(idListContent)
 		}
@@ -220,8 +218,8 @@ func TestOverrideAPIsConcurrency(t *testing.T) {
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			var in *downloadConfigsInput
 			bytes, _ := ioutil.ReadFile("download_config_specs.json")
-			json.NewDecoder(req.Body).Decode(&in)
-			res.Write(bytes)
+			_ = json.NewDecoder(req.Body).Decode(&in)
+			_, _ = res.Write(bytes)
 		}
 	}))
 
