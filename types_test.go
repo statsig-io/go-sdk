@@ -43,6 +43,16 @@ func doValidation(t *testing.T, c *configBase) {
 	if c.GetBool("Object", false) {
 		t.Errorf("Failed to use fallback boolean")
 	}
+
+	if c.GetInt("String", 1) != 1 {
+		t.Errorf("Failed to use fallback int")
+	}
+	if c.GetInt("Number", 1) != 1 {
+		t.Errorf("Failed to use fallback int")
+	}
+	if c.GetInt("Int", 1) != 123 {
+		t.Errorf("Failed to return int")
+	}
 }
 
 func TestBasic(t *testing.T) {
@@ -57,7 +67,8 @@ func TestBasic(t *testing.T) {
 					"NestedBool": false,
 					"NestedNum": 37
 				},
-				"Array":[1,2,3]
+				"Array":[1,2,3],
+				"Int": 123
 			}`,
 		),
 		&jsonMap,
