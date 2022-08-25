@@ -25,7 +25,7 @@ jobs:
       - name: Install Modules
         run: |
           cd kong/bridges/go-server
-          ./clone-repo.sh $GITHUB_REPOSITORY $GITHUB_BASE_REF
+          ./clone-repo.sh $GITHUB_REPOSITORY $GITHUB_HEAD_REF
           go mod tidy
         env:
           repo_pat: ${{ secrets.KONG_REPO_PAT }}
