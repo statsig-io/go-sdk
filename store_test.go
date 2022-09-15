@@ -112,7 +112,7 @@ func TestStoreSync(t *testing.T) {
 		API: testServer.URL,
 	}
 	n := newTransport("secret-123", opt)
-	s := newStoreInternal(n, time.Second, time.Second)
+	s := newStoreInternal(n, time.Second, time.Second, "")
 
 	if s.getGatesCount() != 1 {
 		t.Errorf("Wrong number of feature gates after initialize")

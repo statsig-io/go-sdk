@@ -3,11 +3,31 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+func TestBootstrap(t *testing.T) {
+	bytes, _ := ioutil.ReadFile("download_config_specs.json")
+	Initialize("secret-key")
+	if CheckGate(User{UserID: "123"}, "always_on_gate") {
+		t.Errorf("always_on_gate should return false when there is no bootstrap value")
+	}
+	shutDownAndClearInstance()
+
+	opt := &Options{
+		BootstrapValues: string(bytes[:]),
+	}
+	InitializeWithOptions("secret-key", opt)
+
+	if !CheckGate(User{UserID: "123"}, "always_on_gate") {
+		t.Errorf("always_on_gate should return true bootstrap value is provided")
+	}
+	shutDownAndClearInstance()
+}
 
 func TestLogImmediate(t *testing.T) {
 	env := ""
@@ -48,4 +68,6 @@ func TestLogImmediate(t *testing.T) {
 	if env != "test" {
 		t.Errorf("Environment not set on user")
 	}
+
+	shutDownAndClearInstance()
 }

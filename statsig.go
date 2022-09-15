@@ -28,6 +28,7 @@ type Options struct {
 	LocalMode          bool        `json:"localMode"`
 	ConfigSyncInterval time.Duration
 	IDListSyncInterval time.Duration
+	BootstrapValues    string
 }
 
 // See https://docs.statsig.com/guides/usingEnvironments

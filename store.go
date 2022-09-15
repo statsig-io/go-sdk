@@ -93,10 +93,10 @@ func newStore(transport *transport, options *Options) *store {
 	if options.IDListSyncInterval > 0 {
 		idListSyncInterval = options.IDListSyncInterval
 	}
-	return newStoreInternal(transport, configSyncInterval, idListSyncInterval)
+	return newStoreInternal(transport, configSyncInterval, idListSyncInterval, options.BootstrapValues)
 }
 
-func newStoreInternal(transport *transport, configSyncInterval time.Duration, idListSyncInterval time.Duration) *store {
+func newStoreInternal(transport *transport, configSyncInterval time.Duration, idListSyncInterval time.Duration, bootstrapValues string) *store {
 	store := &store{
 		featureGates:       make(map[string]configSpec),
 		dynamicConfigs:     make(map[string]configSpec),
@@ -104,6 +104,13 @@ func newStoreInternal(transport *transport, configSyncInterval time.Duration, id
 		transport:          transport,
 		configSyncInterval: configSyncInterval,
 		idListSyncInterval: idListSyncInterval,
+	}
+	if bootstrapValues != "" {
+		specs := downloadConfigSpecResponse{}
+		err := json.Unmarshal([]byte(bootstrapValues), &specs)
+		if err == nil {
+			store.setConfigSpecs(specs)
+		}
 	}
 	store.fetchConfigSpecs()
 	store.syncIDLists()
@@ -142,27 +149,31 @@ func (s *store) fetchConfigSpecs() {
 	_ = s.transport.postRequest("/download_config_specs", input, &specs)
 	s.lastSyncTime = specs.Time
 	if specs.HasUpdates {
-		newGates := make(map[string]configSpec)
-		for _, gate := range specs.FeatureGates {
-			newGates[gate.Name] = gate
-		}
-
-		newConfigs := make(map[string]configSpec)
-		for _, config := range specs.DynamicConfigs {
-			newConfigs[config.Name] = config
-		}
-
-		newLayers := make(map[string]configSpec)
-		for _, layer := range specs.LayerConfigs {
-			newLayers[layer.Name] = layer
-		}
-
-		s.configsLock.Lock()
-		s.featureGates = newGates
-		s.dynamicConfigs = newConfigs
-		s.layerConfigs = newLayers
-		s.configsLock.Unlock()
+		s.setConfigSpecs(specs)
 	}
+}
+
+func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) {
+	newGates := make(map[string]configSpec)
+	for _, gate := range specs.FeatureGates {
+		newGates[gate.Name] = gate
+	}
+
+	newConfigs := make(map[string]configSpec)
+	for _, config := range specs.DynamicConfigs {
+		newConfigs[config.Name] = config
+	}
+
+	newLayers := make(map[string]configSpec)
+	for _, layer := range specs.LayerConfigs {
+		newLayers[layer.Name] = layer
+	}
+
+	s.configsLock.Lock()
+	s.featureGates = newGates
+	s.dynamicConfigs = newConfigs
+	s.layerConfigs = newLayers
+	s.configsLock.Unlock()
 }
 
 func (s *store) getIDList(name string) *idList {
