@@ -148,32 +148,33 @@ func (s *store) fetchConfigSpecs() {
 	var specs downloadConfigSpecResponse
 	_ = s.transport.postRequest("/download_config_specs", input, &specs)
 	s.lastSyncTime = specs.Time
-	if specs.HasUpdates {
-		s.setConfigSpecs(specs)
-	}
+	s.setConfigSpecs(specs)
 }
 
 func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) {
-	newGates := make(map[string]configSpec)
-	for _, gate := range specs.FeatureGates {
-		newGates[gate.Name] = gate
-	}
+	if specs.HasUpdates {
+		// TODO: when adding eval details, differentiate REASON between bootstrap and network here
+		newGates := make(map[string]configSpec)
+		for _, gate := range specs.FeatureGates {
+			newGates[gate.Name] = gate
+		}
 
-	newConfigs := make(map[string]configSpec)
-	for _, config := range specs.DynamicConfigs {
-		newConfigs[config.Name] = config
-	}
+		newConfigs := make(map[string]configSpec)
+		for _, config := range specs.DynamicConfigs {
+			newConfigs[config.Name] = config
+		}
 
-	newLayers := make(map[string]configSpec)
-	for _, layer := range specs.LayerConfigs {
-		newLayers[layer.Name] = layer
-	}
+		newLayers := make(map[string]configSpec)
+		for _, layer := range specs.LayerConfigs {
+			newLayers[layer.Name] = layer
+		}
 
-	s.configsLock.Lock()
-	s.featureGates = newGates
-	s.dynamicConfigs = newConfigs
-	s.layerConfigs = newLayers
-	s.configsLock.Unlock()
+		s.configsLock.Lock()
+		s.featureGates = newGates
+		s.dynamicConfigs = newConfigs
+		s.layerConfigs = newLayers
+		s.configsLock.Unlock()
+	}
 }
 
 func (s *store) getIDList(name string) *idList {
