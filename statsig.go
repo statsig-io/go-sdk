@@ -23,11 +23,13 @@ func Initialize(sdkKey string) {
 
 // Advanced options for configuring the Statsig SDK
 type Options struct {
-	API                string      `json:"api"`
-	Environment        Environment `json:"environment"`
-	LocalMode          bool        `json:"localMode"`
-	ConfigSyncInterval time.Duration
-	IDListSyncInterval time.Duration
+	API                  string      `json:"api"`
+	Environment          Environment `json:"environment"`
+	LocalMode            bool        `json:"localMode"`
+	ConfigSyncInterval   time.Duration
+	IDListSyncInterval   time.Duration
+	BootstrapValues      string
+	RulesUpdatedCallback func(rules string, time int64)
 }
 
 // See https://docs.statsig.com/guides/usingEnvironments
