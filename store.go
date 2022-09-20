@@ -70,18 +70,19 @@ type getIDListsInput struct {
 }
 
 type store struct {
-	featureGates       map[string]configSpec
-	dynamicConfigs     map[string]configSpec
-	layerConfigs       map[string]configSpec
-	configsLock        sync.RWMutex
-	idLists            map[string]*idList
-	idListsLock        sync.RWMutex
-	lastSyncTime       int64
-	transport          *transport
-	configSyncInterval time.Duration
-	idListSyncInterval time.Duration
-	shutdown           bool
-	shutdownLock       sync.Mutex
+	featureGates         map[string]configSpec
+	dynamicConfigs       map[string]configSpec
+	layerConfigs         map[string]configSpec
+	configsLock          sync.RWMutex
+	idLists              map[string]*idList
+	idListsLock          sync.RWMutex
+	lastSyncTime         int64
+	transport            *transport
+	configSyncInterval   time.Duration
+	idListSyncInterval   time.Duration
+	shutdown             bool
+	shutdownLock         sync.Mutex
+	rulesUpdatedCallback func(rules string, time int64)
 }
 
 func newStore(transport *transport, options *Options) *store {
@@ -93,17 +94,18 @@ func newStore(transport *transport, options *Options) *store {
 	if options.IDListSyncInterval > 0 {
 		idListSyncInterval = options.IDListSyncInterval
 	}
-	return newStoreInternal(transport, configSyncInterval, idListSyncInterval, options.BootstrapValues)
+	return newStoreInternal(transport, configSyncInterval, idListSyncInterval, options.BootstrapValues, options.RulesUpdatedCallback)
 }
 
-func newStoreInternal(transport *transport, configSyncInterval time.Duration, idListSyncInterval time.Duration, bootstrapValues string) *store {
+func newStoreInternal(transport *transport, configSyncInterval time.Duration, idListSyncInterval time.Duration, bootstrapValues string, rulesUpdatedCallback func(rules string, time int64)) *store {
 	store := &store{
-		featureGates:       make(map[string]configSpec),
-		dynamicConfigs:     make(map[string]configSpec),
-		idLists:            make(map[string]*idList),
-		transport:          transport,
-		configSyncInterval: configSyncInterval,
-		idListSyncInterval: idListSyncInterval,
+		featureGates:         make(map[string]configSpec),
+		dynamicConfigs:       make(map[string]configSpec),
+		idLists:              make(map[string]*idList),
+		transport:            transport,
+		configSyncInterval:   configSyncInterval,
+		idListSyncInterval:   idListSyncInterval,
+		rulesUpdatedCallback: rulesUpdatedCallback,
 	}
 	if bootstrapValues != "" {
 		specs := downloadConfigSpecResponse{}
@@ -148,10 +150,13 @@ func (s *store) fetchConfigSpecs() {
 	var specs downloadConfigSpecResponse
 	_ = s.transport.postRequest("/download_config_specs", input, &specs)
 	s.lastSyncTime = specs.Time
-	s.setConfigSpecs(specs)
+	if s.setConfigSpecs(specs) && s.rulesUpdatedCallback != nil {
+		v, _ := json.Marshal(specs)
+		s.rulesUpdatedCallback(string(v[:]), specs.Time)
+	}
 }
 
-func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) {
+func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 	if specs.HasUpdates {
 		// TODO: when adding eval details, differentiate REASON between bootstrap and network here
 		newGates := make(map[string]configSpec)
@@ -174,7 +179,9 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) {
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
 		s.configsLock.Unlock()
+		return true
 	}
+	return false
 }
 
 func (s *store) getIDList(name string) *idList {

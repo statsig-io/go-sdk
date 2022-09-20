@@ -29,6 +29,49 @@ func TestBootstrap(t *testing.T) {
 	shutDownAndClearInstance()
 }
 
+func TestRulesUpdatedCallback(t *testing.T) {
+	// First, verify that rules updated callback is called and returns the rules string
+	bytes, _ := ioutil.ReadFile("download_config_specs.json")
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		if strings.Contains(req.URL.Path, "download_config_specs") {
+			var in *downloadConfigsInput
+			_ = json.NewDecoder(req.Body).Decode(&in)
+			_, _ = res.Write(bytes)
+		}
+	}))
+	callbacked := false
+	rules := ""
+	opt := &Options{
+		API: testServer.URL,
+		RulesUpdatedCallback: func(rulesString string, time int64) {
+			rules = rulesString
+			if time == 1631638014811 {
+				callbacked = true
+			}
+		},
+	}
+
+	InitializeWithOptions("secret-key", opt)
+
+	if !callbacked {
+		t.Errorf("rules updated callback did not happen")
+	}
+	shutDownAndClearInstance()
+
+	// Now use rules from the previous update callback to bootstrap, and validate values
+	opt_bootstrap := &Options{
+		BootstrapValues: rules,
+		LocalMode:       true,
+	}
+	InitializeWithOptions("secret-key", opt_bootstrap)
+
+	if !CheckGate(User{UserID: "123"}, "always_on_gate") {
+		t.Errorf("always_on_gate should return true bootstrap value is provided")
+	}
+	shutDownAndClearInstance()
+}
+
 func TestLogImmediate(t *testing.T) {
 	env := ""
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
