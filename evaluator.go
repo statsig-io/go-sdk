@@ -161,10 +161,11 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 						configValue = ruleConfigValue
 					}
 					return &evalResult{
-						Pass:               pass,
-						ConfigValue:        *NewConfig(spec.Name, configValue, rule.ID),
-						Id:                 rule.ID,
-						SecondaryExposures: exposures}
+						Pass:                          pass,
+						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID),
+						Id:                            rule.ID,
+						SecondaryExposures:            exposures,
+						UndelegatedSecondaryExposures: exposures}
 				} else {
 					return &evalResult{Pass: pass, Id: rule.ID, SecondaryExposures: exposures}
 				}
@@ -176,10 +177,11 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 
 	if isDynamicConfig {
 		return &evalResult{
-			Pass:               false,
-			ConfigValue:        *NewConfig(spec.Name, configValue, defaultRuleID),
-			Id:                 defaultRuleID,
-			SecondaryExposures: exposures}
+			Pass:                          false,
+			ConfigValue:                   *NewConfig(spec.Name, configValue, defaultRuleID),
+			Id:                            defaultRuleID,
+			SecondaryExposures:            exposures,
+			UndelegatedSecondaryExposures: exposures}
 	}
 	return &evalResult{Pass: false, Id: defaultRuleID, SecondaryExposures: exposures}
 }
