@@ -49,9 +49,9 @@ func newEvaluator(
 	parser := uaparser.NewFromSaved()
 	countryLookup := countrylookup.New()
 	defer func() {
-		if err := recover().(error); err != nil {
-			errorBoundary.logException(err)
-			fmt.Println(err.Error())
+		if err := recover(); err != nil {
+			errorBoundary.logException(err.(error))
+			fmt.Println(err.(error).Error())
 		}
 	}()
 
