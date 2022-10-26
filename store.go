@@ -149,7 +149,6 @@ func (s *store) fetchConfigSpecs() {
 	}
 	var specs downloadConfigSpecResponse
 	_ = s.transport.postRequest("/download_config_specs", input, &specs)
-	s.lastSyncTime = specs.Time
 	if s.setConfigSpecs(specs) && s.rulesUpdatedCallback != nil {
 		v, _ := json.Marshal(specs)
 		s.rulesUpdatedCallback(string(v[:]), specs.Time)
@@ -179,6 +178,7 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
 		s.configsLock.Unlock()
+		s.lastSyncTime = specs.Time
 		return true
 	}
 	return false
