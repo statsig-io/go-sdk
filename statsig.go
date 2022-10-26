@@ -11,6 +11,11 @@ const DefaultEndpoint = "https://statsigapi.net/v1"
 
 var instance *Client
 
+// IsInitialized returns whether the global Statsig instance has already been initialized or not
+func IsInitialized() bool {
+	return instance != nil
+}
+
 // Initializes the global Statsig instance with the given sdkKey
 func Initialize(sdkKey string) {
 	if IsInitialized() {
