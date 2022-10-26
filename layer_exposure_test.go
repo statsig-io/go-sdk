@@ -3,9 +3,9 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -18,7 +18,7 @@ func TestLayerExposure(t *testing.T) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			var in *downloadConfigsInput
-			bytes, _ := ioutil.ReadFile("layer_exposure_download_config_specs.json")
+			bytes, _ := os.ReadFile("layer_exposure_download_config_specs.json")
 			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		} else if strings.Contains(req.URL.Path, "log_event") {
