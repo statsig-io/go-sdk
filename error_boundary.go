@@ -32,6 +32,9 @@ func newErrorBoundary(transport *transport) *errorBoundary {
 }
 
 func (e *errorBoundary) logException(exception error) bool {
+	if exception == nil {
+		return false
+	}
 	var stack []byte
 	runtime.Stack(stack, false)
 	body := &logExceptionRequestBody{
