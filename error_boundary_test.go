@@ -34,7 +34,7 @@ func TestLogException(t *testing.T) {
 	errorBoundary := newErrorBoundary(opt)
 	errorBoundary.logException(err)
 	if !hit {
-		t.Error("Expected logException to be hit")
+		t.Error("Expected sdk_exception endpoint to be hit")
 	}
 }
 
@@ -54,7 +54,27 @@ func TestInvalidSDKKeyError(t *testing.T) {
 	}
 	InitializeWithOptions("invalid-sdk-key", opt)
 	if !hit {
-		t.Error("Expected logException to be hit")
+		t.Error("Expected sdk_exception endpoint to be hit")
 	}
 	shutDownAndClearInstance()
+}
+
+func TestRepeatedError(t *testing.T) {
+	err := errors.New("common error")
+	hit := false
+	testServer := mock_server(t, err, &hit)
+	defer testServer.Close()
+	opt := &Options{
+		API: testServer.URL,
+	}
+	errorBoundary := newErrorBoundary(opt)
+	errorBoundary.logException(err)
+	if !hit {
+		t.Error("Expected sdk_exception endpoint to be hit")
+	}
+	hit = false
+	errorBoundary.logException(err)
+	if hit {
+		t.Error("Expected sdk_exception endpoint to NOT be hit")
+	}
 }
