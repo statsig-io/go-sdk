@@ -19,17 +19,13 @@ func TestLogException(t *testing.T) {
 		if body.Exception == err.Error() {
 			success := &logExceptionResponse{Success: true}
 			json, _ := json.Marshal(success)
-			res.Write(json)
+			_, _ = res.Write(json)
 		}
 	}))
 	defer testServer.Close()
-	opt := &Options{
-		API: testServer.URL,
-	}
-	transport := newTransport("secret-123", opt)
-	errorBoundary := newErrorBoundary(transport)
-	success := errorBoundary.logException(err)
-	if !success {
+	errorBoundary := newErrorBoundaryForTest(testServer.URL)
+	logErr := errorBoundary.logException(err)
+	if logErr != nil {
 		t.Error("Failed to log exception")
 	}
 }

@@ -112,7 +112,7 @@ func TestStoreSync(t *testing.T) {
 		API: testServer.URL,
 	}
 	n := newTransport("secret-123", opt)
-	e := newErrorBoundary(n)
+	e := newErrorBoundary()
 	s := newStoreInternal(n, time.Second, time.Second, "", nil, e)
 
 	if s.getGatesCount() != 1 {

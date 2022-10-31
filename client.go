@@ -29,7 +29,7 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 		options.API = "https://statsigapi.net/v1"
 	}
 	transport := newTransport(sdkKey, options)
-	errorBoundary := newErrorBoundary(transport)
+	errorBoundary := newErrorBoundary()
 	logger := newLogger(transport)
 	evaluator := newEvaluator(transport, errorBoundary, options)
 	if !options.LocalMode && !strings.HasPrefix(sdkKey, "secret") {
@@ -128,7 +128,6 @@ func (c *Client) OverrideConfig(config string, val map[string]interface{}) {
 func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 	if len(events) > 500 {
 		err := errors.New(EventBatchSizeError)
-		c.errorBoundary.logException(err)
 		return nil, fmt.Errorf(err.Error())
 	}
 	events_processed := make([]interface{}, 0)
@@ -151,7 +150,6 @@ func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 func (c *Client) verifyUser(user User) bool {
 	if user.UserID == "" {
 		err := errors.New(EmptyUserError)
-		c.errorBoundary.logException(err)
 		fmt.Println(err.Error())
 		return false
 	}

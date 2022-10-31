@@ -17,11 +17,6 @@ const (
 	backoffMultiplier = 10
 )
 
-type statsigMetadata struct {
-	SDKType    string `json:"sdkType"`
-	SDKVersion string `json:"sdkVersion"`
-}
-
 type transport struct {
 	api       string
 	sdkKey    string
@@ -47,7 +42,7 @@ func newTransport(secret string, options *Options) *transport {
 
 	return &transport{
 		api:       api,
-		metadata:  statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.6.1"},
+		metadata:  getStatsigMetadata(),
 		sdkKey:    secret,
 		client:    &http.Client{},
 		options:   options,
