@@ -28,15 +28,15 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	if len(options.API) == 0 {
 		options.API = "https://statsigapi.net/v1"
 	}
-	transport := newTransport(sdkKey, options)
-	errorBoundary := newErrorBoundary()
-	logger := newLogger(transport)
-	evaluator := newEvaluator(transport, errorBoundary, options)
+	errorBoundary := newErrorBoundary(options)
 	if !options.LocalMode && !strings.HasPrefix(sdkKey, "secret") {
 		err := errors.New(InvalidSDKKeyError)
 		errorBoundary.logException(err)
 		panic(err)
 	}
+	transport := newTransport(sdkKey, options)
+	logger := newLogger(transport)
+	evaluator := newEvaluator(transport, errorBoundary, options)
 	return &Client{
 		sdkKey:        sdkKey,
 		evaluator:     evaluator,
@@ -148,7 +148,7 @@ func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 }
 
 func (c *Client) verifyUser(user User) bool {
-	if user.UserID == "" {
+	if user.UserID == "" && len(user.CustomIDs) == 0 {
 		err := errors.New(EmptyUserError)
 		fmt.Println(err.Error())
 		return false

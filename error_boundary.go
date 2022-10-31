@@ -3,7 +3,6 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 type errorBoundary struct {
 	endpoint string `default:"https://statsigapi.net/v1/sdk_exception"`
 	client   *http.Client
+	seen     map[string]bool
 }
 
 type logExceptionRequestBody struct {
@@ -26,47 +26,47 @@ type logExceptionResponse struct {
 
 const (
 	InvalidSDKKeyError  string = "Must provide a valid SDK key."
-	EmptyUserError      string = "A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID"
+	EmptyUserError      string = "A non-empty StatsigUser.UserID or StatsigUser.CustomIDs is required. See https://docs.statsig.com/messages/serverRequiredUserID"
 	EventBatchSizeError string = "The max number of events supported in one batch is 500. Please reduce the slice size and try again."
 )
 
-func newErrorBoundary() *errorBoundary {
+func newErrorBoundary(options *Options) *errorBoundary {
 	errorBoundary := &errorBoundary{
 		client: &http.Client{},
+		seen:   make(map[string]bool),
+	}
+	if options.API != "" {
+		errorBoundary.endpoint = options.API
 	}
 	return errorBoundary
 }
 
-func newErrorBoundaryForTest(endpoint string) *errorBoundary {
-	errorBoundary := &errorBoundary{
-		client:   &http.Client{},
-		endpoint: endpoint,
-	}
-	return errorBoundary
-}
-
-func (e *errorBoundary) logException(exception error) error {
+func (e *errorBoundary) logException(exception error) {
 	var exceptionString string
 	if exception == nil {
 		exceptionString = "Unknown"
 	} else {
 		exceptionString = exception.Error()
 	}
-	var stack []byte
+	stack := make([]byte, 1024)
 	runtime.Stack(stack, false)
 	body := &logExceptionRequestBody{
 		Exception: exceptionString,
 		Info:      string(stack),
 	}
+	if e.seen[exceptionString] {
+		return
+	}
+	e.seen[exceptionString] = true
 	bodyString, err := json.Marshal(body)
 	if err != nil {
-		return err
+		return
 	}
 	metadata := getStatsigMetadata()
 
 	req, err := http.NewRequest("POST", e.endpoint, bytes.NewBuffer(bodyString))
 	if err != nil {
-		return err
+		return
 	}
 	client := http.Client{}
 	req.Header.Set("Content-Type", "application/json")
@@ -74,18 +74,5 @@ func (e *errorBoundary) logException(exception error) error {
 	req.Header.Add("STATSIG-SDK-TYPE", metadata.SDKType)
 	req.Header.Add("STATSIG-SDK-VERSION", metadata.SDKVersion)
 
-	var response logExceptionResponse
-	httpRes, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	err = json.NewDecoder(httpRes.Body).Decode(&response)
-	if err != nil {
-		return err
-	}
-	if !response.Success {
-		return errors.New("Log exception not successful")
-	}
-
-	return nil
+	_, _ = client.Do(req)
 }
