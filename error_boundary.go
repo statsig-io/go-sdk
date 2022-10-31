@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -13,6 +14,7 @@ type errorBoundary struct {
 	endpoint string `default:"https://statsigapi.net/v1/sdk_exception"`
 	client   *http.Client
 	seen     map[string]bool
+	seenLock sync.RWMutex
 }
 
 type logExceptionRequestBody struct {
@@ -41,6 +43,16 @@ func newErrorBoundary(options *Options) *errorBoundary {
 	return errorBoundary
 }
 
+func (e *errorBoundary) checkSeen(exceptionString string) bool {
+	e.seenLock.Lock()
+	defer e.seenLock.Unlock()
+	if e.seen[exceptionString] {
+		return true
+	}
+	e.seen[exceptionString] = true
+	return false
+}
+
 func (e *errorBoundary) logException(exception error) {
 	var exceptionString string
 	if exception == nil {
@@ -48,16 +60,15 @@ func (e *errorBoundary) logException(exception error) {
 	} else {
 		exceptionString = exception.Error()
 	}
+	if e.checkSeen(exceptionString) {
+		return
+	}
 	stack := make([]byte, 1024)
 	runtime.Stack(stack, false)
 	body := &logExceptionRequestBody{
 		Exception: exceptionString,
 		Info:      string(stack),
 	}
-	if e.seen[exceptionString] {
-		return
-	}
-	e.seen[exceptionString] = true
 	bodyString, err := json.Marshal(body)
 	if err != nil {
 		return
