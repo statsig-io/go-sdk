@@ -203,6 +203,7 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
 		s.configsLock.Unlock()
+		s.lastSyncTime = specs.Time
 		return true
 	}
 	return false
