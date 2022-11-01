@@ -5,20 +5,28 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func mock_server(t *testing.T, expectedError error, hit *bool) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		*hit = true
-		var body *logExceptionRequestBody
-		_ = json.NewDecoder(req.Body).Decode(&body)
-		if expectedError == nil || body.Exception == expectedError.Error() {
-			success := &logExceptionResponse{Success: true}
-			json, _ := json.Marshal(success)
-			_, _ = res.Write(json)
-		} else {
-			t.Error("Failed to log exception")
+		if strings.Contains(req.URL.Path, "/download_config_specs") {
+			res.WriteHeader(500)
+			return
+		}
+		if strings.Contains(req.URL.Path, "/sdk_exception") {
+			var body *logExceptionRequestBody
+			_ = json.NewDecoder(req.Body).Decode(&body)
+			if body.Exception != "" && (expectedError == nil || body.Exception == expectedError.Error()) {
+				*hit = true
+				success := &logExceptionResponse{Success: true}
+				json, _ := json.Marshal(success)
+				_, _ = res.Write(json)
+			} else {
+				t.Error("Failed to log exception")
+			}
+			return
 		}
 	}))
 }
@@ -31,32 +39,25 @@ func TestLogException(t *testing.T) {
 	opt := &Options{
 		API: testServer.URL,
 	}
-	errorBoundary := newErrorBoundary(opt)
+	errorBoundary := newErrorBoundary("client-key", opt)
 	errorBoundary.logException(err)
 	if !hit {
 		t.Error("Expected sdk_exception endpoint to be hit")
 	}
 }
 
-func TestInvalidSDKKeyError(t *testing.T) {
-	expectedError := errors.New(InvalidSDKKeyError)
+func TestDCSError(t *testing.T) {
 	hit := false
-	testServer := mock_server(t, expectedError, &hit)
+	testServer := mock_server(t, nil, &hit)
 	defer testServer.Close()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Expected function to panic")
-		}
-	}()
 	opt := &Options{
-		API:         testServer.URL,
-		Environment: Environment{Tier: "test"},
+		API: testServer.URL,
 	}
-	InitializeWithOptions("invalid-sdk-key", opt)
+	InitializeWithOptions("secret-key", opt)
+	defer shutDownAndClearInstance()
 	if !hit {
 		t.Error("Expected sdk_exception endpoint to be hit")
 	}
-	shutDownAndClearInstance()
 }
 
 func TestRepeatedError(t *testing.T) {
@@ -67,7 +68,7 @@ func TestRepeatedError(t *testing.T) {
 	opt := &Options{
 		API: testServer.URL,
 	}
-	errorBoundary := newErrorBoundary(opt)
+	errorBoundary := newErrorBoundary("client-key", opt)
 	errorBoundary.logException(err)
 	if !hit {
 		t.Error("Expected sdk_exception endpoint to be hit")

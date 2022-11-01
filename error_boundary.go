@@ -11,7 +11,9 @@ import (
 )
 
 type errorBoundary struct {
-	endpoint string `default:"https://statsigapi.net/v1/sdk_exception"`
+	api      string
+	endpoint string
+	sdkKey   string
 	client   *http.Client
 	seen     map[string]bool
 	seenLock sync.RWMutex
@@ -32,13 +34,16 @@ const (
 	EventBatchSizeError string = "The max number of events supported in one batch is 500. Please reduce the slice size and try again."
 )
 
-func newErrorBoundary(options *Options) *errorBoundary {
+func newErrorBoundary(sdkKey string, options *Options) *errorBoundary {
 	errorBoundary := &errorBoundary{
-		client: &http.Client{},
-		seen:   make(map[string]bool),
+		api:      "https://statsigapi.net/v1",
+		endpoint: "/sdk_exception",
+		sdkKey:   sdkKey,
+		client:   &http.Client{},
+		seen:     make(map[string]bool),
 	}
 	if options.API != "" {
-		errorBoundary.endpoint = options.API
+		errorBoundary.api = options.API
 	}
 	return errorBoundary
 }
@@ -75,12 +80,13 @@ func (e *errorBoundary) logException(exception error) {
 	}
 	metadata := getStatsigMetadata()
 
-	req, err := http.NewRequest("POST", e.endpoint, bytes.NewBuffer(bodyString))
+	req, err := http.NewRequest("POST", e.api+e.endpoint, bytes.NewBuffer(bodyString))
 	if err != nil {
 		return
 	}
 	client := http.Client{}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("STATSIG-API-KEY", e.sdkKey)
 	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
 	req.Header.Add("STATSIG-SDK-TYPE", metadata.SDKType)
 	req.Header.Add("STATSIG-SDK-VERSION", metadata.SDKVersion)

@@ -28,10 +28,9 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	if len(options.API) == 0 {
 		options.API = "https://statsigapi.net/v1"
 	}
-	errorBoundary := newErrorBoundary(options)
+	errorBoundary := newErrorBoundary(sdkKey, options)
 	if !options.LocalMode && !strings.HasPrefix(sdkKey, "secret") {
 		err := errors.New(InvalidSDKKeyError)
-		errorBoundary.logException(err)
 		panic(err)
 	}
 	transport := newTransport(sdkKey, options)
