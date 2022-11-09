@@ -83,9 +83,14 @@ type store struct {
 	shutdown             bool
 	shutdownLock         sync.Mutex
 	rulesUpdatedCallback func(rules string, time int64)
+	errorBoundary        *errorBoundary
 }
 
-func newStore(transport *transport, options *Options) *store {
+func newStore(
+	transport *transport,
+	errorBoundary *errorBoundary,
+	options *Options,
+) *store {
 	configSyncInterval := 10 * time.Second
 	idListSyncInterval := time.Minute
 	if options.ConfigSyncInterval > 0 {
@@ -94,10 +99,24 @@ func newStore(transport *transport, options *Options) *store {
 	if options.IDListSyncInterval > 0 {
 		idListSyncInterval = options.IDListSyncInterval
 	}
-	return newStoreInternal(transport, configSyncInterval, idListSyncInterval, options.BootstrapValues, options.RulesUpdatedCallback)
+	return newStoreInternal(
+		transport,
+		configSyncInterval,
+		idListSyncInterval,
+		options.BootstrapValues,
+		options.RulesUpdatedCallback,
+		errorBoundary,
+	)
 }
 
-func newStoreInternal(transport *transport, configSyncInterval time.Duration, idListSyncInterval time.Duration, bootstrapValues string, rulesUpdatedCallback func(rules string, time int64)) *store {
+func newStoreInternal(
+	transport *transport,
+	configSyncInterval time.Duration,
+	idListSyncInterval time.Duration,
+	bootstrapValues string,
+	rulesUpdatedCallback func(rules string, time int64),
+	errorBoundary *errorBoundary,
+) *store {
 	store := &store{
 		featureGates:         make(map[string]configSpec),
 		dynamicConfigs:       make(map[string]configSpec),
@@ -106,6 +125,7 @@ func newStoreInternal(transport *transport, configSyncInterval time.Duration, id
 		configSyncInterval:   configSyncInterval,
 		idListSyncInterval:   idListSyncInterval,
 		rulesUpdatedCallback: rulesUpdatedCallback,
+		errorBoundary:        errorBoundary,
 	}
 	if bootstrapValues != "" {
 		specs := downloadConfigSpecResponse{}
@@ -148,7 +168,12 @@ func (s *store) fetchConfigSpecs() {
 		StatsigMetadata: s.transport.metadata,
 	}
 	var specs downloadConfigSpecResponse
-	_ = s.transport.postRequest("/download_config_specs", input, &specs)
+	err := s.transport.postRequest("/download_config_specs", input, &specs)
+	if err != nil {
+		s.errorBoundary.logException(err)
+		return
+	}
+	s.lastSyncTime = specs.Time
 	if s.setConfigSpecs(specs) && s.rulesUpdatedCallback != nil {
 		v, _ := json.Marshal(specs)
 		s.rulesUpdatedCallback(string(v[:]), specs.Time)
@@ -210,6 +235,7 @@ func (s *store) syncIDLists() {
 	var serverLists map[string]idList
 	err := s.transport.postRequest("/get_id_lists", getIDListsInput{StatsigMetadata: s.transport.metadata}, &serverLists)
 	if err != nil {
+		s.errorBoundary.logException(err)
 		return
 	}
 
@@ -249,17 +275,20 @@ func (s *store) syncIDLists() {
 			defer wg.Done()
 			res, err := s.transport.get(l.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", l.Size)})
 			if err != nil || res == nil {
+				s.errorBoundary.logException(err)
 				return
 			}
 			defer res.Body.Close()
 
 			length, err := strconv.Atoi(res.Header.Get("content-length"))
 			if err != nil || length <= 0 {
+				s.errorBoundary.logException(err)
 				return
 			}
 
 			bodyBytes, err := io.ReadAll(res.Body)
 			if err != nil {
+				s.errorBoundary.logException(err)
 				return
 			}
 			content := string(bodyBytes)

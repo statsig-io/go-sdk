@@ -40,14 +40,18 @@ type evalResult struct {
 
 const dynamicConfigType = "dynamic_config"
 
-func newEvaluator(transport *transport, options *Options) *evaluator {
-	store := newStore(transport, options)
+func newEvaluator(
+	transport *transport,
+	errorBoundary *errorBoundary,
+	options *Options,
+) *evaluator {
+	store := newStore(transport, errorBoundary, options)
 	parser := uaparser.NewFromSaved()
 	countryLookup := countrylookup.New()
 	defer func() {
 		if err := recover(); err != nil {
-			// TODO: log here
-			fmt.Println(err)
+			errorBoundary.logException(err.(error))
+			fmt.Println(err.(error).Error())
 		}
 	}()
 
