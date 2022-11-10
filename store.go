@@ -77,6 +77,8 @@ type store struct {
 	idLists              map[string]*idList
 	idListsLock          sync.RWMutex
 	lastSyncTime         int64
+	initialSyncTime      int64
+	initReason           evaluationReason
 	transport            *transport
 	configSyncInterval   time.Duration
 	idListSyncInterval   time.Duration
@@ -126,12 +128,14 @@ func newStoreInternal(
 		idListSyncInterval:   idListSyncInterval,
 		rulesUpdatedCallback: rulesUpdatedCallback,
 		errorBoundary:        errorBoundary,
+		initReason:           reasonUninitialized,
 	}
 	if bootstrapValues != "" {
 		specs := downloadConfigSpecResponse{}
 		err := json.Unmarshal([]byte(bootstrapValues), &specs)
 		if err == nil {
 			store.setConfigSpecs(specs)
+			store.initReason = reasonBootstrap
 		}
 	}
 	store.fetchConfigSpecs()
@@ -176,6 +180,7 @@ func (s *store) fetchConfigSpecs() {
 	if s.setConfigSpecs(specs) && s.rulesUpdatedCallback != nil {
 		v, _ := json.Marshal(specs)
 		s.rulesUpdatedCallback(string(v[:]), specs.Time)
+		s.initReason = reasonNetwork
 	}
 }
 

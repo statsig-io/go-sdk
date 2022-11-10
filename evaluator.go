@@ -36,6 +36,7 @@ type evalResult struct {
 	UndelegatedSecondaryExposures []map[string]string
 	ConfigDelegate                string
 	ExplicitParamters             map[string]bool
+	EvaluationDetails             *evaluationDetails
 }
 
 const dynamicConfigType = "dynamic_config"
@@ -68,36 +69,52 @@ func (e *evaluator) shutdown() {
 	e.store.stopPolling()
 }
 
+func (e *evaluator) createEvaluationDetails(reason evaluationReason) *evaluationDetails {
+	return newEvaluationDetails(reason, e.store.lastSyncTime, e.store.initialSyncTime)
+}
+
 func (e *evaluator) checkGate(user User, gateName string) *evalResult {
 	if gateOverride, hasOverride := e.getGateOverride(gateName); hasOverride {
+		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			Pass: gateOverride,
-			Id:   "override"}
+			Pass:              gateOverride,
+			Id:                "override",
+			EvaluationDetails: evalDetails,
+		}
 	}
 	if gate, hasGate := e.store.getGate(gateName); hasGate {
 		return e.eval(user, gate)
 	}
-	return new(evalResult)
+	emptyEvalResult := new(evalResult)
+	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+	return emptyEvalResult
 }
 
 func (e *evaluator) getConfig(user User, configName string) *evalResult {
 	if configOverride, hasOverride := e.getConfigOverride(configName); hasOverride {
+		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			Pass:        true,
-			ConfigValue: *NewConfig(configName, configOverride, "override"),
-			Id:          "override"}
+			Pass:              true,
+			ConfigValue:       *NewConfig(configName, configOverride, "override"),
+			Id:                "override",
+			EvaluationDetails: evalDetails,
+		}
 	}
 	if config, hasConfig := e.store.getDynamicConfig(configName); hasConfig {
 		return e.eval(user, config)
 	}
-	return new(evalResult)
+	emptyEvalResult := new(evalResult)
+	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+	return emptyEvalResult
 }
 
 func (e *evaluator) getLayer(user User, name string) *evalResult {
 	if config, hasConfig := e.store.getLayerConfig(name); hasConfig {
 		return e.eval(user, config)
 	}
-	return new(evalResult)
+	emptyEvalResult := new(evalResult)
+	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+	return emptyEvalResult
 }
 
 func (e *evaluator) getGateOverride(name string) (bool, bool) {
@@ -141,6 +158,7 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 	var exposures []map[string]string
 	defaultRuleID := "default"
 	if spec.Enabled {
+		evalDetails := e.createEvaluationDetails(reasonDefaultValue)
 		for _, rule := range spec.Rules {
 			r := e.evalRule(user, rule)
 			if r.FetchFromServer {
@@ -169,9 +187,16 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID),
 						Id:                            rule.ID,
 						SecondaryExposures:            exposures,
-						UndelegatedSecondaryExposures: exposures}
+						UndelegatedSecondaryExposures: exposures,
+						EvaluationDetails:             evalDetails,
+					}
 				} else {
-					return &evalResult{Pass: pass, Id: rule.ID, SecondaryExposures: exposures}
+					return &evalResult{
+						Pass:               pass,
+						Id:                 rule.ID,
+						SecondaryExposures: exposures,
+						EvaluationDetails:  evalDetails,
+					}
 				}
 			}
 		}
@@ -185,7 +210,9 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 			ConfigValue:                   *NewConfig(spec.Name, configValue, defaultRuleID),
 			Id:                            defaultRuleID,
 			SecondaryExposures:            exposures,
-			UndelegatedSecondaryExposures: exposures}
+			UndelegatedSecondaryExposures: exposures,
+			EvaluationDetails:             e.createEvaluationDetails(reasonDefaultValue),
+		}
 	}
 	return &evalResult{Pass: false, Id: defaultRuleID, SecondaryExposures: exposures}
 }

@@ -57,7 +57,7 @@ func (c *Client) CheckGate(user User, gate string) bool {
 		serverRes := fetchGate(user, gate, c.transport)
 		res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
 	} else {
-		c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures)
+		c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails)
 	}
 	return res.Pass
 }
@@ -72,7 +72,7 @@ func (c *Client) GetConfig(user User, config string) DynamicConfig {
 	if res.FetchFromServer {
 		res = c.fetchConfigFromServer(user, config)
 	} else {
-		c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures)
+		c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails)
 	}
 	return res.ConfigValue
 }
@@ -99,7 +99,7 @@ func (c *Client) GetLayer(user User, layer string) Layer {
 	}
 
 	logFunc := func(config configBase, parameterName string) {
-		c.logger.logLayerExposure(user, config, parameterName, *res)
+		c.logger.logLayerExposure(user, config, parameterName, *res, res.EvaluationDetails)
 	}
 
 	return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, &logFunc)
