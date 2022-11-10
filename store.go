@@ -173,7 +173,6 @@ func (s *store) fetchConfigSpecs() {
 		s.errorBoundary.logException(err)
 		return
 	}
-	s.lastSyncTime = specs.Time
 	if s.setConfigSpecs(specs) && s.rulesUpdatedCallback != nil {
 		v, _ := json.Marshal(specs)
 		s.rulesUpdatedCallback(string(v[:]), specs.Time)
