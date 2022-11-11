@@ -147,6 +147,7 @@ func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
 
 func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 	var configValue map[string]interface{}
+	evalDetails := e.createEvaluationDetails(e.store.initReason)
 	isDynamicConfig := strings.ToLower(spec.Type) == dynamicConfigType
 	if isDynamicConfig {
 		err := json.Unmarshal(spec.DefaultValue, &configValue)
@@ -158,7 +159,6 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 	var exposures []map[string]string
 	defaultRuleID := "default"
 	if spec.Enabled {
-		evalDetails := e.createEvaluationDetails(reasonDefaultValue)
 		for _, rule := range spec.Rules {
 			r := e.evalRule(user, rule)
 			if r.FetchFromServer {
@@ -211,7 +211,7 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 			Id:                            defaultRuleID,
 			SecondaryExposures:            exposures,
 			UndelegatedSecondaryExposures: exposures,
-			EvaluationDetails:             e.createEvaluationDetails(reasonDefaultValue),
+			EvaluationDetails:             evalDetails,
 		}
 	}
 	return &evalResult{Pass: false, Id: defaultRuleID, SecondaryExposures: exposures}

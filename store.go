@@ -139,6 +139,7 @@ func newStoreInternal(
 		}
 	}
 	store.fetchConfigSpecs()
+	store.initialSyncTime = store.lastSyncTime
 	store.syncIDLists()
 	go store.pollForRulesetChanges()
 	go store.pollForIDListChanges()
@@ -180,7 +181,6 @@ func (s *store) fetchConfigSpecs() {
 	if s.setConfigSpecs(specs) && s.rulesUpdatedCallback != nil {
 		v, _ := json.Marshal(specs)
 		s.rulesUpdatedCallback(string(v[:]), specs.Time)
-		s.initReason = reasonNetwork
 	}
 }
 
@@ -208,6 +208,7 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.layerConfigs = newLayers
 		s.configsLock.Unlock()
 		s.lastSyncTime = specs.Time
+		s.initReason = reasonNetwork
 		return true
 	}
 	return false

@@ -1,17 +1,13 @@
 package statsig
 
-import "time"
-
 type evaluationReason string
 
 const (
 	reasonNetwork       evaluationReason = "Network"
+	reasonBootstrap     evaluationReason = "Bootstrap"
 	reasonLocalOverride evaluationReason = "LocalOverride"
-	reasonDefaultValue  evaluationReason = "DefaultValue"
 	reasonUnrecognized  evaluationReason = "Unrecognized"
 	reasonUninitialized evaluationReason = "Uninitialized"
-	reasonBootstrap     evaluationReason = "Bootstrap"
-	reasonDataAdapter   evaluationReason = "DataAdapter"
 )
 
 type evaluationDetails struct {
@@ -30,6 +26,6 @@ func newEvaluationDetails(
 		reason:         reason,
 		configSyncTime: configSyncTime,
 		initTime:       initTime,
-		serverTime:     time.Now().UnixMilli(),
+		serverTime:     now().UnixMilli(),
 	}
 }
