@@ -70,6 +70,10 @@ func (e *evaluator) shutdown() {
 }
 
 func (e *evaluator) createEvaluationDetails(reason evaluationReason) *evaluationDetails {
+	e.store.lastSyncTimeLock.RLock()
+	e.store.initialSyncTimeLock.RLock()
+	defer e.store.lastSyncTimeLock.RUnlock()
+	defer e.store.initialSyncTimeLock.RUnlock()
 	return newEvaluationDetails(reason, e.store.lastSyncTime, e.store.initialSyncTime)
 }
 
@@ -147,6 +151,8 @@ func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
 
 func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 	var configValue map[string]interface{}
+	e.store.initReasonLock.RLock()
+	defer e.store.initReasonLock.RUnlock()
 	evalDetails := e.createEvaluationDetails(e.store.initReason)
 	isDynamicConfig := strings.ToLower(spec.Type) == dynamicConfigType
 	if isDynamicConfig {

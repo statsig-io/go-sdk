@@ -77,8 +77,11 @@ type store struct {
 	idLists              map[string]*idList
 	idListsLock          sync.RWMutex
 	lastSyncTime         int64
+	lastSyncTimeLock     sync.RWMutex
 	initialSyncTime      int64
+	initialSyncTimeLock  sync.RWMutex
 	initReason           evaluationReason
+	initReasonLock       sync.RWMutex
 	transport            *transport
 	configSyncInterval   time.Duration
 	idListSyncInterval   time.Duration
@@ -135,11 +138,17 @@ func newStoreInternal(
 		err := json.Unmarshal([]byte(bootstrapValues), &specs)
 		if err == nil {
 			store.setConfigSpecs(specs)
+			store.initReasonLock.Lock()
 			store.initReason = reasonBootstrap
+			store.initReasonLock.Unlock()
 		}
 	}
 	store.fetchConfigSpecs()
+	store.lastSyncTimeLock.RLock()
+	store.initialSyncTimeLock.Lock()
 	store.initialSyncTime = store.lastSyncTime
+	store.lastSyncTimeLock.RUnlock()
+	store.initialSyncTimeLock.Unlock()
 	store.syncIDLists()
 	go store.pollForRulesetChanges()
 	go store.pollForIDListChanges()
@@ -168,10 +177,12 @@ func (s *store) getLayerConfig(name string) (configSpec, bool) {
 }
 
 func (s *store) fetchConfigSpecs() {
+	s.lastSyncTimeLock.RLock()
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
 		StatsigMetadata: s.transport.metadata,
 	}
+	s.lastSyncTimeLock.RUnlock()
 	var specs downloadConfigSpecResponse
 	err := s.transport.postRequest("/download_config_specs", input, &specs)
 	if err != nil {
@@ -207,8 +218,12 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
 		s.configsLock.Unlock()
+		s.lastSyncTimeLock.Lock()
 		s.lastSyncTime = specs.Time
+		s.lastSyncTimeLock.Unlock()
+		s.initReasonLock.Lock()
 		s.initReason = reasonNetwork
+		s.initReasonLock.Unlock()
 		return true
 	}
 	return false
