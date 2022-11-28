@@ -16,7 +16,7 @@ func TestLog(t *testing.T) {
 		API: testServer.URL,
 	}
 	transport := newTransport("secret", opt)
-	logger := newLogger(transport)
+	logger := newLogger(transport, opt)
 
 	user := User{
 		UserID:            "123",
