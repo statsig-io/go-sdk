@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	maxEvents           = 1000
 	gateExposureEvent   = "statsig::gate_exposure"
 	configExposureEvent = "statsig::config_exposure"
 	layerExposureEvent  = "statsig::layer_exposure"
@@ -34,13 +33,23 @@ type logger struct {
 	transport *transport
 	tick      *time.Ticker
 	mu        sync.Mutex
+	maxEvents int
 }
 
-func newLogger(transport *transport) *logger {
+func newLogger(transport *transport, options *Options) *logger {
+	loggingInterval := time.Minute
+	maxEvents := 1000
+	if options.LoggingInterval > 0 {
+		loggingInterval = options.LoggingInterval
+	}
+	if options.LoggingMaxBufferSize > 0 {
+		maxEvents = options.LoggingMaxBufferSize
+	}
 	log := &logger{
 		events:    make([]interface{}, 0),
 		transport: transport,
-		tick:      time.NewTicker(time.Minute),
+		tick:      time.NewTicker(loggingInterval),
+		maxEvents: maxEvents,
 	}
 
 	go log.backgroundFlush()
@@ -75,7 +84,7 @@ func (l *logger) logInternal(evt interface{}) {
 	defer l.mu.Unlock()
 
 	l.events = append(l.events, evt)
-	if len(l.events) >= maxEvents {
+	if len(l.events) >= l.maxEvents {
 		l.flushInternal(false)
 	}
 }

@@ -28,6 +28,8 @@ type Options struct {
 	LocalMode            bool        `json:"localMode"`
 	ConfigSyncInterval   time.Duration
 	IDListSyncInterval   time.Duration
+	LoggingInterval      time.Duration
+	LoggingMaxBufferSize int
 	BootstrapValues      string
 	RulesUpdatedCallback func(rules string, time int64)
 }
