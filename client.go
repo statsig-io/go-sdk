@@ -34,7 +34,7 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 		panic(err)
 	}
 	transport := newTransport(sdkKey, options)
-	logger := newLogger(transport)
+	logger := newLogger(transport, options)
 	evaluator := newEvaluator(transport, errorBoundary, options)
 	return &Client{
 		sdkKey:        sdkKey,
