@@ -54,7 +54,7 @@ func TestLog(t *testing.T) {
 
 	// Test gate exposures
 	exposures := []map[string]string{{"gate": "another_gate", "gateValue": "true", "ruleID": "default"}}
-	logger.logGateExposure(user, "test_gate", true, "rule_id", exposures)
+	logger.logGateExposure(user, "test_gate", true, "rule_id", exposures, nil)
 	evt2, ok := logger.events[1].(exposureEvent)
 	if !ok {
 		t.Errorf("Gate exposure event type incorrect.")
@@ -75,7 +75,7 @@ func TestLog(t *testing.T) {
 
 	// Test config exposures
 	exposures = append(exposures, map[string]string{"gate": "yet_another_gate", "gateValue": "false", "ruleID": ""})
-	logger.logConfigExposure(user, "test_config", "rule_id_config", exposures)
+	logger.logConfigExposure(user, "test_config", "rule_id_config", exposures, nil)
 	evt3, ok := logger.events[2].(exposureEvent)
 	if !ok {
 		t.Errorf("Config exposure event type incorrect.")

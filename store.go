@@ -73,17 +73,17 @@ type store struct {
 	featureGates         map[string]configSpec
 	dynamicConfigs       map[string]configSpec
 	layerConfigs         map[string]configSpec
-	configsLock          sync.RWMutex
 	idLists              map[string]*idList
-	idListsLock          sync.RWMutex
 	lastSyncTime         int64
+	initialSyncTime      int64
+	initReason           evaluationReason
 	transport            *transport
 	configSyncInterval   time.Duration
 	idListSyncInterval   time.Duration
 	shutdown             bool
-	shutdownLock         sync.Mutex
 	rulesUpdatedCallback func(rules string, time int64)
 	errorBoundary        *errorBoundary
+	mu                   sync.RWMutex
 }
 
 func newStore(
@@ -126,15 +126,22 @@ func newStoreInternal(
 		idListSyncInterval:   idListSyncInterval,
 		rulesUpdatedCallback: rulesUpdatedCallback,
 		errorBoundary:        errorBoundary,
+		initReason:           reasonUninitialized,
 	}
 	if bootstrapValues != "" {
 		specs := downloadConfigSpecResponse{}
 		err := json.Unmarshal([]byte(bootstrapValues), &specs)
 		if err == nil {
 			store.setConfigSpecs(specs)
+			store.mu.Lock()
+			store.initReason = reasonBootstrap
+			store.mu.Unlock()
 		}
 	}
 	store.fetchConfigSpecs()
+	store.mu.Lock()
+	store.initialSyncTime = store.lastSyncTime
+	store.mu.Unlock()
 	store.syncIDLists()
 	go store.pollForRulesetChanges()
 	go store.pollForIDListChanges()
@@ -142,31 +149,33 @@ func newStoreInternal(
 }
 
 func (s *store) getGate(name string) (configSpec, bool) {
-	s.configsLock.RLock()
-	defer s.configsLock.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	gate, ok := s.featureGates[name]
 	return gate, ok
 }
 
 func (s *store) getDynamicConfig(name string) (configSpec, bool) {
-	s.configsLock.RLock()
-	defer s.configsLock.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	config, ok := s.dynamicConfigs[name]
 	return config, ok
 }
 
 func (s *store) getLayerConfig(name string) (configSpec, bool) {
-	s.configsLock.RLock()
-	defer s.configsLock.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	config, ok := s.layerConfigs[name]
 	return config, ok
 }
 
 func (s *store) fetchConfigSpecs() {
+	s.mu.RLock()
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
 		StatsigMetadata: s.transport.metadata,
 	}
+	s.mu.RUnlock()
 	var specs downloadConfigSpecResponse
 	err := s.transport.postRequest("/download_config_specs", input, &specs)
 	if err != nil {
@@ -197,20 +206,21 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 			newLayers[layer.Name] = layer
 		}
 
-		s.configsLock.Lock()
+		s.mu.Lock()
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
-		s.configsLock.Unlock()
 		s.lastSyncTime = specs.Time
+		s.initReason = reasonNetwork
+		s.mu.Unlock()
 		return true
 	}
 	return false
 }
 
 func (s *store) getIDList(name string) *idList {
-	s.idListsLock.RLock()
-	defer s.idListsLock.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	list, ok := s.idLists[name]
 	if ok {
 		return list
@@ -219,14 +229,14 @@ func (s *store) getIDList(name string) *idList {
 }
 
 func (s *store) deleteIDList(name string) {
-	s.idListsLock.Lock()
-	defer s.idListsLock.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	delete(s.idLists, name)
 }
 
 func (s *store) setIDList(name string, list *idList) {
-	s.idListsLock.Lock()
-	defer s.idListsLock.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.idLists[name] = list
 }
 
@@ -325,8 +335,8 @@ func (s *store) pollForIDListChanges() {
 	for {
 		time.Sleep(s.idListSyncInterval)
 		stop := func() bool {
-			s.shutdownLock.Lock()
-			defer s.shutdownLock.Unlock()
+			s.mu.RLock()
+			defer s.mu.RUnlock()
 			return s.shutdown
 		}()
 		if stop {
@@ -340,8 +350,8 @@ func (s *store) pollForRulesetChanges() {
 	for {
 		time.Sleep(s.configSyncInterval)
 		stop := func() bool {
-			s.shutdownLock.Lock()
-			defer s.shutdownLock.Unlock()
+			s.mu.RLock()
+			defer s.mu.RUnlock()
 			return s.shutdown
 		}()
 		if stop {
@@ -352,7 +362,7 @@ func (s *store) pollForRulesetChanges() {
 }
 
 func (s *store) stopPolling() {
-	s.shutdownLock.Lock()
-	defer s.shutdownLock.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.shutdown = true
 }
