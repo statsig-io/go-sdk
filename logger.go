@@ -1,13 +1,13 @@
 package statsig
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
 )
 
 const (
-	maxEvents           = 1000
 	gateExposureEvent   = "statsig::gate_exposure"
 	configExposureEvent = "statsig::config_exposure"
 	layerExposureEvent  = "statsig::layer_exposure"
@@ -34,13 +34,23 @@ type logger struct {
 	transport *transport
 	tick      *time.Ticker
 	mu        sync.Mutex
+	maxEvents int
 }
 
-func newLogger(transport *transport) *logger {
+func newLogger(transport *transport, options *Options) *logger {
+	loggingInterval := time.Minute
+	maxEvents := 1000
+	if options.LoggingInterval > 0 {
+		loggingInterval = options.LoggingInterval
+	}
+	if options.LoggingMaxBufferSize > 0 {
+		maxEvents = options.LoggingMaxBufferSize
+	}
 	log := &logger{
 		events:    make([]interface{}, 0),
 		transport: transport,
-		tick:      time.NewTicker(time.Minute),
+		tick:      time.NewTicker(loggingInterval),
+		maxEvents: maxEvents,
 	}
 
 	go log.backgroundFlush()
@@ -62,6 +72,19 @@ func (l *logger) logCustom(evt Event) {
 	l.logInternal(evt)
 }
 
+func (l *logger) logExposureWithEvaluationDetails(
+	evt *exposureEvent,
+	evalDetails *evaluationDetails,
+) {
+	if evalDetails != nil {
+		evt.Metadata["reason"] = string(evalDetails.reason)
+		evt.Metadata["configSyncTime"] = fmt.Sprint(evalDetails.configSyncTime)
+		evt.Metadata["initTime"] = fmt.Sprint(evalDetails.initTime)
+		evt.Metadata["serverTime"] = fmt.Sprint(evalDetails.serverTime)
+	}
+	l.logExposure(*evt)
+}
+
 func (l *logger) logExposure(evt exposureEvent) {
 	evt.User.PrivateAttributes = nil
 	if evt.Time == 0 {
@@ -75,7 +98,7 @@ func (l *logger) logInternal(evt interface{}) {
 	defer l.mu.Unlock()
 
 	l.events = append(l.events, evt)
-	if len(l.events) >= maxEvents {
+	if len(l.events) >= l.maxEvents {
 		l.flushInternal(false)
 	}
 }
@@ -86,6 +109,7 @@ func (l *logger) logGateExposure(
 	value bool,
 	ruleID string,
 	exposures []map[string]string,
+	evalDetails *evaluationDetails,
 ) {
 	evt := &exposureEvent{
 		User:      user,
@@ -97,7 +121,7 @@ func (l *logger) logGateExposure(
 		},
 		SecondaryExposures: exposures,
 	}
-	l.logExposure(*evt)
+	l.logExposureWithEvaluationDetails(evt, evalDetails)
 }
 
 func (l *logger) logConfigExposure(
@@ -105,6 +129,7 @@ func (l *logger) logConfigExposure(
 	configName string,
 	ruleID string,
 	exposures []map[string]string,
+	evalDetails *evaluationDetails,
 ) {
 	evt := &exposureEvent{
 		User:      user,
@@ -115,7 +140,7 @@ func (l *logger) logConfigExposure(
 		},
 		SecondaryExposures: exposures,
 	}
-	l.logExposure(*evt)
+	l.logExposureWithEvaluationDetails(evt, evalDetails)
 }
 
 func (l *logger) logLayerExposure(
@@ -123,6 +148,7 @@ func (l *logger) logLayerExposure(
 	config configBase,
 	parameterName string,
 	evalResult evalResult,
+	evalDetails *evaluationDetails,
 ) {
 	allocatedExperiment := ""
 	exposures := evalResult.UndelegatedSecondaryExposures
@@ -145,7 +171,7 @@ func (l *logger) logLayerExposure(
 		},
 		SecondaryExposures: exposures,
 	}
-	l.logExposure(*evt)
+	l.logExposureWithEvaluationDetails(evt, evalDetails)
 }
 
 func (l *logger) flush(closing bool) {

@@ -3,15 +3,16 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
 
 func TestBootstrap(t *testing.T) {
-	bytes, _ := ioutil.ReadFile("download_config_specs.json")
+	bytes, _ := os.ReadFile("download_config_specs.json")
 	Initialize("secret-key")
 	if CheckGate(User{UserID: "123"}, "always_on_gate") {
 		t.Errorf("always_on_gate should return false when there is no bootstrap value")
@@ -31,7 +32,7 @@ func TestBootstrap(t *testing.T) {
 
 func TestRulesUpdatedCallback(t *testing.T) {
 	// First, verify that rules updated callback is called and returns the rules string
-	bytes, _ := ioutil.ReadFile("download_config_specs.json")
+	bytes, _ := os.ReadFile("download_config_specs.json")
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
@@ -113,4 +114,18 @@ func TestLogImmediate(t *testing.T) {
 	}
 
 	shutDownAndClearInstance()
+}
+
+func TestVersion(t *testing.T) {
+	metadata := getStatsigMetadata()
+	versionsString, _ := exec.Command("go", "list", "-m", "-versions").Output()
+	versions := strings.Fields(string(versionsString))
+	currentVersion := versions[len(versions)-1]
+	versionNumber := strings.Split(currentVersion, "v")[1]
+	if metadata.SDKVersion != versionNumber {
+		t.Errorf(
+			"SDK version mismatch: %s (StatsigMetadata) %s (module)",
+			metadata.SDKVersion, versionNumber,
+		)
+	}
 }

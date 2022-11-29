@@ -17,11 +17,6 @@ const (
 	backoffMultiplier = 10
 )
 
-type statsigMetadata struct {
-	SDKType    string `json:"sdkType"`
-	SDKVersion string `json:"sdkVersion"`
-}
-
 type transport struct {
 	api       string
 	sdkKey    string
@@ -47,7 +42,7 @@ func newTransport(secret string, options *Options) *transport {
 
 	return &transport{
 		api:       api,
-		metadata:  statsigMetadata{SDKType: "go-sdk", SDKVersion: "1.6.1"},
+		metadata:  getStatsigMetadata(),
 		sdkKey:    secret,
 		client:    &http.Client{},
 		options:   options,
@@ -112,6 +107,8 @@ func (transport *transport) doRequest(endpoint string, body []byte) (*http.Respo
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
 	req.Header.Add("STATSIG-SERVER-SESSION-ID", transport.sessionID)
+	req.Header.Add("STATSIG-SDK-TYPE", transport.metadata.SDKType)
+	req.Header.Add("STATSIG-SDK-VERSION", transport.metadata.SDKVersion)
 
 	return transport.client.Do(req)
 }

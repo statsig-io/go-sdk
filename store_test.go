@@ -112,7 +112,8 @@ func TestStoreSync(t *testing.T) {
 		API: testServer.URL,
 	}
 	n := newTransport("secret-123", opt)
-	s := newStoreInternal(n, time.Second, time.Second, "", nil)
+	e := newErrorBoundary("client-key", opt)
+	s := newStoreInternal(n, time.Second, time.Second, "", nil, e)
 
 	if s.getGatesCount() != 1 {
 		t.Errorf("Wrong number of feature gates after initialize")
@@ -294,13 +295,13 @@ func incrementCounter(val *int32) {
 }
 
 func (s *store) getGatesCount() int {
-	s.configsLock.RLock()
-	defer s.configsLock.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return len(s.featureGates)
 }
 
 func (s *store) getConfigsCount() int {
-	s.configsLock.RLock()
-	defer s.configsLock.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return len(s.dynamicConfigs)
 }

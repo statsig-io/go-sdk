@@ -3,12 +3,14 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLayerExposure(t *testing.T) {
@@ -18,7 +20,7 @@ func TestLayerExposure(t *testing.T) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			var in *downloadConfigsInput
-			bytes, _ := ioutil.ReadFile("layer_exposure_download_config_specs.json")
+			bytes, _ := os.ReadFile("layer_exposure_download_config_specs.json")
 			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		} else if strings.Contains(req.URL.Path, "log_event") {
@@ -43,8 +45,15 @@ func TestLayerExposure(t *testing.T) {
 
 	user := User{UserID: "some_user_id"}
 
+	var mockedServerTime int64
+	doMock := func() {
+		now = func() time.Time { return time.Date(2022, 12, 12, 0, 0, 0, 0, time.Local) }
+		mockedServerTime = now().UnixMilli()
+	}
+
 	start := func() {
 		events = []Event{}
+		doMock()
 		InitializeWithOptions("secret-key", opt)
 	}
 
@@ -106,6 +115,10 @@ func TestLayerExposure(t *testing.T) {
 			"allocatedExperiment": "",
 			"parameterName":       "an_int",
 			"isExplicitParameter": "false",
+			"reason":              "Network",
+			"configSyncTime":      "0",
+			"initTime":            "0",
+			"serverTime":          fmt.Sprint(mockedServerTime),
 		}) == false {
 			t.Errorf("Invalid metadata")
 		}
@@ -130,6 +143,10 @@ func TestLayerExposure(t *testing.T) {
 			"allocatedExperiment": "experiment",
 			"parameterName":       "an_int",
 			"isExplicitParameter": "true",
+			"reason":              "Network",
+			"configSyncTime":      "0",
+			"initTime":            "0",
+			"serverTime":          fmt.Sprint(mockedServerTime),
 		}) == false {
 			t.Errorf("Invalid metadata")
 		}
@@ -140,6 +157,10 @@ func TestLayerExposure(t *testing.T) {
 			"allocatedExperiment": "",
 			"parameterName":       "a_string",
 			"isExplicitParameter": "false",
+			"reason":              "Network",
+			"configSyncTime":      "0",
+			"initTime":            "0",
+			"serverTime":          fmt.Sprint(mockedServerTime),
 		}) == false {
 			t.Errorf("Invalid metadata")
 		}

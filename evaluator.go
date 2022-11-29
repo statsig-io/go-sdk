@@ -36,18 +36,23 @@ type evalResult struct {
 	UndelegatedSecondaryExposures []map[string]string
 	ConfigDelegate                string
 	ExplicitParamters             map[string]bool
+	EvaluationDetails             *evaluationDetails
 }
 
 const dynamicConfigType = "dynamic_config"
 
-func newEvaluator(transport *transport, options *Options) *evaluator {
-	store := newStore(transport, options)
+func newEvaluator(
+	transport *transport,
+	errorBoundary *errorBoundary,
+	options *Options,
+) *evaluator {
+	store := newStore(transport, errorBoundary, options)
 	parser := uaparser.NewFromSaved()
 	countryLookup := countrylookup.New()
 	defer func() {
 		if err := recover(); err != nil {
-			// TODO: log here
-			fmt.Println(err)
+			errorBoundary.logException(err.(error))
+			fmt.Println(err.(error).Error())
 		}
 	}()
 
@@ -64,36 +69,54 @@ func (e *evaluator) shutdown() {
 	e.store.stopPolling()
 }
 
+func (e *evaluator) createEvaluationDetails(reason evaluationReason) *evaluationDetails {
+	e.store.mu.RLock()
+	defer e.store.mu.RUnlock()
+	return newEvaluationDetails(reason, e.store.lastSyncTime, e.store.initialSyncTime)
+}
+
 func (e *evaluator) checkGate(user User, gateName string) *evalResult {
 	if gateOverride, hasOverride := e.getGateOverride(gateName); hasOverride {
+		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			Pass: gateOverride,
-			Id:   "override"}
+			Pass:              gateOverride,
+			Id:                "override",
+			EvaluationDetails: evalDetails,
+		}
 	}
 	if gate, hasGate := e.store.getGate(gateName); hasGate {
 		return e.eval(user, gate)
 	}
-	return new(evalResult)
+	emptyEvalResult := new(evalResult)
+	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+	return emptyEvalResult
 }
 
 func (e *evaluator) getConfig(user User, configName string) *evalResult {
 	if configOverride, hasOverride := e.getConfigOverride(configName); hasOverride {
+		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			Pass:        true,
-			ConfigValue: *NewConfig(configName, configOverride, "override"),
-			Id:          "override"}
+			Pass:              true,
+			ConfigValue:       *NewConfig(configName, configOverride, "override"),
+			Id:                "override",
+			EvaluationDetails: evalDetails,
+		}
 	}
 	if config, hasConfig := e.store.getDynamicConfig(configName); hasConfig {
 		return e.eval(user, config)
 	}
-	return new(evalResult)
+	emptyEvalResult := new(evalResult)
+	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+	return emptyEvalResult
 }
 
 func (e *evaluator) getLayer(user User, name string) *evalResult {
 	if config, hasConfig := e.store.getLayerConfig(name); hasConfig {
 		return e.eval(user, config)
 	}
-	return new(evalResult)
+	emptyEvalResult := new(evalResult)
+	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+	return emptyEvalResult
 }
 
 func (e *evaluator) getGateOverride(name string) (bool, bool) {
@@ -126,6 +149,10 @@ func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
 
 func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 	var configValue map[string]interface{}
+	e.store.mu.RLock()
+	reason := e.store.initReason
+	e.store.mu.RUnlock()
+	evalDetails := e.createEvaluationDetails(reason)
 	isDynamicConfig := strings.ToLower(spec.Type) == dynamicConfigType
 	if isDynamicConfig {
 		err := json.Unmarshal(spec.DefaultValue, &configValue)
@@ -165,9 +192,16 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID),
 						Id:                            rule.ID,
 						SecondaryExposures:            exposures,
-						UndelegatedSecondaryExposures: exposures}
+						UndelegatedSecondaryExposures: exposures,
+						EvaluationDetails:             evalDetails,
+					}
 				} else {
-					return &evalResult{Pass: pass, Id: rule.ID, SecondaryExposures: exposures}
+					return &evalResult{
+						Pass:               pass,
+						Id:                 rule.ID,
+						SecondaryExposures: exposures,
+						EvaluationDetails:  evalDetails,
+					}
 				}
 			}
 		}
@@ -181,7 +215,9 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 			ConfigValue:                   *NewConfig(spec.Name, configValue, defaultRuleID),
 			Id:                            defaultRuleID,
 			SecondaryExposures:            exposures,
-			UndelegatedSecondaryExposures: exposures}
+			UndelegatedSecondaryExposures: exposures,
+			EvaluationDetails:             evalDetails,
+		}
 	}
 	return &evalResult{Pass: false, Id: defaultRuleID, SecondaryExposures: exposures}
 }

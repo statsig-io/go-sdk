@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,7 +19,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			bytes, _ := ioutil.ReadFile("download_config_specs.json")
+			bytes, _ := os.ReadFile("download_config_specs.json")
 			_, _ = res.Write(bytes)
 		} else if strings.Contains(req.URL.Path, "log_event") {
 			type requestInput struct {
@@ -138,7 +138,7 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			configSyncCount++
 			var in *downloadConfigsInput
-			bytes, _ := ioutil.ReadFile("download_config_specs.json")
+			bytes, _ := os.ReadFile("download_config_specs.json")
 			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
@@ -217,7 +217,7 @@ func TestOverrideAPIsConcurrency(t *testing.T) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			var in *downloadConfigsInput
-			bytes, _ := ioutil.ReadFile("download_config_specs.json")
+			bytes, _ := os.ReadFile("download_config_specs.json")
 			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		}

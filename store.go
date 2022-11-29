@@ -73,19 +73,24 @@ type store struct {
 	featureGates         map[string]configSpec
 	dynamicConfigs       map[string]configSpec
 	layerConfigs         map[string]configSpec
-	configsLock          sync.RWMutex
 	idLists              map[string]*idList
-	idListsLock          sync.RWMutex
 	lastSyncTime         int64
+	initialSyncTime      int64
+	initReason           evaluationReason
 	transport            *transport
 	configSyncInterval   time.Duration
 	idListSyncInterval   time.Duration
 	shutdown             bool
-	shutdownLock         sync.Mutex
 	rulesUpdatedCallback func(rules string, time int64)
+	errorBoundary        *errorBoundary
+	mu                   sync.RWMutex
 }
 
-func newStore(transport *transport, options *Options) *store {
+func newStore(
+	transport *transport,
+	errorBoundary *errorBoundary,
+	options *Options,
+) *store {
 	configSyncInterval := 10 * time.Second
 	idListSyncInterval := time.Minute
 	if options.ConfigSyncInterval > 0 {
@@ -94,10 +99,24 @@ func newStore(transport *transport, options *Options) *store {
 	if options.IDListSyncInterval > 0 {
 		idListSyncInterval = options.IDListSyncInterval
 	}
-	return newStoreInternal(transport, configSyncInterval, idListSyncInterval, options.BootstrapValues, options.RulesUpdatedCallback)
+	return newStoreInternal(
+		transport,
+		configSyncInterval,
+		idListSyncInterval,
+		options.BootstrapValues,
+		options.RulesUpdatedCallback,
+		errorBoundary,
+	)
 }
 
-func newStoreInternal(transport *transport, configSyncInterval time.Duration, idListSyncInterval time.Duration, bootstrapValues string, rulesUpdatedCallback func(rules string, time int64)) *store {
+func newStoreInternal(
+	transport *transport,
+	configSyncInterval time.Duration,
+	idListSyncInterval time.Duration,
+	bootstrapValues string,
+	rulesUpdatedCallback func(rules string, time int64),
+	errorBoundary *errorBoundary,
+) *store {
 	store := &store{
 		featureGates:         make(map[string]configSpec),
 		dynamicConfigs:       make(map[string]configSpec),
@@ -106,15 +125,23 @@ func newStoreInternal(transport *transport, configSyncInterval time.Duration, id
 		configSyncInterval:   configSyncInterval,
 		idListSyncInterval:   idListSyncInterval,
 		rulesUpdatedCallback: rulesUpdatedCallback,
+		errorBoundary:        errorBoundary,
+		initReason:           reasonUninitialized,
 	}
 	if bootstrapValues != "" {
 		specs := downloadConfigSpecResponse{}
 		err := json.Unmarshal([]byte(bootstrapValues), &specs)
 		if err == nil {
 			store.setConfigSpecs(specs)
+			store.mu.Lock()
+			store.initReason = reasonBootstrap
+			store.mu.Unlock()
 		}
 	}
 	store.fetchConfigSpecs()
+	store.mu.Lock()
+	store.initialSyncTime = store.lastSyncTime
+	store.mu.Unlock()
 	store.syncIDLists()
 	go store.pollForRulesetChanges()
 	go store.pollForIDListChanges()
@@ -122,34 +149,39 @@ func newStoreInternal(transport *transport, configSyncInterval time.Duration, id
 }
 
 func (s *store) getGate(name string) (configSpec, bool) {
-	s.configsLock.RLock()
-	defer s.configsLock.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	gate, ok := s.featureGates[name]
 	return gate, ok
 }
 
 func (s *store) getDynamicConfig(name string) (configSpec, bool) {
-	s.configsLock.RLock()
-	defer s.configsLock.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	config, ok := s.dynamicConfigs[name]
 	return config, ok
 }
 
 func (s *store) getLayerConfig(name string) (configSpec, bool) {
-	s.configsLock.RLock()
-	defer s.configsLock.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	config, ok := s.layerConfigs[name]
 	return config, ok
 }
 
 func (s *store) fetchConfigSpecs() {
+	s.mu.RLock()
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
 		StatsigMetadata: s.transport.metadata,
 	}
+	s.mu.RUnlock()
 	var specs downloadConfigSpecResponse
-	_ = s.transport.postRequest("/download_config_specs", input, &specs)
-	s.lastSyncTime = specs.Time
+	err := s.transport.postRequest("/download_config_specs", input, &specs)
+	if err != nil {
+		s.errorBoundary.logException(err)
+		return
+	}
 	if s.setConfigSpecs(specs) && s.rulesUpdatedCallback != nil {
 		v, _ := json.Marshal(specs)
 		s.rulesUpdatedCallback(string(v[:]), specs.Time)
@@ -174,19 +206,21 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 			newLayers[layer.Name] = layer
 		}
 
-		s.configsLock.Lock()
+		s.mu.Lock()
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
-		s.configsLock.Unlock()
+		s.lastSyncTime = specs.Time
+		s.initReason = reasonNetwork
+		s.mu.Unlock()
 		return true
 	}
 	return false
 }
 
 func (s *store) getIDList(name string) *idList {
-	s.idListsLock.RLock()
-	defer s.idListsLock.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	list, ok := s.idLists[name]
 	if ok {
 		return list
@@ -195,14 +229,14 @@ func (s *store) getIDList(name string) *idList {
 }
 
 func (s *store) deleteIDList(name string) {
-	s.idListsLock.Lock()
-	defer s.idListsLock.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	delete(s.idLists, name)
 }
 
 func (s *store) setIDList(name string, list *idList) {
-	s.idListsLock.Lock()
-	defer s.idListsLock.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.idLists[name] = list
 }
 
@@ -210,6 +244,7 @@ func (s *store) syncIDLists() {
 	var serverLists map[string]idList
 	err := s.transport.postRequest("/get_id_lists", getIDListsInput{StatsigMetadata: s.transport.metadata}, &serverLists)
 	if err != nil {
+		s.errorBoundary.logException(err)
 		return
 	}
 
@@ -249,17 +284,20 @@ func (s *store) syncIDLists() {
 			defer wg.Done()
 			res, err := s.transport.get(l.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", l.Size)})
 			if err != nil || res == nil {
+				s.errorBoundary.logException(err)
 				return
 			}
 			defer res.Body.Close()
 
 			length, err := strconv.Atoi(res.Header.Get("content-length"))
 			if err != nil || length <= 0 {
+				s.errorBoundary.logException(err)
 				return
 			}
 
 			bodyBytes, err := io.ReadAll(res.Body)
 			if err != nil {
+				s.errorBoundary.logException(err)
 				return
 			}
 			content := string(bodyBytes)
@@ -297,8 +335,8 @@ func (s *store) pollForIDListChanges() {
 	for {
 		time.Sleep(s.idListSyncInterval)
 		stop := func() bool {
-			s.shutdownLock.Lock()
-			defer s.shutdownLock.Unlock()
+			s.mu.RLock()
+			defer s.mu.RUnlock()
 			return s.shutdown
 		}()
 		if stop {
@@ -312,8 +350,8 @@ func (s *store) pollForRulesetChanges() {
 	for {
 		time.Sleep(s.configSyncInterval)
 		stop := func() bool {
-			s.shutdownLock.Lock()
-			defer s.shutdownLock.Unlock()
+			s.mu.RLock()
+			defer s.mu.RUnlock()
 			return s.shutdown
 		}()
 		if stop {
@@ -324,7 +362,7 @@ func (s *store) pollForRulesetChanges() {
 }
 
 func (s *store) stopPolling() {
-	s.shutdownLock.Lock()
-	defer s.shutdownLock.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.shutdown = true
 }

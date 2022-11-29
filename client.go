@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -9,11 +10,12 @@ import (
 
 // An instance of a StatsigClient for interfacing with Statsig Feature Gates, Dynamic Configs, Experiments, and Event Logging
 type Client struct {
-	sdkKey    string
-	evaluator *evaluator
-	logger    *logger
-	transport *transport
-	options   *Options
+	sdkKey        string
+	evaluator     *evaluator
+	logger        *logger
+	transport     *transport
+	errorBoundary *errorBoundary
+	options       *Options
 }
 
 // Initializes a Statsig Client with the given sdkKey
@@ -26,25 +28,27 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	if len(options.API) == 0 {
 		options.API = "https://statsigapi.net/v1"
 	}
-	transport := newTransport(sdkKey, options)
-	logger := newLogger(transport)
-	evaluator := newEvaluator(transport, options)
+	errorBoundary := newErrorBoundary(sdkKey, options)
 	if !options.LocalMode && !strings.HasPrefix(sdkKey, "secret") {
-		panic("Must provide a valid SDK key.")
+		err := errors.New(InvalidSDKKeyError)
+		panic(err)
 	}
+	transport := newTransport(sdkKey, options)
+	logger := newLogger(transport, options)
+	evaluator := newEvaluator(transport, errorBoundary, options)
 	return &Client{
-		sdkKey:    sdkKey,
-		evaluator: evaluator,
-		logger:    logger,
-		transport: transport,
-		options:   options,
+		sdkKey:        sdkKey,
+		evaluator:     evaluator,
+		logger:        logger,
+		transport:     transport,
+		errorBoundary: errorBoundary,
+		options:       options,
 	}
 }
 
 // Checks the value of a Feature Gate for the given user
 func (c *Client) CheckGate(user User, gate string) bool {
-	if user.UserID == "" {
-		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
+	if !c.verifyUser(user) {
 		return false
 	}
 	user = normalizeUser(user, *c.options)
@@ -53,15 +57,14 @@ func (c *Client) CheckGate(user User, gate string) bool {
 		serverRes := fetchGate(user, gate, c.transport)
 		res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
 	} else {
-		c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures)
+		c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails)
 	}
 	return res.Pass
 }
 
 // Gets the DynamicConfig value for the given user
 func (c *Client) GetConfig(user User, config string) DynamicConfig {
-	if user.UserID == "" {
-		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
+	if !c.verifyUser(user) {
 		return *NewConfig(config, nil, "")
 	}
 	user = normalizeUser(user, *c.options)
@@ -69,15 +72,14 @@ func (c *Client) GetConfig(user User, config string) DynamicConfig {
 	if res.FetchFromServer {
 		res = c.fetchConfigFromServer(user, config)
 	} else {
-		c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures)
+		c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails)
 	}
 	return res.ConfigValue
 }
 
 // Gets the DynamicConfig value of an Experiment for the given user
 func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
-	if user.UserID == "" {
-		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
+	if !c.verifyUser(user) {
 		return *NewConfig(experiment, nil, "")
 	}
 	return c.GetConfig(user, experiment)
@@ -85,8 +87,7 @@ func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 
 // Gets the Layer object for the given user
 func (c *Client) GetLayer(user User, layer string) Layer {
-	if user.UserID == "" {
-		fmt.Println("A non-empty StatsigUser.UserID is required. See https://docs.statsig.com/messages/serverRequiredUserID")
+	if !c.verifyUser(user) {
 		return *NewLayer(layer, nil, "", nil)
 	}
 
@@ -98,7 +99,7 @@ func (c *Client) GetLayer(user User, layer string) Layer {
 	}
 
 	logFunc := func(config configBase, parameterName string) {
-		c.logger.logLayerExposure(user, config, parameterName, *res)
+		c.logger.logLayerExposure(user, config, parameterName, *res, res.EvaluationDetails)
 	}
 
 	return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, &logFunc)
@@ -125,7 +126,8 @@ func (c *Client) OverrideConfig(config string, val map[string]interface{}) {
 
 func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 	if len(events) > 500 {
-		return nil, fmt.Errorf("The max number of events supported in one batch is 500. Please reduce the slice size and try again.")
+		err := errors.New(EventBatchSizeError)
+		return nil, fmt.Errorf(err.Error())
 	}
 	events_processed := make([]interface{}, 0)
 	for _, event := range events {
@@ -142,6 +144,15 @@ func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 		return nil, err
 	}
 	return c.transport.doRequest("/log_event", body)
+}
+
+func (c *Client) verifyUser(user User) bool {
+	if user.UserID == "" && len(user.CustomIDs) == 0 {
+		err := errors.New(EmptyUserError)
+		fmt.Println(err.Error())
+		return false
+	}
+	return true
 }
 
 // Cleans up Statsig, persisting any Event Logs and cleanup processes
