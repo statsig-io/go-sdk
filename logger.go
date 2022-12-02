@@ -29,6 +29,10 @@ type logEventInput struct {
 
 type logEventResponse struct{}
 
+type logContext struct {
+	isManualExposure bool
+}
+
 type logger struct {
 	events    []interface{}
 	transport *transport
@@ -110,15 +114,20 @@ func (l *logger) logGateExposure(
 	ruleID string,
 	exposures []map[string]string,
 	evalDetails *evaluationDetails,
+	context *logContext,
 ) {
+	metadata := map[string]string{
+		"gate":      gateName,
+		"gateValue": strconv.FormatBool(value),
+		"ruleID":    ruleID,
+	}
+	if context != nil && context.isManualExposure {
+		metadata["isManualExposure"] = "true"
+	}
 	evt := &exposureEvent{
-		User:      user,
-		EventName: gateExposureEvent,
-		Metadata: map[string]string{
-			"gate":      gateName,
-			"gateValue": strconv.FormatBool(value),
-			"ruleID":    ruleID,
-		},
+		User:               user,
+		EventName:          gateExposureEvent,
+		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
 	l.logExposureWithEvaluationDetails(evt, evalDetails)
@@ -130,14 +139,19 @@ func (l *logger) logConfigExposure(
 	ruleID string,
 	exposures []map[string]string,
 	evalDetails *evaluationDetails,
+	context *logContext,
 ) {
+	metadata := map[string]string{
+		"config": configName,
+		"ruleID": ruleID,
+	}
+	if context != nil && context.isManualExposure {
+		metadata["isManualExposure"] = "true"
+	}
 	evt := &exposureEvent{
-		User:      user,
-		EventName: configExposureEvent,
-		Metadata: map[string]string{
-			"config": configName,
-			"ruleID": ruleID,
-		},
+		User:               user,
+		EventName:          configExposureEvent,
+		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
 	l.logExposureWithEvaluationDetails(evt, evalDetails)
@@ -149,6 +163,7 @@ func (l *logger) logLayerExposure(
 	parameterName string,
 	evalResult evalResult,
 	evalDetails *evaluationDetails,
+	context *logContext,
 ) {
 	allocatedExperiment := ""
 	exposures := evalResult.UndelegatedSecondaryExposures
@@ -158,17 +173,21 @@ func (l *logger) logLayerExposure(
 		allocatedExperiment = evalResult.ConfigDelegate
 		exposures = evalResult.SecondaryExposures
 	}
+	metadata := map[string]string{
+		"config":              config.Name,
+		"ruleID":              config.RuleID,
+		"allocatedExperiment": allocatedExperiment,
+		"parameterName":       parameterName,
+		"isExplicitParameter": strconv.FormatBool(isExplicit),
+	}
+	if context != nil && context.isManualExposure {
+		metadata["isManualExposure"] = "true"
+	}
 
 	evt := &exposureEvent{
-		User:      user,
-		EventName: layerExposureEvent,
-		Metadata: map[string]string{
-			"config":              config.Name,
-			"ruleID":              config.RuleID,
-			"allocatedExperiment": allocatedExperiment,
-			"parameterName":       parameterName,
-			"isExplicitParameter": strconv.FormatBool(isExplicit),
-		},
+		User:               user,
+		EventName:          layerExposureEvent,
+		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
 	l.logExposureWithEvaluationDetails(evt, evalDetails)

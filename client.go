@@ -18,6 +18,18 @@ type Client struct {
 	options       *Options
 }
 
+type checkGateOptions struct {
+	logExposure bool
+}
+
+type getConfigOptions struct {
+	logExposure bool
+}
+
+type getLayerOptions struct {
+	logExposure bool
+}
+
 // Initializes a Statsig Client with the given sdkKey
 func NewClient(sdkKey string) *Client {
 	return NewClientWithOptions(sdkKey, &Options{API: DefaultEndpoint})
@@ -48,6 +60,28 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 
 // Checks the value of a Feature Gate for the given user
 func (c *Client) CheckGate(user User, gate string) bool {
+	options := checkGateOptions{logExposure: true}
+	return c.checkGateImpl(user, gate, options)
+}
+
+// Checks the value of a Feature Gate for the given user without logging an exposure event
+func (c *Client) CheckGateWithExposureLoggingDisabled(user User, gate string) bool {
+	options := checkGateOptions{logExposure: false}
+	return c.checkGateImpl(user, gate, options)
+}
+
+// Logs an exposure event for the dynamic config
+func (c *Client) ManuallyLogGateExposure(user User, gate string) {
+	if !c.verifyUser(user) {
+		return
+	}
+	user = normalizeUser(user, *c.options)
+	res := c.evaluator.checkGate(user, gate)
+	context := &logContext{isManualExposure: true}
+	c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+}
+
+func (c *Client) checkGateImpl(user User, gate string, options checkGateOptions) bool {
 	if !c.verifyUser(user) {
 		return false
 	}
@@ -57,13 +91,38 @@ func (c *Client) CheckGate(user User, gate string) bool {
 		serverRes := fetchGate(user, gate, c.transport)
 		res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
 	} else {
-		c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails)
+		if options.logExposure {
+			context := &logContext{isManualExposure: false}
+			c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+		}
 	}
 	return res.Pass
 }
 
 // Gets the DynamicConfig value for the given user
 func (c *Client) GetConfig(user User, config string) DynamicConfig {
+	options := getConfigOptions{logExposure: true}
+	return c.getConfigImpl(user, config, options)
+}
+
+// Gets the DynamicConfig value for the given user without logging an exposure event
+func (c *Client) GetConfigWithExposureLoggingDisabled(user User, config string) DynamicConfig {
+	options := getConfigOptions{logExposure: false}
+	return c.getConfigImpl(user, config, options)
+}
+
+// Logs an exposure event for the config
+func (c *Client) ManuallyLogConfigExposure(user User, config string) {
+	if !c.verifyUser(user) {
+		return
+	}
+	user = normalizeUser(user, *c.options)
+	res := c.evaluator.getConfig(user, config)
+	context := &logContext{isManualExposure: true}
+	c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+}
+
+func (c *Client) getConfigImpl(user User, config string, options getConfigOptions) DynamicConfig {
 	if !c.verifyUser(user) {
 		return *NewConfig(config, nil, "")
 	}
@@ -72,7 +131,10 @@ func (c *Client) GetConfig(user User, config string) DynamicConfig {
 	if res.FetchFromServer {
 		res = c.fetchConfigFromServer(user, config)
 	} else {
-		c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails)
+		if options.logExposure {
+			context := &logContext{isManualExposure: false}
+			c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+		}
 	}
 	return res.ConfigValue
 }
@@ -85,8 +147,44 @@ func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 	return c.GetConfig(user, experiment)
 }
 
+// Gets the DynamicConfig value of an Experiment for the given user without logging an exposure event
+func (c *Client) GetExperimentWithExposureLoggingDisabled(user User, experiment string) DynamicConfig {
+	if !c.verifyUser(user) {
+		return *NewConfig(experiment, nil, "")
+	}
+	return c.GetConfigWithExposureLoggingDisabled(user, experiment)
+}
+
+// Logs an exposure event for the experiment
+func (c *Client) ManuallyLogExperimentExposure(user User, experiment string) {
+	c.ManuallyLogConfigExposure(user, experiment)
+}
+
 // Gets the Layer object for the given user
 func (c *Client) GetLayer(user User, layer string) Layer {
+	options := getLayerOptions{logExposure: true}
+	return c.getLayerImpl(user, layer, options)
+}
+
+// Gets the Layer object for the given user without logging an exposure event
+func (c *Client) GetLayerWithExposureLoggingDisabled(user User, layer string) Layer {
+	options := getLayerOptions{logExposure: false}
+	return c.getLayerImpl(user, layer, options)
+}
+
+// Logs an exposure event for the parameter in the given layer
+func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, parameter string) {
+	if !c.verifyUser(user) {
+		return
+	}
+	user = normalizeUser(user, *c.options)
+	res := c.evaluator.getLayer(user, layer)
+	config := *&NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, nil).configBase
+	context := &logContext{isManualExposure: true}
+	c.logger.logLayerExposure(user, config, parameter, *res, res.EvaluationDetails, context)
+}
+
+func (c *Client) getLayerImpl(user User, layer string, options getLayerOptions) Layer {
 	if !c.verifyUser(user) {
 		return *NewLayer(layer, nil, "", nil)
 	}
@@ -99,7 +197,10 @@ func (c *Client) GetLayer(user User, layer string) Layer {
 	}
 
 	logFunc := func(config configBase, parameterName string) {
-		c.logger.logLayerExposure(user, config, parameterName, *res, res.EvaluationDetails)
+		if options.logExposure {
+			context := &logContext{isManualExposure: false}
+			c.logger.logLayerExposure(user, config, parameterName, *res, res.EvaluationDetails, context)
+		}
 	}
 
 	return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, &logFunc)
