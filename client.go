@@ -179,7 +179,7 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 	}
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.getLayer(user, layer)
-	config := *&NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, nil).configBase
+	config := NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, nil).configBase
 	context := &logContext{isManualExposure: true}
 	c.logger.logLayerExposure(user, config, parameter, *res, res.EvaluationDetails, context)
 }
