@@ -18,18 +18,6 @@ type Client struct {
 	options       *Options
 }
 
-type checkGateOptions struct {
-	logExposure bool
-}
-
-type getConfigOptions struct {
-	logExposure bool
-}
-
-type getLayerOptions struct {
-	logExposure bool
-}
-
 // Initializes a Statsig Client with the given sdkKey
 func NewClient(sdkKey string) *Client {
 	return NewClientWithOptions(sdkKey, &Options{API: DefaultEndpoint})
@@ -81,24 +69,6 @@ func (c *Client) ManuallyLogGateExposure(user User, gate string) {
 	c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
 }
 
-func (c *Client) checkGateImpl(user User, gate string, options checkGateOptions) bool {
-	if !c.verifyUser(user) {
-		return false
-	}
-	user = normalizeUser(user, *c.options)
-	res := c.evaluator.checkGate(user, gate)
-	if res.FetchFromServer {
-		serverRes := fetchGate(user, gate, c.transport)
-		res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
-	} else {
-		if options.logExposure {
-			context := &logContext{isManualExposure: false}
-			c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
-		}
-	}
-	return res.Pass
-}
-
 // Gets the DynamicConfig value for the given user
 func (c *Client) GetConfig(user User, config string) DynamicConfig {
 	options := getConfigOptions{logExposure: true}
@@ -120,23 +90,6 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 	res := c.evaluator.getConfig(user, config)
 	context := &logContext{isManualExposure: true}
 	c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
-}
-
-func (c *Client) getConfigImpl(user User, config string, options getConfigOptions) DynamicConfig {
-	if !c.verifyUser(user) {
-		return *NewConfig(config, nil, "")
-	}
-	user = normalizeUser(user, *c.options)
-	res := c.evaluator.getConfig(user, config)
-	if res.FetchFromServer {
-		res = c.fetchConfigFromServer(user, config)
-	} else {
-		if options.logExposure {
-			context := &logContext{isManualExposure: false}
-			c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
-		}
-	}
-	return res.ConfigValue
 }
 
 // Gets the DynamicConfig value of an Experiment for the given user
@@ -182,28 +135,6 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 	config := NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, nil).configBase
 	context := &logContext{isManualExposure: true}
 	c.logger.logLayerExposure(user, config, parameter, *res, res.EvaluationDetails, context)
-}
-
-func (c *Client) getLayerImpl(user User, layer string, options getLayerOptions) Layer {
-	if !c.verifyUser(user) {
-		return *NewLayer(layer, nil, "", nil)
-	}
-
-	user = normalizeUser(user, *c.options)
-	res := c.evaluator.getLayer(user, layer)
-
-	if res.FetchFromServer {
-		res = c.fetchConfigFromServer(user, layer)
-	}
-
-	logFunc := func(config configBase, parameterName string) {
-		if options.logExposure {
-			context := &logContext{isManualExposure: false}
-			c.logger.logLayerExposure(user, config, parameterName, *res, res.EvaluationDetails, context)
-		}
-	}
-
-	return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, &logFunc)
 }
 
 // Logs an event to Statsig for analysis in the Statsig Console
@@ -263,6 +194,18 @@ func (c *Client) Shutdown() {
 	c.evaluator.shutdown()
 }
 
+type checkGateOptions struct {
+	logExposure bool
+}
+
+type getConfigOptions struct {
+	logExposure bool
+}
+
+type getLayerOptions struct {
+	logExposure bool
+}
+
 type gateResponse struct {
 	Name   string `json:"name"`
 	Value  bool   `json:"value"`
@@ -285,6 +228,63 @@ type getConfigInput struct {
 	ConfigName      string          `json:"configName"`
 	User            User            `json:"user"`
 	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
+}
+
+func (c *Client) checkGateImpl(user User, gate string, options checkGateOptions) bool {
+	if !c.verifyUser(user) {
+		return false
+	}
+	user = normalizeUser(user, *c.options)
+	res := c.evaluator.checkGate(user, gate)
+	if res.FetchFromServer {
+		serverRes := fetchGate(user, gate, c.transport)
+		res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
+	} else {
+		if options.logExposure {
+			context := &logContext{isManualExposure: false}
+			c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+		}
+	}
+	return res.Pass
+}
+
+func (c *Client) getConfigImpl(user User, config string, options getConfigOptions) DynamicConfig {
+	if !c.verifyUser(user) {
+		return *NewConfig(config, nil, "")
+	}
+	user = normalizeUser(user, *c.options)
+	res := c.evaluator.getConfig(user, config)
+	if res.FetchFromServer {
+		res = c.fetchConfigFromServer(user, config)
+	} else {
+		if options.logExposure {
+			context := &logContext{isManualExposure: false}
+			c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+		}
+	}
+	return res.ConfigValue
+}
+
+func (c *Client) getLayerImpl(user User, layer string, options getLayerOptions) Layer {
+	if !c.verifyUser(user) {
+		return *NewLayer(layer, nil, "", nil)
+	}
+
+	user = normalizeUser(user, *c.options)
+	res := c.evaluator.getLayer(user, layer)
+
+	if res.FetchFromServer {
+		res = c.fetchConfigFromServer(user, layer)
+	}
+
+	logFunc := func(config configBase, parameterName string) {
+		if options.logExposure {
+			context := &logContext{isManualExposure: false}
+			c.logger.logLayerExposure(user, config, parameterName, *res, res.EvaluationDetails, context)
+		}
+	}
+
+	return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, &logFunc)
 }
 
 func fetchGate(user User, gateName string, t *transport) gateResponse {
