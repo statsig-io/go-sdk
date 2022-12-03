@@ -1,7 +1,9 @@
 package statsig
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,21 +12,37 @@ import (
 )
 
 func TestBootstrapWithAdapter(t *testing.T) {
-	bytes, _ := os.ReadFile("download_config_specs.json")
+	events := []Event{}
+	dcs_bytes, _ := os.ReadFile("download_config_specs.json")
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		if strings.Contains(req.URL.Path, "log_event") {
+			type requestInput struct {
+				Events          []Event         `json:"events"`
+				StatsigMetadata statsigMetadata `json:"statsigMetadata"`
+			}
+			input := &requestInput{}
+			defer req.Body.Close()
+			buf := new(bytes.Buffer)
+			_, _ = buf.ReadFrom(req.Body)
+
+			_ = json.Unmarshal(buf.Bytes(), &input)
+			events = input.Events
+		}
+	}))
 	dataAdapter := dataAdapterExample{store: make(map[string]string)}
 	dataAdapter.initialize()
 	defer dataAdapter.shutdown()
-	dataAdapter.set(dataAdapterKey, string(bytes))
+	dataAdapter.set(dataAdapterKey, string(dcs_bytes))
 	options := &Options{
 		DataAdapter: dataAdapter,
-		LocalMode:   true,
+		API:         testServer.URL,
 		Environment: Environment{Tier: "test"},
 	}
 	InitializeWithOptions("secret-key", options)
-	defer shutDownAndClearInstance()
 	user := User{UserID: "statsig_user", Email: "statsiguser@statsig.com"}
 
-	t.Run("fetch from adapter when network is down", func(t *testing.T) {
+	t.Run("able to fetch data from adapter and populate store without network", func(t *testing.T) {
 		value := CheckGate(user, "always_on_gate")
 		if !value {
 			t.Errorf("Expected gate to return true")
@@ -36,6 +54,15 @@ func TestBootstrapWithAdapter(t *testing.T) {
 		layer := GetLayer(user, "a_layer")
 		if layer.GetString("experiment_param", "") != "control" {
 			t.Errorf("Expected layer param to return control")
+		}
+		shutDownAndClearInstance() // shutdown here to flush event queue
+		if len(events) != 3 {
+			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
+		}
+		for _, event := range events {
+			if event.Metadata["reason"] != string(reasonDataAdapter) {
+				t.Errorf("Expected init reason to be %s", reasonDataAdapter)
+			}
 		}
 	})
 }
@@ -76,6 +103,80 @@ func TestSaveToAdapter(t *testing.T) {
 			t.Errorf("Expected data adapter to have downloaded layers")
 		}
 	})
+}
+
+func TestIncorrectlyImplementedAdapter(t *testing.T) {
+	events := []Event{}
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		if strings.Contains(req.URL.Path, "download_config_specs") {
+			var in *downloadConfigsInput
+			bytes, _ := os.ReadFile("download_config_specs.json")
+			_ = json.NewDecoder(req.Body).Decode(&in)
+			_, _ = res.Write(bytes)
+		} else if strings.Contains(req.URL.Path, "log_event") {
+			type requestInput struct {
+				Events          []Event         `json:"events"`
+				StatsigMetadata statsigMetadata `json:"statsigMetadata"`
+			}
+			input := &requestInput{}
+			defer req.Body.Close()
+			buf := new(bytes.Buffer)
+			_, _ = buf.ReadFrom(req.Body)
+
+			_ = json.Unmarshal(buf.Bytes(), &input)
+			events = input.Events
+		}
+	}))
+	dataAdapter := brokenDataAdapterExample{}
+	options := &Options{
+		DataAdapter: dataAdapter,
+		API:         testServer.URL,
+		Environment: Environment{Tier: "test"},
+	}
+	stderrLogs := swallow_stderr(func() {
+		InitializeWithOptions("secret-key", options)
+	})
+	if stderrLogs == "" {
+		t.Errorf("Expected output to stderr")
+	}
+	user := User{UserID: "statsig_user", Email: "statsiguser@statsig.com"}
+
+	t.Run("recover and finish initialize if adapter panics", func(t *testing.T) {
+		value := CheckGate(user, "always_on_gate")
+		if !value {
+			t.Errorf("Expected gate to return true")
+		}
+		config := GetConfig(user, "test_config")
+		if config.GetString("string", "") != "statsig" {
+			t.Errorf("Expected config to return statsig")
+		}
+		layer := GetLayer(user, "a_layer")
+		if layer.GetString("experiment_param", "") != "control" {
+			t.Errorf("Expected layer param to return control")
+		}
+		shutDownAndClearInstance() // shutdown here to flush event queue
+		if len(events) != 3 {
+			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
+		}
+		for _, event := range events {
+			if event.Metadata["reason"] != string(reasonNetwork) {
+				t.Errorf("Expected init reason to be %s", reasonNetwork)
+			}
+		}
+	})
+}
+
+func swallow_stderr(task func()) string {
+	stderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	task()
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	os.Stderr = stderr
+	return buf.String()
 }
 
 func contains_spec(specs []configSpec, name string, specType string) bool {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -183,7 +184,7 @@ func (s *store) getLayerConfig(name string) (configSpec, bool) {
 func (s *store) fetchConfigSpecsFromAdapter() {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println(err.(error).Error())
+			fmt.Fprintf(os.Stderr, "Error calling data adapter get: %s\n", err.(error).Error())
 		}
 	}()
 	specString := s.dataAdapter.get(dataAdapterKey)
@@ -198,12 +199,12 @@ func (s *store) fetchConfigSpecsFromAdapter() {
 }
 
 func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
+	specString, err := json.Marshal(specs)
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println(err.(error).Error())
+			fmt.Fprintf(os.Stderr, "Error calling data adapter set: %s\n", err.(error).Error())
 		}
 	}()
-	specString, err := json.Marshal(specs)
 	if err == nil {
 		s.dataAdapter.set(dataAdapterKey, string(specString))
 	}
