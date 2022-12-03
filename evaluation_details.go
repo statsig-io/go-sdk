@@ -8,6 +8,7 @@ const (
 	reasonLocalOverride evaluationReason = "LocalOverride"
 	reasonUnrecognized  evaluationReason = "Unrecognized"
 	reasonUninitialized evaluationReason = "Uninitialized"
+	reasonDataAdapter   evaluationReason = "DataAdapter"
 )
 
 type evaluationDetails struct {

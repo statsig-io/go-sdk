@@ -83,8 +83,11 @@ type store struct {
 	shutdown             bool
 	rulesUpdatedCallback func(rules string, time int64)
 	errorBoundary        *errorBoundary
+	dataAdapter          IDataAdapter
 	mu                   sync.RWMutex
 }
+
+const dataAdapterKey = "statsig.cache"
 
 func newStore(
 	transport *transport,
@@ -106,6 +109,7 @@ func newStore(
 		options.BootstrapValues,
 		options.RulesUpdatedCallback,
 		errorBoundary,
+		options.DataAdapter,
 	)
 }
 
@@ -116,6 +120,7 @@ func newStoreInternal(
 	bootstrapValues string,
 	rulesUpdatedCallback func(rules string, time int64),
 	errorBoundary *errorBoundary,
+	dataAdapter IDataAdapter,
 ) *store {
 	store := &store{
 		featureGates:         make(map[string]configSpec),
@@ -127,8 +132,12 @@ func newStoreInternal(
 		rulesUpdatedCallback: rulesUpdatedCallback,
 		errorBoundary:        errorBoundary,
 		initReason:           reasonUninitialized,
+		dataAdapter:          dataAdapter,
 	}
-	if bootstrapValues != "" {
+	if dataAdapter != nil {
+		dataAdapter.initialize()
+		store.fetchConfigSpecsFromAdapter()
+	} else if bootstrapValues != "" {
 		specs := downloadConfigSpecResponse{}
 		err := json.Unmarshal([]byte(bootstrapValues), &specs)
 		if err == nil {
@@ -138,7 +147,9 @@ func newStoreInternal(
 			store.mu.Unlock()
 		}
 	}
-	store.fetchConfigSpecs()
+	if store.lastSyncTime == 0 {
+		store.fetchConfigSpecsFromServer()
+	}
 	store.mu.Lock()
 	store.initialSyncTime = store.lastSyncTime
 	store.mu.Unlock()
@@ -169,7 +180,36 @@ func (s *store) getLayerConfig(name string) (configSpec, bool) {
 	return config, ok
 }
 
-func (s *store) fetchConfigSpecs() {
+func (s *store) fetchConfigSpecsFromAdapter() {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err.(error).Error())
+		}
+	}()
+	specString := s.dataAdapter.get(dataAdapterKey)
+	specs := downloadConfigSpecResponse{}
+	err := json.Unmarshal([]byte(specString), &specs)
+	if err == nil {
+		s.setConfigSpecs(specs)
+		s.mu.Lock()
+		s.initReason = reasonDataAdapter
+		s.mu.Unlock()
+	}
+}
+
+func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err.(error).Error())
+		}
+	}()
+	specString, err := json.Marshal(specs)
+	if err == nil {
+		s.dataAdapter.set(dataAdapterKey, string(specString))
+	}
+}
+
+func (s *store) fetchConfigSpecsFromServer() {
 	s.mu.RLock()
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
@@ -182,9 +222,17 @@ func (s *store) fetchConfigSpecs() {
 		s.errorBoundary.logException(err)
 		return
 	}
-	if s.setConfigSpecs(specs) && s.rulesUpdatedCallback != nil {
-		v, _ := json.Marshal(specs)
-		s.rulesUpdatedCallback(string(v[:]), specs.Time)
+	if s.setConfigSpecs(specs) {
+		s.mu.Lock()
+		s.initReason = reasonNetwork
+		s.mu.Unlock()
+		if s.rulesUpdatedCallback != nil {
+			v, _ := json.Marshal(specs)
+			s.rulesUpdatedCallback(string(v[:]), specs.Time)
+		}
+		if s.dataAdapter != nil {
+			s.saveConfigSpecsToAdapter(specs)
+		}
 	}
 }
 
@@ -211,7 +259,6 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
 		s.lastSyncTime = specs.Time
-		s.initReason = reasonNetwork
 		s.mu.Unlock()
 		return true
 	}
@@ -357,7 +404,7 @@ func (s *store) pollForRulesetChanges() {
 		if stop {
 			break
 		}
-		s.fetchConfigSpecs()
+		s.fetchConfigSpecsFromServer()
 	}
 }
 

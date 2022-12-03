@@ -113,7 +113,7 @@ func TestStoreSync(t *testing.T) {
 	}
 	n := newTransport("secret-123", opt)
 	e := newErrorBoundary("client-key", opt)
-	s := newStoreInternal(n, time.Second, time.Second, "", nil, e)
+	s := newStoreInternal(n, time.Second, time.Second, "", nil, e, nil)
 
 	if s.getGatesCount() != 1 {
 		t.Errorf("Wrong number of feature gates after initialize")
