@@ -32,6 +32,7 @@ type Options struct {
 	LoggingMaxBufferSize int
 	BootstrapValues      string
 	RulesUpdatedCallback func(rules string, time int64)
+	DataAdapter          IDataAdapter
 }
 
 // See https://docs.statsig.com/guides/usingEnvironments
