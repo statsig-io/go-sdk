@@ -48,7 +48,7 @@ func TestLayerExposure(t *testing.T) {
 	var mockedServerTime int64
 	doMock := func() {
 		now = func() time.Time { return time.Date(2022, 12, 12, 0, 0, 0, 0, time.Local) }
-		mockedServerTime = now().UnixMilli()
+		mockedServerTime = now().Unix() * 1000
 	}
 
 	start := func() {
