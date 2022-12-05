@@ -18,9 +18,7 @@ func (d dataAdapterExample) initialize() {}
 
 func (d dataAdapterExample) shutdown() {}
 
-type brokenDataAdapterExample struct {
-	store map[string]string
-}
+type brokenDataAdapterExample struct{}
 
 func (d brokenDataAdapterExample) get(key string) string {
 	panic(errors.New("invalid get function"))

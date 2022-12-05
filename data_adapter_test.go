@@ -174,7 +174,7 @@ func swallow_stderr(task func()) string {
 	task()
 	w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stderr = stderr
 	return buf.String()
 }
