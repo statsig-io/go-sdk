@@ -32,6 +32,7 @@ type Options struct {
 	LoggingMaxBufferSize int
 	BootstrapValues      string
 	RulesUpdatedCallback func(rules string, time int64)
+	InitTimeout          time.Duration
 	DataAdapter          IDataAdapter
 }
 
@@ -48,7 +49,22 @@ func InitializeWithOptions(sdkKey string, options *Options) {
 		return
 	}
 
-	instance = NewClientWithOptions(sdkKey, options)
+	if options.InitTimeout > 0 {
+		channel := make(chan *Client, 1)
+		go func() {
+			client := NewClientWithOptions(sdkKey, options)
+			channel <- client
+		}()
+
+		select {
+		case res := <-channel:
+			instance = res
+		case <-time.After(options.InitTimeout):
+			return
+		}
+	} else {
+		instance = NewClientWithOptions(sdkKey, options)
+	}
 }
 
 // Checks the value of a Feature Gate for the given user
