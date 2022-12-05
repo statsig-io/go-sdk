@@ -11,7 +11,7 @@ import (
 func TestInitTimeout(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			time.Sleep(2 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 		res.WriteHeader(http.StatusOK)
 	}))
@@ -27,8 +27,8 @@ func TestInitTimeout(t *testing.T) {
 		start := time.Now()
 		InitializeWithOptions("secret-key", options)
 		elapsed := time.Since(start)
-		if elapsed < (2 * time.Second) {
-			t.Errorf("Expected initalize to take at least 2 seconds")
+		if elapsed < (100 * time.Millisecond) {
+			t.Errorf("Expected initalize to take at least 1 second")
 		}
 		defer func() {
 			if err := recover(); err != nil {
@@ -47,8 +47,8 @@ func TestInitTimeout(t *testing.T) {
 		start := time.Now()
 		InitializeWithOptions("secret-key", options)
 		elapsed := time.Since(start)
-		if elapsed < (2 * time.Second) {
-			t.Errorf("Expected initalize to take at least 2 seconds")
+		if elapsed < (100 * time.Millisecond) {
+			t.Errorf("Expected initalize to take at least 1 second")
 		}
 		if elapsed > (options.InitTimeout + initTimeBuffer) {
 			t.Errorf("Initalize exceeded timeout")
@@ -65,7 +65,7 @@ func TestInitTimeout(t *testing.T) {
 	t.Run("Initialize timed out", func(t *testing.T) {
 		options := &Options{
 			API:         testServer.URL,
-			InitTimeout: 1 * time.Second,
+			InitTimeout: 100 * time.Millisecond,
 		}
 		start := time.Now()
 		InitializeWithOptions("secret-key", options)
