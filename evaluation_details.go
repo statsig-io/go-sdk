@@ -8,6 +8,7 @@ const (
 	reasonLocalOverride evaluationReason = "LocalOverride"
 	reasonUnrecognized  evaluationReason = "Unrecognized"
 	reasonUninitialized evaluationReason = "Uninitialized"
+	reasonDataAdapter   evaluationReason = "DataAdapter"
 )
 
 type evaluationDetails struct {
@@ -26,6 +27,6 @@ func newEvaluationDetails(
 		reason:         reason,
 		configSyncTime: configSyncTime,
 		initTime:       initTime,
-		serverTime:     now().UnixMilli(),
+		serverTime:     now().Unix() * 1000,
 	}
 }

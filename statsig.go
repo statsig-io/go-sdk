@@ -32,6 +32,8 @@ type Options struct {
 	LoggingMaxBufferSize int
 	BootstrapValues      string
 	RulesUpdatedCallback func(rules string, time int64)
+	InitTimeout          time.Duration
+	DataAdapter          IDataAdapter
 }
 
 // See https://docs.statsig.com/guides/usingEnvironments
@@ -47,7 +49,22 @@ func InitializeWithOptions(sdkKey string, options *Options) {
 		return
 	}
 
-	instance = NewClientWithOptions(sdkKey, options)
+	if options.InitTimeout > 0 {
+		channel := make(chan *Client, 1)
+		go func() {
+			client := NewClientWithOptions(sdkKey, options)
+			channel <- client
+		}()
+
+		select {
+		case res := <-channel:
+			instance = res
+		case <-time.After(options.InitTimeout):
+			return
+		}
+	} else {
+		instance = NewClientWithOptions(sdkKey, options)
+	}
 }
 
 // Checks the value of a Feature Gate for the given user
@@ -58,12 +75,44 @@ func CheckGate(user User, gate string) bool {
 	return instance.CheckGate(user, gate)
 }
 
+// Checks the value of a Feature Gate for the given user without logging an exposure event
+func CheckGateWithExposureLoggingDisabled(user User, gate string) bool {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling CheckGateWithExposureLoggingDisabled"))
+	}
+	return instance.CheckGateWithExposureLoggingDisabled(user, gate)
+}
+
+// Logs an exposure event for the gate
+func ManuallyLogGateExposure(user User, config string) {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling ManuallyLogGateExposure"))
+	}
+	instance.ManuallyLogGateExposure(user, config)
+}
+
 // Gets the DynamicConfig value for the given user
 func GetConfig(user User, config string) DynamicConfig {
 	if instance == nil {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetConfig"))
 	}
 	return instance.GetConfig(user, config)
+}
+
+// Gets the DynamicConfig value for the given user without logging an exposure event
+func GetConfigWithExposureLoggingDisabled(user User, config string) DynamicConfig {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetConfigWithExposureLoggingDisabled"))
+	}
+	return instance.GetConfigWithExposureLoggingDisabled(user, config)
+}
+
+// Logs an exposure event for the dynamic config
+func ManuallyLogConfigExposure(user User, config string) {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling ManuallyLogConfigExposure"))
+	}
+	instance.ManuallyLogConfigExposure(user, config)
 }
 
 // Override the value of a Feature Gate for the given user
@@ -90,12 +139,44 @@ func GetExperiment(user User, experiment string) DynamicConfig {
 	return instance.GetExperiment(user, experiment)
 }
 
+// Gets the DynamicConfig value of an Experiment for the given user without logging an exposure event
+func GetExperimentWithExposureLoggingDisabled(user User, experiment string) DynamicConfig {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetExperimentWithExposureLoggingDisabled"))
+	}
+	return instance.GetExperimentWithExposureLoggingDisabled(user, experiment)
+}
+
+// Logs an exposure event for the experiment
+func ManuallyLogExperimentExposure(user User, experiment string) {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling ManuallyLogExperimentExposure"))
+	}
+	instance.ManuallyLogExperimentExposure(user, experiment)
+}
+
 // Gets the Layer object for the given user
 func GetLayer(user User, layer string) Layer {
 	if instance == nil {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetLayer"))
 	}
 	return instance.GetLayer(user, layer)
+}
+
+// Gets the Layer object for the given user without logging an exposure event
+func GetLayerWithExposureLoggingDisabled(user User, layer string) Layer {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetLayerWithExposureLoggingDisabled"))
+	}
+	return instance.GetLayerWithExposureLoggingDisabled(user, layer)
+}
+
+// Logs an exposure event for the parameter in the given layer
+func ManuallyLogLayerParameterExposure(user User, layer string, parameter string) {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling ManuallyLogLayerParameterExposure"))
+	}
+	instance.ManuallyLogLayerParameterExposure(user, layer, parameter)
 }
 
 // Logs an event to the Statsig console
