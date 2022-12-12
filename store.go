@@ -85,10 +85,13 @@ type store struct {
 	rulesUpdatedCallback func(rules string, time int64)
 	errorBoundary        *errorBoundary
 	dataAdapter          IDataAdapter
+	syncFailureCount     int
 	mu                   sync.RWMutex
 }
 
 const dataAdapterKey = "statsig.cache"
+
+var syncOutdatedMax = 2 * time.Minute
 
 func newStore(
 	transport *transport,
@@ -134,6 +137,7 @@ func newStoreInternal(
 		errorBoundary:        errorBoundary,
 		initReason:           reasonUninitialized,
 		dataAdapter:          dataAdapter,
+		syncFailureCount:     0,
 	}
 	if dataAdapter != nil {
 		dataAdapter.initialize()
@@ -149,7 +153,7 @@ func newStoreInternal(
 		}
 	}
 	if store.lastSyncTime == 0 {
-		store.fetchConfigSpecsFromServer()
+		store.fetchConfigSpecsFromServer(true)
 	}
 	store.mu.Lock()
 	store.initialSyncTime = store.lastSyncTime
@@ -210,7 +214,23 @@ func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
 	}
 }
 
-func (s *store) fetchConfigSpecsFromServer() {
+func (s *store) handleSyncError(err error, isColdStart bool) {
+	s.syncFailureCount += 1
+	failDuration := time.Duration(s.syncFailureCount) * s.configSyncInterval
+	if isColdStart {
+		fmt.Fprintf(os.Stderr, "Failed to initialize from the network. "+
+			"See https://docs.statsig.com/messages/serverSDKConnection for more information\n")
+		s.errorBoundary.logException(err)
+	} else if failDuration > syncOutdatedMax {
+		fmt.Fprintf(os.Stderr, "Syncing the server SDK with Statsig network has failed for %dms. "+
+			"Your sdk will continue to serve gate/config/experiment definitions as of the last successful sync. "+
+			"See https://docs.statsig.com/messages/serverSDKConnection for more information\n", int64(failDuration/time.Millisecond))
+		s.errorBoundary.logException(err)
+		s.syncFailureCount = 0
+	}
+}
+
+func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 	s.mu.RLock()
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
@@ -220,7 +240,7 @@ func (s *store) fetchConfigSpecsFromServer() {
 	var specs downloadConfigSpecResponse
 	err := s.transport.postRequest("/download_config_specs", input, &specs)
 	if err != nil {
-		s.errorBoundary.logException(err)
+		s.handleSyncError(err, isColdStart)
 		return
 	}
 	if s.setConfigSpecs(specs) {
@@ -405,7 +425,7 @@ func (s *store) pollForRulesetChanges() {
 		if stop {
 			break
 		}
-		s.fetchConfigSpecsFromServer()
+		s.fetchConfigSpecsFromServer(false)
 	}
 }
 
