@@ -115,9 +115,9 @@ func getClientInitializeResponse(
 		entityType := strings.ToLower(spec.Entity)
 		if entityType == "experiment" {
 			result.IsUserInExperiment = new(bool)
-			*result.IsUserInExperiment = evalResult.IsExperimentGroup != nil && *evalResult.IsExperimentGroup == true
+			*result.IsUserInExperiment = evalResult.IsExperimentGroup != nil && *evalResult.IsExperimentGroup
 			result.IsExperimentActive = new(bool)
-			*result.IsExperimentActive = spec.IsActive != nil && *spec.IsActive == true
+			*result.IsExperimentActive = spec.IsActive != nil && *spec.IsActive
 			if spec.HasSharedParams != nil && *spec.HasSharedParams {
 				result.IsInLayer = new(bool)
 				*result.IsInLayer = true
@@ -163,9 +163,9 @@ func getClientInitializeResponse(
 			if exists {
 				result.AllocatedExperimentName = hashName(delegate)
 				result.IsUserInExperiment = new(bool)
-				*result.IsUserInExperiment = delegateResult.IsExperimentGroup != nil && *delegateResult.IsExperimentGroup == true
+				*result.IsUserInExperiment = delegateResult.IsExperimentGroup != nil && *delegateResult.IsExperimentGroup
 				result.IsExperimentActive = new(bool)
-				*result.IsExperimentActive = delegateSpec.IsActive != nil && *delegateSpec.IsActive == true
+				*result.IsExperimentActive = delegateSpec.IsActive != nil && *delegateSpec.IsActive
 				if len(delegateSpec.ExplicitParamters) > 0 {
 					*result.ExplicitParamters = delegateSpec.ExplicitParamters
 				}

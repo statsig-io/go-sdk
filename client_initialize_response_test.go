@@ -79,7 +79,10 @@ func filterHttpResponseAndReadBody(httpResponse *http.Response) ([]byte, error) 
 	interfaceBody.LayerConfigs = make(map[string]LayerInitializeResponse)
 	interfaceBody.SdkParams = make(map[string]string)
 	interfaceBody.EvaluatedKeys = make(map[string]interface{})
-	json.NewDecoder(httpResponse.Body).Decode(&interfaceBody)
+	err := json.NewDecoder(httpResponse.Body).Decode(&interfaceBody)
+	if err != nil {
+		return make([]byte, 0), err
+	}
 	filterClientInitializeResponse(&interfaceBody)
 	return json.Marshal(interfaceBody)
 }
