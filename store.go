@@ -21,17 +21,21 @@ type configSpec struct {
 	DefaultValue      json.RawMessage `json:"defaultValue"`
 	IDType            string          `json:"idType"`
 	ExplicitParamters []string        `json:"explicitParameters"`
+	Entity            string          `json:"entity"`
+	IsActive          *bool           `json:"isActive,omitempty"`
+	HasSharedParams   *bool           `json:"hasSharedParams,omitempty"`
 }
 
 type configRule struct {
-	Name           string            `json:"name"`
-	ID             string            `json:"id"`
-	Salt           string            `json:"salt"`
-	PassPercentage float64           `json:"passPercentage"`
-	Conditions     []configCondition `json:"conditions"`
-	ReturnValue    json.RawMessage   `json:"returnValue"`
-	IDType         string            `json:"idType"`
-	ConfigDelegate string            `json:"configDelegate"`
+	Name              string            `json:"name"`
+	ID                string            `json:"id"`
+	Salt              string            `json:"salt"`
+	PassPercentage    float64           `json:"passPercentage"`
+	Conditions        []configCondition `json:"conditions"`
+	ReturnValue       json.RawMessage   `json:"returnValue"`
+	IDType            string            `json:"idType"`
+	ConfigDelegate    string            `json:"configDelegate"`
+	IsExperimentGroup *bool             `json:"isExperimentGroup,omitempty"`
 }
 
 type configCondition struct {
@@ -44,12 +48,13 @@ type configCondition struct {
 }
 
 type downloadConfigSpecResponse struct {
-	HasUpdates     bool            `json:"has_updates"`
-	Time           int64           `json:"time"`
-	FeatureGates   []configSpec    `json:"feature_gates"`
-	DynamicConfigs []configSpec    `json:"dynamic_configs"`
-	LayerConfigs   []configSpec    `json:"layer_configs"`
-	IDLists        map[string]bool `json:"id_lists"`
+	HasUpdates     bool                `json:"has_updates"`
+	Time           int64               `json:"time"`
+	FeatureGates   []configSpec        `json:"feature_gates"`
+	DynamicConfigs []configSpec        `json:"dynamic_configs"`
+	LayerConfigs   []configSpec        `json:"layer_configs"`
+	Layers         map[string][]string `json:"layers"`
+	IDLists        map[string]bool     `json:"id_lists"`
 }
 
 type downloadConfigsInput struct {
@@ -74,6 +79,7 @@ type store struct {
 	featureGates         map[string]configSpec
 	dynamicConfigs       map[string]configSpec
 	layerConfigs         map[string]configSpec
+	experimentToLayer    map[string]string
 	idLists              map[string]*idList
 	lastSyncTime         int64
 	initialSyncTime      int64
@@ -185,6 +191,13 @@ func (s *store) getLayerConfig(name string) (configSpec, bool) {
 	return config, ok
 }
 
+func (s *store) getExperimentLayer(experimentName string) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	layer, ok := s.experimentToLayer[experimentName]
+	return layer, ok
+}
+
 func (s *store) fetchConfigSpecsFromAdapter() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -275,10 +288,18 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 			newLayers[layer.Name] = layer
 		}
 
+		newExperimentToLayer := make(map[string]string)
+		for layerName, experiments := range specs.Layers {
+			for _, experimentName := range experiments {
+				newExperimentToLayer[experimentName] = layerName
+			}
+		}
+
 		s.mu.Lock()
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
+		s.experimentToLayer = newExperimentToLayer
 		s.lastSyncTime = specs.Time
 		s.mu.Unlock()
 		return true

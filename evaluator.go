@@ -37,6 +37,7 @@ type evalResult struct {
 	ConfigDelegate                string
 	ExplicitParamters             map[string]bool
 	EvaluationDetails             *evaluationDetails
+	IsExperimentGroup             *bool
 }
 
 const dynamicConfigType = "dynamic_config"
@@ -150,6 +151,12 @@ func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
 	e.configOverrides[config] = val
 }
 
+// Gets all evaluated values for the given user.
+// These values can then be given to a Statsig Client SDK via bootstrapping.
+func (e *evaluator) getClientInitializeResponse(user User) ClientInitializeResponse {
+	return getClientInitializeResponse(user, e.store, e.eval)
+}
+
 func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 	var configValue map[string]interface{}
 	e.store.mu.RLock()
@@ -190,7 +197,7 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 						}
 						configValue = ruleConfigValue
 					}
-					return &evalResult{
+					result := &evalResult{
 						Pass:                          pass,
 						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID),
 						Id:                            rule.ID,
@@ -198,6 +205,10 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 						UndelegatedSecondaryExposures: exposures,
 						EvaluationDetails:             evalDetails,
 					}
+					if rule.IsExperimentGroup != nil {
+						result.IsExperimentGroup = rule.IsExperimentGroup
+					}
+					return result
 				} else {
 					return &evalResult{
 						Pass:               pass,

@@ -178,6 +178,14 @@ func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 	return c.transport.doRequest("/log_event", body)
 }
 
+func (c *Client) GetClientInitializeResponse(user User) ClientInitializeResponse {
+	if !c.verifyUser(user) {
+		return *new(ClientInitializeResponse)
+	}
+	user = normalizeUser(user, *c.options)
+	return c.evaluator.getClientInitializeResponse(user)
+}
+
 func (c *Client) verifyUser(user User) bool {
 	if user.UserID == "" && len(user.CustomIDs) == 0 {
 		err := errors.New(EmptyUserError)

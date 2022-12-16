@@ -195,6 +195,13 @@ func LogImmediate(events []Event) (*http.Response, error) {
 	return instance.LogImmediate(events)
 }
 
+func GetClientInitializeResponse(user User) ClientInitializeResponse {
+	if instance == nil {
+		panic(fmt.Errorf("must Initialize() statsig before calling LogImmediate"))
+	}
+	return instance.GetClientInitializeResponse(user)
+}
+
 // Cleans up Statsig, persisting any Event Logs and cleanup processes
 // Using any method is undefined after Shutdown() has been called
 func Shutdown() {
