@@ -58,7 +58,6 @@ func hashName(configName string) string {
 	bytes := []byte(configName)
 	hasher.Write(bytes)
 	b := hasher.Sum(nil)
-	// return fmt.Sprintf("%s__%s", base64.StdEncoding.EncodeToString(b), configName)
 	return base64.StdEncoding.EncodeToString(b)
 }
 
