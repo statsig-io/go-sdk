@@ -10,7 +10,7 @@ type ClientInitializeResponse struct {
 	FeatureGates   map[string]GateInitializeResponse   `json:"feature_gates"`
 	DynamicConfigs map[string]ConfigInitializeResponse `json:"dynamic_configs"`
 	LayerConfigs   map[string]LayerInitializeResponse  `json:"layer_configs"`
-	SdkParams      map[string]string                   `json:"sdk_params"`
+	SdkParams      map[string]string                   `json:"sdkParams"`
 	HasUpdates     bool                                `json:"has_updates"`
 	Generator      string                              `json:"generator"`
 	EvaluatedKeys  map[string]interface{}              `json:"evaluated_keys"`
@@ -36,7 +36,7 @@ type ConfigInitializeResponse struct {
 	IsExperimentActive *bool                  `json:"is_experiment_active,omitempty"`
 	IsUserInExperiment *bool                  `json:"is_user_in_experiment,omitempty"`
 	IsInLayer          *bool                  `json:"is_in_layer,omitempty"`
-	ExplicitParamters  *[]string              `json:"explicit_parameters,omitempty"`
+	ExplicitParameters *[]string              `json:"explicit_parameters,omitempty"`
 }
 
 type LayerInitializeResponse struct {
@@ -46,7 +46,7 @@ type LayerInitializeResponse struct {
 	IsDeviceBased                 bool                   `json:"is_device_based"`
 	IsExperimentActive            *bool                  `json:"is_experiment_active,omitempty"`
 	IsUserInExperiment            *bool                  `json:"is_user_in_experiment,omitempty"`
-	ExplicitParamters             *[]string              `json:"explicit_parameters,omitempty"`
+	ExplicitParameters            *[]string              `json:"explicit_parameters,omitempty"`
 	AllocatedExperimentName       string                 `json:"allocated_experiment_name,omitempty"`
 	UndelegatedSecondaryExposures []map[string]string    `json:"undelegated_secondary_exposures"`
 }
@@ -111,8 +111,8 @@ func getClientInitializeResponse(
 			if spec.HasSharedParams != nil && *spec.HasSharedParams {
 				result.IsInLayer = new(bool)
 				*result.IsInLayer = true
-				result.ExplicitParamters = new([]string)
-				*result.ExplicitParamters = spec.ExplicitParamters
+				result.ExplicitParameters = new([]string)
+				*result.ExplicitParameters = spec.ExplicitParameters
 				layerName, _ := store.getExperimentLayer(spec.Name)
 				layer, exists := store.getLayerConfig(layerName)
 				var defaultValue map[string]interface{}
@@ -139,13 +139,13 @@ func getClientInitializeResponse(
 			UndelegatedSecondaryExposures: cleanExposures(evalResult.UndelegatedSecondaryExposures),
 		}
 		delegate := evalResult.ConfigDelegate
-		result.ExplicitParamters = new([]string)
-		if len(spec.ExplicitParamters) > 0 {
-			// spec.ExplicitParamters may be "null" due to how
+		result.ExplicitParameters = new([]string)
+		if len(spec.ExplicitParameters) > 0 {
+			// spec.ExplicitParameters may be "null" due to how
 			// JSON Unmarshal works with fields with unallocated memory
-			*result.ExplicitParamters = spec.ExplicitParamters
+			*result.ExplicitParameters = spec.ExplicitParameters
 		} else {
-			*result.ExplicitParamters = make([]string, 0)
+			*result.ExplicitParameters = make([]string, 0)
 		}
 		if delegate != "" {
 			delegateSpec, exists := store.getDynamicConfig(delegate)
@@ -156,8 +156,8 @@ func getClientInitializeResponse(
 				*result.IsUserInExperiment = delegateResult.IsExperimentGroup != nil && *delegateResult.IsExperimentGroup
 				result.IsExperimentActive = new(bool)
 				*result.IsExperimentActive = delegateSpec.IsActive != nil && *delegateSpec.IsActive
-				if len(delegateSpec.ExplicitParamters) > 0 {
-					*result.ExplicitParamters = delegateSpec.ExplicitParamters
+				if len(delegateSpec.ExplicitParameters) > 0 {
+					*result.ExplicitParameters = delegateSpec.ExplicitParameters
 				}
 			}
 		}

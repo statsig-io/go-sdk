@@ -34,7 +34,7 @@ type evalResult struct {
 	SecondaryExposures            []map[string]string
 	UndelegatedSecondaryExposures []map[string]string
 	ConfigDelegate                string
-	ExplicitParamters             map[string]bool
+	ExplicitParameters            map[string]bool
 	EvaluationDetails             *evaluationDetails
 	IsExperimentGroup             *bool
 }
@@ -247,10 +247,10 @@ func (e *evaluator) evalDelegate(user User, rule configRule, exposures []map[str
 	result.UndelegatedSecondaryExposures = exposures
 
 	explicitParams := map[string]bool{}
-	for _, s := range config.ExplicitParamters {
+	for _, s := range config.ExplicitParameters {
 		explicitParams[s] = true
 	}
-	result.ExplicitParamters = explicitParams
+	result.ExplicitParameters = explicitParams
 	return result
 }
 

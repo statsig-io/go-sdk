@@ -13,17 +13,17 @@ import (
 )
 
 type configSpec struct {
-	Name              string          `json:"name"`
-	Type              string          `json:"type"`
-	Salt              string          `json:"salt"`
-	Enabled           bool            `json:"enabled"`
-	Rules             []configRule    `json:"rules"`
-	DefaultValue      json.RawMessage `json:"defaultValue"`
-	IDType            string          `json:"idType"`
-	ExplicitParamters []string        `json:"explicitParameters"`
-	Entity            string          `json:"entity"`
-	IsActive          *bool           `json:"isActive,omitempty"`
-	HasSharedParams   *bool           `json:"hasSharedParams,omitempty"`
+	Name               string          `json:"name"`
+	Type               string          `json:"type"`
+	Salt               string          `json:"salt"`
+	Enabled            bool            `json:"enabled"`
+	Rules              []configRule    `json:"rules"`
+	DefaultValue       json.RawMessage `json:"defaultValue"`
+	IDType             string          `json:"idType"`
+	ExplicitParameters []string        `json:"explicitParameters"`
+	Entity             string          `json:"entity"`
+	IsActive           *bool           `json:"isActive,omitempty"`
+	HasSharedParams    *bool           `json:"hasSharedParams,omitempty"`
 }
 
 type configRule struct {

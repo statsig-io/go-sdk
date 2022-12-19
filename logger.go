@@ -167,7 +167,7 @@ func (l *logger) logLayerExposure(
 ) {
 	allocatedExperiment := ""
 	exposures := evalResult.UndelegatedSecondaryExposures
-	isExplicit := evalResult.ExplicitParamters[parameterName]
+	isExplicit := evalResult.ExplicitParameters[parameterName]
 
 	if isExplicit {
 		allocatedExperiment = evalResult.ConfigDelegate
