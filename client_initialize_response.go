@@ -1,8 +1,6 @@
 package statsig
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -53,14 +51,6 @@ type LayerInitializeResponse struct {
 	UndelegatedSecondaryExposures []map[string]string    `json:"undelegated_secondary_exposures"`
 }
 
-func hashName(configName string) string {
-	hasher := sha256.New()
-	bytes := []byte(configName)
-	hasher.Write(bytes)
-	b := hasher.Sum(nil)
-	return base64.StdEncoding.EncodeToString(b)
-}
-
 func cleanExposures(exposures []map[string]string) []map[string]string {
 	seen := make(map[string]bool)
 	result := make([]map[string]string, 0)
@@ -86,7 +76,7 @@ func getClientInitializeResponse(
 	evalFunc func(user User, spec configSpec) *evalResult,
 ) ClientInitializeResponse {
 	evalResultToBaseResponse := func(name string, eval *evalResult) (string, baseSpecInitializeResponse) {
-		hashedName := hashName(name)
+		hashedName := getHashBase64StringEncoding(name)
 		result := baseSpecInitializeResponse{
 			Name:               hashedName,
 			RuleID:             eval.Id,
@@ -161,7 +151,7 @@ func getClientInitializeResponse(
 			delegateSpec, exists := store.getDynamicConfig(delegate)
 			delegateResult := evalFunc(user, delegateSpec)
 			if exists {
-				result.AllocatedExperimentName = hashName(delegate)
+				result.AllocatedExperimentName = getHashBase64StringEncoding(delegate)
 				result.IsUserInExperiment = new(bool)
 				*result.IsUserInExperiment = delegateResult.IsExperimentGroup != nil && *delegateResult.IsExperimentGroup
 				result.IsExperimentActive = new(bool)

@@ -3,7 +3,6 @@ package statsig
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -260,7 +259,7 @@ func evalPassPercent(user User, rule configRule, spec configSpec) bool {
 	if ruleSalt == "" {
 		ruleSalt = rule.ID
 	}
-	hash := getHash(spec.Salt + "." + ruleSalt + "." + getUnitID(user, rule.IDType))
+	hash := getHashUint64Encoding(spec.Salt + "." + ruleSalt + "." + getUnitID(user, rule.IDType))
 
 	return hash%10000 < (uint64(rule.PassPercentage) * 100)
 }
@@ -340,7 +339,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		value = time.Now().Unix() // time in seconds
 	case "user_bucket":
 		if salt, ok := cond.AdditionalValues["salt"]; ok {
-			value = int64(getHash(fmt.Sprintf("%s.%s", salt, getUnitID(user, cond.IDType))) % 1000)
+			value = int64(getHashUint64Encoding(fmt.Sprintf("%s.%s", salt, getUnitID(user, cond.IDType))) % 1000)
 		}
 	case "unit_id":
 		value = getUnitID(user, cond.IDType)
@@ -546,13 +545,6 @@ func removeEmptyStrings(s []string) []string {
 		}
 	}
 	return r
-}
-
-func getHash(key string) uint64 {
-	hasher := sha256.New()
-	bytes := []byte(key)
-	hasher.Write(bytes)
-	return binary.BigEndian.Uint64(hasher.Sum(nil))
 }
 
 func getNumericValue(a interface{}) (float64, bool) {

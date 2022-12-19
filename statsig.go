@@ -197,7 +197,7 @@ func LogImmediate(events []Event) (*http.Response, error) {
 
 func GetClientInitializeResponse(user User) ClientInitializeResponse {
 	if instance == nil {
-		panic(fmt.Errorf("must Initialize() statsig before calling LogImmediate"))
+		panic(fmt.Errorf("must Initialize() statsig before calling GetClientInitializeResponse"))
 	}
 	return instance.GetClientInitializeResponse(user)
 }
