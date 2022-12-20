@@ -3,7 +3,6 @@ package statsig
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -35,8 +34,9 @@ type evalResult struct {
 	SecondaryExposures            []map[string]string
 	UndelegatedSecondaryExposures []map[string]string
 	ConfigDelegate                string
-	ExplicitParamters             map[string]bool
+	ExplicitParameters            map[string]bool
 	EvaluationDetails             *evaluationDetails
+	IsExperimentGroup             *bool
 }
 
 const dynamicConfigType = "dynamic_config"
@@ -150,6 +150,12 @@ func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
 	e.configOverrides[config] = val
 }
 
+// Gets all evaluated values for the given user.
+// These values can then be given to a Statsig Client SDK via bootstrapping.
+func (e *evaluator) getClientInitializeResponse(user User) ClientInitializeResponse {
+	return getClientInitializeResponse(user, e.store, e.eval)
+}
+
 func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 	var configValue map[string]interface{}
 	e.store.mu.RLock()
@@ -190,7 +196,7 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 						}
 						configValue = ruleConfigValue
 					}
-					return &evalResult{
+					result := &evalResult{
 						Pass:                          pass,
 						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID),
 						Id:                            rule.ID,
@@ -198,6 +204,10 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 						UndelegatedSecondaryExposures: exposures,
 						EvaluationDetails:             evalDetails,
 					}
+					if rule.IsExperimentGroup != nil {
+						result.IsExperimentGroup = rule.IsExperimentGroup
+					}
+					return result
 				} else {
 					return &evalResult{
 						Pass:               pass,
@@ -237,10 +247,10 @@ func (e *evaluator) evalDelegate(user User, rule configRule, exposures []map[str
 	result.UndelegatedSecondaryExposures = exposures
 
 	explicitParams := map[string]bool{}
-	for _, s := range config.ExplicitParamters {
+	for _, s := range config.ExplicitParameters {
 		explicitParams[s] = true
 	}
-	result.ExplicitParamters = explicitParams
+	result.ExplicitParameters = explicitParams
 	return result
 }
 
@@ -249,7 +259,7 @@ func evalPassPercent(user User, rule configRule, spec configSpec) bool {
 	if ruleSalt == "" {
 		ruleSalt = rule.ID
 	}
-	hash := getHash(spec.Salt + "." + ruleSalt + "." + getUnitID(user, rule.IDType))
+	hash := getHashUint64Encoding(spec.Salt + "." + ruleSalt + "." + getUnitID(user, rule.IDType))
 
 	return hash%10000 < (uint64(rule.PassPercentage) * 100)
 }
@@ -329,7 +339,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		value = time.Now().Unix() // time in seconds
 	case "user_bucket":
 		if salt, ok := cond.AdditionalValues["salt"]; ok {
-			value = int64(getHash(fmt.Sprintf("%s.%s", salt, getUnitID(user, cond.IDType))) % 1000)
+			value = int64(getHashUint64Encoding(fmt.Sprintf("%s.%s", salt, getUnitID(user, cond.IDType))) % 1000)
 		}
 	case "unit_id":
 		value = getUnitID(user, cond.IDType)
@@ -535,13 +545,6 @@ func removeEmptyStrings(s []string) []string {
 		}
 	}
 	return r
-}
-
-func getHash(key string) uint64 {
-	hasher := sha256.New()
-	bytes := []byte(key)
-	hasher.Write(bytes)
-	return binary.BigEndian.Uint64(hasher.Sum(nil))
 }
 
 func getNumericValue(a interface{}) (float64, bool) {

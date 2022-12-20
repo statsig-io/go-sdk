@@ -13,25 +13,29 @@ import (
 )
 
 type configSpec struct {
-	Name              string          `json:"name"`
-	Type              string          `json:"type"`
-	Salt              string          `json:"salt"`
-	Enabled           bool            `json:"enabled"`
-	Rules             []configRule    `json:"rules"`
-	DefaultValue      json.RawMessage `json:"defaultValue"`
-	IDType            string          `json:"idType"`
-	ExplicitParamters []string        `json:"explicitParameters"`
+	Name               string          `json:"name"`
+	Type               string          `json:"type"`
+	Salt               string          `json:"salt"`
+	Enabled            bool            `json:"enabled"`
+	Rules              []configRule    `json:"rules"`
+	DefaultValue       json.RawMessage `json:"defaultValue"`
+	IDType             string          `json:"idType"`
+	ExplicitParameters []string        `json:"explicitParameters"`
+	Entity             string          `json:"entity"`
+	IsActive           *bool           `json:"isActive,omitempty"`
+	HasSharedParams    *bool           `json:"hasSharedParams,omitempty"`
 }
 
 type configRule struct {
-	Name           string            `json:"name"`
-	ID             string            `json:"id"`
-	Salt           string            `json:"salt"`
-	PassPercentage float64           `json:"passPercentage"`
-	Conditions     []configCondition `json:"conditions"`
-	ReturnValue    json.RawMessage   `json:"returnValue"`
-	IDType         string            `json:"idType"`
-	ConfigDelegate string            `json:"configDelegate"`
+	Name              string            `json:"name"`
+	ID                string            `json:"id"`
+	Salt              string            `json:"salt"`
+	PassPercentage    float64           `json:"passPercentage"`
+	Conditions        []configCondition `json:"conditions"`
+	ReturnValue       json.RawMessage   `json:"returnValue"`
+	IDType            string            `json:"idType"`
+	ConfigDelegate    string            `json:"configDelegate"`
+	IsExperimentGroup *bool             `json:"isExperimentGroup,omitempty"`
 }
 
 type configCondition struct {
@@ -44,12 +48,13 @@ type configCondition struct {
 }
 
 type downloadConfigSpecResponse struct {
-	HasUpdates     bool            `json:"has_updates"`
-	Time           int64           `json:"time"`
-	FeatureGates   []configSpec    `json:"feature_gates"`
-	DynamicConfigs []configSpec    `json:"dynamic_configs"`
-	LayerConfigs   []configSpec    `json:"layer_configs"`
-	IDLists        map[string]bool `json:"id_lists"`
+	HasUpdates     bool                `json:"has_updates"`
+	Time           int64               `json:"time"`
+	FeatureGates   []configSpec        `json:"feature_gates"`
+	DynamicConfigs []configSpec        `json:"dynamic_configs"`
+	LayerConfigs   []configSpec        `json:"layer_configs"`
+	Layers         map[string][]string `json:"layers"`
+	IDLists        map[string]bool     `json:"id_lists"`
 }
 
 type downloadConfigsInput struct {
@@ -74,6 +79,7 @@ type store struct {
 	featureGates         map[string]configSpec
 	dynamicConfigs       map[string]configSpec
 	layerConfigs         map[string]configSpec
+	experimentToLayer    map[string]string
 	idLists              map[string]*idList
 	lastSyncTime         int64
 	initialSyncTime      int64
@@ -85,10 +91,13 @@ type store struct {
 	rulesUpdatedCallback func(rules string, time int64)
 	errorBoundary        *errorBoundary
 	dataAdapter          IDataAdapter
+	syncFailureCount     int
 	mu                   sync.RWMutex
 }
 
 const dataAdapterKey = "statsig.cache"
+
+var syncOutdatedMax = 2 * time.Minute
 
 func newStore(
 	transport *transport,
@@ -134,6 +143,7 @@ func newStoreInternal(
 		errorBoundary:        errorBoundary,
 		initReason:           reasonUninitialized,
 		dataAdapter:          dataAdapter,
+		syncFailureCount:     0,
 	}
 	if dataAdapter != nil {
 		dataAdapter.initialize()
@@ -149,7 +159,7 @@ func newStoreInternal(
 		}
 	}
 	if store.lastSyncTime == 0 {
-		store.fetchConfigSpecsFromServer()
+		store.fetchConfigSpecsFromServer(true)
 	}
 	store.mu.Lock()
 	store.initialSyncTime = store.lastSyncTime
@@ -181,6 +191,13 @@ func (s *store) getLayerConfig(name string) (configSpec, bool) {
 	return config, ok
 }
 
+func (s *store) getExperimentLayer(experimentName string) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	layer, ok := s.experimentToLayer[experimentName]
+	return layer, ok
+}
+
 func (s *store) fetchConfigSpecsFromAdapter() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -210,7 +227,23 @@ func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
 	}
 }
 
-func (s *store) fetchConfigSpecsFromServer() {
+func (s *store) handleSyncError(err error, isColdStart bool) {
+	s.syncFailureCount += 1
+	failDuration := time.Duration(s.syncFailureCount) * s.configSyncInterval
+	if isColdStart {
+		fmt.Fprintf(os.Stderr, "Failed to initialize from the network. "+
+			"See https://docs.statsig.com/messages/serverSDKConnection for more information\n")
+		s.errorBoundary.logException(err)
+	} else if failDuration > syncOutdatedMax {
+		fmt.Fprintf(os.Stderr, "Syncing the server SDK with Statsig network has failed for %dms. "+
+			"Your sdk will continue to serve gate/config/experiment definitions as of the last successful sync. "+
+			"See https://docs.statsig.com/messages/serverSDKConnection for more information\n", int64(failDuration/time.Millisecond))
+		s.errorBoundary.logException(err)
+		s.syncFailureCount = 0
+	}
+}
+
+func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 	s.mu.RLock()
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
@@ -220,7 +253,7 @@ func (s *store) fetchConfigSpecsFromServer() {
 	var specs downloadConfigSpecResponse
 	err := s.transport.postRequest("/download_config_specs", input, &specs)
 	if err != nil {
-		s.errorBoundary.logException(err)
+		s.handleSyncError(err, isColdStart)
 		return
 	}
 	if s.setConfigSpecs(specs) {
@@ -255,10 +288,18 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 			newLayers[layer.Name] = layer
 		}
 
+		newExperimentToLayer := make(map[string]string)
+		for layerName, experiments := range specs.Layers {
+			for _, experimentName := range experiments {
+				newExperimentToLayer[experimentName] = layerName
+			}
+		}
+
 		s.mu.Lock()
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
+		s.experimentToLayer = newExperimentToLayer
 		s.lastSyncTime = specs.Time
 		s.mu.Unlock()
 		return true
@@ -405,7 +446,7 @@ func (s *store) pollForRulesetChanges() {
 		if stop {
 			break
 		}
-		s.fetchConfigSpecsFromServer()
+		s.fetchConfigSpecsFromServer(false)
 	}
 }
 

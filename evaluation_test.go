@@ -57,7 +57,9 @@ func TestMain(m *testing.M) {
 		}
 		secret = string(bytes)
 	}
-	os.Exit(m.Run())
+	swallow_stderr(func() {
+		os.Exit(m.Run())
+	})
 }
 
 func Test(t *testing.T) {
