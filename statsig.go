@@ -65,6 +65,7 @@ func InitializeWithOptions(sdkKey string, options *Options) {
 		case res := <-channel:
 			instance = res
 		case <-time.After(options.InitTimeout):
+			logProcessWithTimestamp("Initialize", "Timed out")
 			return
 		}
 	} else {

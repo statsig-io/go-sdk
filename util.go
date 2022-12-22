@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
+	"fmt"
 	"time"
 )
 
@@ -32,4 +33,9 @@ func getHashUint64Encoding(key string) uint64 {
 func getHashBase64StringEncoding(configName string) string {
 	hash := getHash(configName)
 	return base64.StdEncoding.EncodeToString(hash)
+}
+
+func logProcessWithTimestamp(process string, msg string) {
+	timestamp := now().Format(time.RFC3339)
+	fmt.Printf("[%s] %s: %s", timestamp, process, msg)
 }
