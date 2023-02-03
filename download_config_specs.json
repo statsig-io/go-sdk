@@ -259,6 +259,39 @@
           "salt": "e452510f-bd5b-42cb-a71e-00498a7903fD"
         }
       ]
+    },
+    {
+      "name": "fractional_gate",
+      "type": "feature_gate",
+      "salt": "",
+      "enabled": true,
+      "defaultValue": false,
+      "rules": [
+        {
+          "name": "3QoA4ncNdVGBaMt3N1KYjz:0.50:1",
+          "groupName": "half a percent",
+          "passPercentage": 0.5,
+          "conditions": [
+            {
+              "type": "public",
+              "targetValue": null,
+              "operator": null,
+              "field": null,
+              "additionalValues": null,
+              "isDeviceBased": false,
+              "idType": "userID"
+            }
+          ],
+          "returnValue": true,
+          "id": "3QoA4ncNdVGBaMt3N1KYjz:0.50:1",
+          "salt": "3QoA4ncNdVGBaMt3N1KYjz",
+          "isDeviceBased": false,
+          "idType": "userID"
+        }
+      ],
+      "isDeviceBased": false,
+      "idType": "userID",
+      "entity": "feature_gate"
     }
   ],
   "layer_configs": [
