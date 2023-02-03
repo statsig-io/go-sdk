@@ -75,7 +75,6 @@ func TestRulesUpdatedCallback(t *testing.T) {
 	if !CheckGate(User{UserID: "123"}, "always_on_gate") {
 		t.Errorf("always_on_gate should return true bootstrap value is provided")
 	}
-
 	shutDownAndClearInstance()
 }
 
