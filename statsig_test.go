@@ -58,6 +58,11 @@ func TestRulesUpdatedCallback(t *testing.T) {
 	if !callbacked {
 		t.Errorf("rules updated callback did not happen")
 	}
+
+	if !CheckGate(User{UserID: "136"}, "fractional_gate") {
+		t.Errorf("fractional_gate should return true for the given user")
+	}
+
 	shutDownAndClearInstance()
 
 	// Now use rules from the previous update callback to bootstrap, and validate values
