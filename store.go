@@ -466,10 +466,12 @@ func (s *store) stopPolling() {
 
 func (s *store) logProcess(msg string) {
 	var process string
+	s.mu.RLock()
 	if s.initReason == reasonUninitialized {
 		process = "Initialize"
 	} else {
 		process = "Sync"
 	}
+	s.mu.RUnlock()
 	logProcessWithTimestamp(process, msg)
 }
