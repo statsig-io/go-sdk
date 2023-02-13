@@ -12,8 +12,14 @@ import (
 )
 
 func TestBootstrap(t *testing.T) {
+	if IsInitialized() {
+		t.Errorf("expected statsig to not be initialized yet")
+	}
 	bytes, _ := os.ReadFile("download_config_specs.json")
 	Initialize("secret-key")
+	if !IsInitialized() {
+		t.Errorf("expected statsig to be initialized")
+	}
 	if CheckGate(User{UserID: "123"}, "always_on_gate") {
 		t.Errorf("always_on_gate should return false when there is no bootstrap value")
 	}
