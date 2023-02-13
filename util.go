@@ -37,5 +37,5 @@ func getHashBase64StringEncoding(configName string) string {
 
 func logProcessWithTimestamp(process string, msg string) {
 	timestamp := now().Format(time.RFC3339)
-	fmt.Printf("[%s] %s: %s", timestamp, process, msg)
+	fmt.Printf("[%s][Statsig] %s: %s\n", timestamp, process, msg)
 }

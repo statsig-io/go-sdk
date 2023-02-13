@@ -148,10 +148,6 @@ func newStoreInternal(
 	if dataAdapter != nil {
 		dataAdapter.initialize()
 		store.fetchConfigSpecsFromAdapter()
-		if store.lastSyncTime == 0 {
-			store.logProcess("Retrying with network...")
-			store.fetchConfigSpecsFromServer(true)
-		}
 	} else if bootstrapValues != "" {
 		specs := downloadConfigSpecResponse{}
 		err := json.Unmarshal([]byte(bootstrapValues), &specs)
@@ -161,7 +157,9 @@ func newStoreInternal(
 			store.initReason = reasonBootstrap
 			store.mu.Unlock()
 		}
-	} else {
+	}
+	if store.lastSyncTime == 0 {
+		store.logProcess("Retrying with network...")
 		store.fetchConfigSpecsFromServer(true)
 	}
 	store.mu.Lock()
