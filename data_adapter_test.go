@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestBootstrapWithAdapter(t *testing.T) {
@@ -33,7 +34,7 @@ func TestBootstrapWithAdapter(t *testing.T) {
 	dataAdapter := dataAdapterExample{store: make(map[string]string)}
 	dataAdapter.initialize()
 	defer dataAdapter.shutdown()
-	dataAdapter.set(dataAdapterKey, string(dcs_bytes))
+	dataAdapter.set(CONFIG_SPECS_KEY, string(dcs_bytes))
 	options := &Options{
 		DataAdapter: dataAdapter,
 		API:         testServer.URL,
@@ -87,7 +88,7 @@ func TestSaveToAdapter(t *testing.T) {
 	defer shutDownAndClearInstance()
 
 	t.Run("updates adapter with newer values from network", func(t *testing.T) {
-		specString := dataAdapter.get(dataAdapterKey)
+		specString := dataAdapter.get(CONFIG_SPECS_KEY)
 		specs := downloadConfigSpecResponse{}
 		err := json.Unmarshal([]byte(specString), &specs)
 		if err != nil {
@@ -101,6 +102,40 @@ func TestSaveToAdapter(t *testing.T) {
 		}
 		if !contains_spec(specs.LayerConfigs, "a_layer", "dynamic_config") {
 			t.Errorf("Expected data adapter to have downloaded layers")
+		}
+	})
+}
+
+func TestAdapterWithPolling(t *testing.T) {
+	bytes, _ := os.ReadFile("download_config_specs.json")
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		if strings.Contains(req.URL.Path, "download_config_specs") {
+			var in *downloadConfigsInput
+			_ = json.NewDecoder(req.Body).Decode(&in)
+			_, _ = res.Write(bytes)
+		}
+	}))
+	dataAdapter := dataAdapterWithPollingExample{store: make(map[string]string)}
+	options := &Options{
+		DataAdapter:        dataAdapter,
+		API:                testServer.URL,
+		Environment:        Environment{Tier: "test"},
+		ConfigSyncInterval: 100 * time.Millisecond,
+	}
+	InitializeWithOptions("secret-key", options)
+	defer shutDownAndClearInstance()
+	user := User{UserID: "statsig_user", Email: "statsiguser@statsig.com"}
+	t.Run("updating adapter also updates statsig store", func(t *testing.T) {
+		value := CheckGate(user, "always_on_gate")
+		if !value {
+			t.Errorf("Expected gate to return true")
+		}
+		dataAdapter.clearStore(CONFIG_SPECS_KEY)
+		time.Sleep(100 * time.Millisecond)
+		value = CheckGate(user, "always_on_gate")
+		if value {
+			t.Errorf("Expected gate to return false")
 		}
 	})
 }

@@ -95,8 +95,6 @@ type store struct {
 	mu                   sync.RWMutex
 }
 
-const dataAdapterKey = "statsig.cache"
-
 var syncOutdatedMax = 2 * time.Minute
 
 func newStore(
@@ -206,7 +204,7 @@ func (s *store) fetchConfigSpecsFromAdapter() {
 			fmt.Fprintf(os.Stderr, "Error calling data adapter get: %s\n", err.(error).Error())
 		}
 	}()
-	specString := s.dataAdapter.get(dataAdapterKey)
+	specString := s.dataAdapter.get(CONFIG_SPECS_KEY)
 	specs := downloadConfigSpecResponse{}
 	err := json.Unmarshal([]byte(specString), &specs)
 	if err == nil {
@@ -226,7 +224,7 @@ func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
 		}
 	}()
 	if err == nil {
-		s.dataAdapter.set(dataAdapterKey, string(specString))
+		s.dataAdapter.set(CONFIG_SPECS_KEY, string(specString))
 	}
 }
 
@@ -454,7 +452,11 @@ func (s *store) pollForRulesetChanges() {
 		if stop {
 			break
 		}
-		s.fetchConfigSpecsFromServer(false)
+		if s.dataAdapter != nil && s.dataAdapter.shouldBeUsedForQueryingUpdates(CONFIG_SPECS_KEY) {
+			s.fetchConfigSpecsFromAdapter()
+		} else {
+			s.fetchConfigSpecsFromServer(false)
+		}
 	}
 }
 

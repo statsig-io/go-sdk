@@ -1,5 +1,7 @@
 package statsig
 
+const CONFIG_SPECS_KEY = "statsig.cache"
+
 /**
  * An adapter for implementing custom storage of config specs.
  * Can be used to bootstrap Statsig (priority over bootstrapValues if both provided)
@@ -25,4 +27,10 @@ type IDataAdapter interface {
 	 * Cleanup tasks to run when statsig is shutdown
 	 */
 	shutdown()
+
+	/**
+		 * Determines whether the SDK should poll for updates from
+	   * the data adapter (instead of Statsig network) for the given key
+	*/
+	shouldBeUsedForQueryingUpdates(key string) bool
 }
