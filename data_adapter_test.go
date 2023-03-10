@@ -118,7 +118,7 @@ func TestAdapterWithPolling(t *testing.T) {
 	}))
 	dataAdapter := dataAdapterWithPollingExample{store: make(map[string]string)}
 	options := &Options{
-		DataAdapter:        dataAdapter,
+		DataAdapter:        &dataAdapter,
 		API:                testServer.URL,
 		Environment:        Environment{Tier: "test"},
 		ConfigSyncInterval: 100 * time.Millisecond,

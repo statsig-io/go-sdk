@@ -1,6 +1,9 @@
 package statsig
 
-import "errors"
+import (
+	"errors"
+	"sync"
+)
 
 type dataAdapterExample struct {
 	store map[string]string
@@ -42,23 +45,28 @@ func (d brokenDataAdapterExample) shouldBeUsedForQueryingUpdates(key string) boo
 
 type dataAdapterWithPollingExample struct {
 	store map[string]string
+	mu    sync.RWMutex
 }
 
-func (d dataAdapterWithPollingExample) get(key string) string {
+func (d *dataAdapterWithPollingExample) get(key string) string {
+	d.mu.RLock()
+	d.mu.RUnlock()
 	return d.store[key]
 }
 
-func (d dataAdapterWithPollingExample) set(key string, value string) {
+func (d *dataAdapterWithPollingExample) set(key string, value string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.store[key] = value
 }
 
-func (d dataAdapterWithPollingExample) initialize() {}
+func (d *dataAdapterWithPollingExample) initialize() {}
 
-func (d dataAdapterWithPollingExample) shutdown() {}
+func (d *dataAdapterWithPollingExample) shutdown() {}
 
-func (d dataAdapterWithPollingExample) shouldBeUsedForQueryingUpdates(key string) bool {
+func (d *dataAdapterWithPollingExample) shouldBeUsedForQueryingUpdates(key string) bool {
 	return true
 }
-func (d dataAdapterWithPollingExample) clearStore(key string) {
+func (d *dataAdapterWithPollingExample) clearStore(key string) {
 	d.set(key, "{\"feature_gates\":[],\"dynamic_configs\":[],\"layer_configs\":[],\"layers\":{},\"id_lists\":{},\"has_updates\":true,\"time\":1}")
 }
