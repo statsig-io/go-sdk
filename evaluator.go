@@ -82,9 +82,10 @@ func (e *evaluator) checkGate(user User, gateName string) *evalResult {
 	if gateOverride, hasOverride := e.getGateOverride(gateName); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			Pass:              gateOverride,
-			Id:                "override",
-			EvaluationDetails: evalDetails,
+			Pass:               gateOverride,
+			Id:                 "override",
+			EvaluationDetails:  evalDetails,
+			SecondaryExposures: make([]map[string]string, 0),
 		}
 	}
 	if gate, hasGate := e.store.getGate(gateName); hasGate {
@@ -92,6 +93,7 @@ func (e *evaluator) checkGate(user User, gateName string) *evalResult {
 	}
 	emptyEvalResult := new(evalResult)
 	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+	emptyEvalResult.SecondaryExposures = make([]map[string]string, 0)
 	return emptyEvalResult
 }
 
@@ -99,10 +101,11 @@ func (e *evaluator) getConfig(user User, configName string) *evalResult {
 	if configOverride, hasOverride := e.getConfigOverride(configName); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			Pass:              true,
-			ConfigValue:       *NewConfig(configName, configOverride, "override"),
-			Id:                "override",
-			EvaluationDetails: evalDetails,
+			Pass:               true,
+			ConfigValue:        *NewConfig(configName, configOverride, "override"),
+			Id:                 "override",
+			EvaluationDetails:  evalDetails,
+			SecondaryExposures: make([]map[string]string, 0),
 		}
 	}
 	if config, hasConfig := e.store.getDynamicConfig(configName); hasConfig {
@@ -110,6 +113,7 @@ func (e *evaluator) getConfig(user User, configName string) *evalResult {
 	}
 	emptyEvalResult := new(evalResult)
 	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+	emptyEvalResult.SecondaryExposures = make([]map[string]string, 0)
 	return emptyEvalResult
 }
 
@@ -119,6 +123,7 @@ func (e *evaluator) getLayer(user User, name string) *evalResult {
 	}
 	emptyEvalResult := new(evalResult)
 	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+	emptyEvalResult.SecondaryExposures = make([]map[string]string, 0)
 	return emptyEvalResult
 }
 
@@ -170,7 +175,7 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 		}
 	}
 
-	var exposures []map[string]string
+	var exposures = make([]map[string]string, 0)
 	defaultRuleID := "default"
 	if spec.Enabled {
 		for _, rule := range spec.Rules {
@@ -278,7 +283,7 @@ func getUnitID(user User, idType string) string {
 }
 
 func (e *evaluator) evalRule(user User, rule configRule) *evalResult {
-	var exposures []map[string]string
+	var exposures = make([]map[string]string, 0)
 	var finalResult = &evalResult{Pass: true, FetchFromServer: false}
 	for _, cond := range rule.Conditions {
 		res := e.evalCondition(user, cond)
