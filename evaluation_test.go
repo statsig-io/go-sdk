@@ -44,7 +44,7 @@ type layerTestData struct {
 var secret string
 var testAPIs = []string{
 	"https://statsigapi.net/v1",
-	// "https://staging.statsigapi.net/v1",
+	"https://staging.statsigapi.net/v1",
 }
 
 func TestMain(m *testing.M) {
@@ -182,7 +182,7 @@ func TestStatsigLocalMode(t *testing.T) {
 
 func compare_secondary_exp(t *testing.T, v1 []map[string]string, v2 []map[string]string) bool {
 	if (v1 == nil && v2 != nil) || (v2 == nil && v1 != nil) {
-		t.Errorf("mismatched secondary exposures: %v %v", v1, v2)
+		return false
 	}
 	if v1 == nil {
 		v1 = []map[string]string{}
