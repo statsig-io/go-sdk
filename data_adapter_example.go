@@ -50,7 +50,7 @@ type dataAdapterWithPollingExample struct {
 
 func (d *dataAdapterWithPollingExample) get(key string) string {
 	d.mu.RLock()
-	d.mu.RUnlock()
+	defer d.mu.RUnlock()
 	return d.store[key]
 }
 
