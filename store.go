@@ -159,6 +159,7 @@ func newStoreInternal(
 		}
 	}
 	if store.lastSyncTime == 0 {
+		store.logProcess("Retrying with network...")
 		store.fetchConfigSpecsFromServer(true)
 	}
 	store.mu.Lock()
@@ -199,6 +200,7 @@ func (s *store) getExperimentLayer(experimentName string) (string, bool) {
 }
 
 func (s *store) fetchConfigSpecsFromAdapter() {
+	s.logProcess("Loading specs from adapter...")
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error calling data adapter get: %s\n", err.(error).Error())
@@ -208,6 +210,7 @@ func (s *store) fetchConfigSpecsFromAdapter() {
 	specs := downloadConfigSpecResponse{}
 	err := json.Unmarshal([]byte(specString), &specs)
 	if err == nil {
+		s.logProcess("Done loading specs")
 		s.setConfigSpecs(specs)
 		s.mu.Lock()
 		s.initReason = reasonDataAdapter
@@ -244,6 +247,7 @@ func (s *store) handleSyncError(err error, isColdStart bool) {
 }
 
 func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
+	s.logProcess("Loading specs from network...")
 	s.mu.RLock()
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
@@ -256,6 +260,7 @@ func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 		s.handleSyncError(err, isColdStart)
 		return
 	}
+	s.logProcess("Done loading specs")
 	if s.setConfigSpecs(specs) {
 		s.mu.Lock()
 		s.initReason = reasonNetwork
@@ -271,6 +276,7 @@ func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 }
 
 func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
+	s.logProcess("Processing specs...")
 	if specs.HasUpdates {
 		// TODO: when adding eval details, differentiate REASON between bootstrap and network here
 		newGates := make(map[string]configSpec)
@@ -302,8 +308,10 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.experimentToLayer = newExperimentToLayer
 		s.lastSyncTime = specs.Time
 		s.mu.Unlock()
+		s.logProcess("Done processing specs")
 		return true
 	}
+	s.logProcess("Failed to process specs")
 	return false
 }
 
@@ -454,4 +462,16 @@ func (s *store) stopPolling() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.shutdown = true
+}
+
+func (s *store) logProcess(msg string) {
+	var process string
+	s.mu.RLock()
+	if s.initReason == reasonUninitialized {
+		process = "Initialize"
+	} else {
+		process = "Sync"
+	}
+	s.mu.RUnlock()
+	logProcessWithTimestamp(process, msg)
 }

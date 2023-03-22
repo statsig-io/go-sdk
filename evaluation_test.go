@@ -98,7 +98,7 @@ func test_helper(apiOverride string, t *testing.T) {
 					gate, sdkResult.Id, serverResult.RuleID)
 			}
 
-			if !compare_exposures(sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
+			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
 				t.Errorf("Secondary exposures are different for gate %s. SDK got %s but server is %s",
 					gate, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
 			}
@@ -117,7 +117,7 @@ func test_helper(apiOverride string, t *testing.T) {
 					config, sdkResult.Id, serverResult.RuleID)
 			}
 
-			if !compare_exposures(sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
+			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
 				t.Errorf("Secondary exposures are different for config %s. SDK got %s but server is %s",
 					config, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
 			}
@@ -136,12 +136,12 @@ func test_helper(apiOverride string, t *testing.T) {
 					layer, sdkResult.Id, serverResult.RuleID)
 			}
 
-			if !compare_exposures(sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
+			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
 				t.Errorf("Secondary exposures are different for layer %s. SDK got %s but server is %s",
 					layer, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
 			}
 
-			if !compare_exposures(sdkResult.UndelegatedSecondaryExposures, serverResult.UndelegatedSecondaryExposures) {
+			if !compare_secondary_exp(t, sdkResult.UndelegatedSecondaryExposures, serverResult.UndelegatedSecondaryExposures) {
 				t.Errorf("Undelegated Secondary exposures are different for layer %s. SDK got %s but server is %s",
 					layer, sdkResult.UndelegatedSecondaryExposures, serverResult.UndelegatedSecondaryExposures)
 			}
@@ -180,7 +180,10 @@ func TestStatsigLocalMode(t *testing.T) {
 	}
 }
 
-func compare_exposures(v1 []map[string]string, v2 []map[string]string) bool {
+func compare_secondary_exp(t *testing.T, v1 []map[string]string, v2 []map[string]string) bool {
+	if (v1 == nil && v2 != nil) || (v2 == nil && v1 != nil) {
+		return false
+	}
 	if v1 == nil {
 		v1 = []map[string]string{}
 	}
