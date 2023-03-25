@@ -9,6 +9,11 @@ on:
   push:
     branches: [main]
 
+env:
+  test_api_key: ${{ secrets.KONG_SERVER_SDK_KEY }}
+  test_client_key: ${{ secrets. KONG_CLIENT_SDK_KEY }}
+  repo_pat: ${{ secrets.KONG_FINE_GRAINED_REPO_PAT }}
+
 jobs:
   KONG:
     timeout-minutes: 5
@@ -20,21 +25,16 @@ jobs:
 
       - name: Get KONG
         run: |
-          git clone https://${{ secrets.KONG_REPO_PAT }}@github.com/statsig-io/kong.git
+          git clone https://oauth2:${{ secrets.KONG_FINE_GRAINED_REPO_PAT }}@github.com/statsig-io/kong.git
 
-      - name: Install Modules
+      - name: Build Bridge
         run: |
-          cd kong/bridges/go-server
-          ./clone-repo.sh $GITHUB_REPOSITORY $GITHUB_HEAD_REF
-          go mod tidy
-        env:
-          repo_pat: ${{ secrets.KONG_REPO_PAT }}
+          cd kong
+          npm install
+          FORCE_COLOR=true npm run kong -- build go -v
 
       - name: Run Tests
         run: |
           cd kong
           npm install
           FORCE_COLOR=true npm run kong -- test go -w -r
-        env:
-          test_api_key: ${{ secrets.KONG_SERVER_SDK_KEY }}
-          test_client_key: ${{ secrets.KONG_CLIENT_SDK_KEY }}
