@@ -19,22 +19,17 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v2
-        with:
-          go-version: "1.16"
-
       - name: Get KONG
-        run: |
-          git clone https://oauth2:${{ secrets.KONG_FINE_GRAINED_REPO_PAT }}@github.com/statsig-io/kong.git
+        run: git clone https://oauth2:${{ secrets.KONG_FINE_GRAINED_REPO_PAT }}@github.com/statsig-io/kong.git .
+
+      - name: Install Deps
+        run: npm install
+
+      - name: Setup Go SDK
+        run: npm run kong -- setup go -v
 
       - name: Build Bridge
-        run: |
-          cd kong
-          npm install
-          FORCE_COLOR=true npm run kong -- build go -v
+        run: npm run kong -- build go -v
 
       - name: Run Tests
-        run: |
-          cd kong
-          npm install
-          FORCE_COLOR=true npm run kong -- test go -w -r
+        run: npm run kong -- test go -v -r
