@@ -186,8 +186,8 @@ func (s *store) getDynamicConfig(name string) (configSpec, bool) {
 func (s *store) getLayerConfig(name string) (configSpec, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	config, ok := s.layerConfigs[name]
-	return config, ok
+	layer, ok := s.layerConfigs[name]
+	return layer, ok
 }
 
 func (s *store) getExperimentLayer(experimentName string) (string, bool) {

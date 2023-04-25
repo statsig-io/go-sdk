@@ -17,13 +17,13 @@ import (
 )
 
 type evaluator struct {
-	store               *store
-	gateOverrides       map[string]bool
-	gateOverridesLock   sync.RWMutex
-	configOverrides     map[string]map[string]interface{}
-	configOverridesLock sync.RWMutex
-	countryLookup       *countrylookup.CountryLookup
-	uaParser            *uaparser.Parser
+	store           *store
+	gateOverrides   map[string]bool
+	configOverrides map[string]map[string]interface{}
+	layerOverrides  map[string]map[string]interface{}
+	countryLookup   *countrylookup.CountryLookup
+	uaParser        *uaparser.Parser
+	mu              sync.RWMutex
 }
 
 type evalResult struct {
@@ -62,6 +62,7 @@ func newEvaluator(
 		uaParser:        parser,
 		gateOverrides:   make(map[string]bool),
 		configOverrides: make(map[string]map[string]interface{}),
+		layerOverrides:  make(map[string]map[string]interface{}),
 	}
 }
 
@@ -118,6 +119,16 @@ func (e *evaluator) getConfig(user User, configName string) *evalResult {
 }
 
 func (e *evaluator) getLayer(user User, name string) *evalResult {
+	if layerOverride, hasOverride := e.getLayerOverride(name); hasOverride {
+		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
+		return &evalResult{
+			Pass:               true,
+			ConfigValue:        *NewConfig(name, layerOverride, "override"),
+			Id:                 "override",
+			EvaluationDetails:  evalDetails,
+			SecondaryExposures: make([]map[string]string, 0),
+		}
+	}
 	if config, hasConfig := e.store.getLayerConfig(name); hasConfig {
 		return e.eval(user, config)
 	}
@@ -128,31 +139,45 @@ func (e *evaluator) getLayer(user User, name string) *evalResult {
 }
 
 func (e *evaluator) getGateOverride(name string) (bool, bool) {
-	e.gateOverridesLock.RLock()
-	defer e.gateOverridesLock.RUnlock()
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	gate, ok := e.gateOverrides[name]
 	return gate, ok
 }
 
 func (e *evaluator) getConfigOverride(name string) (map[string]interface{}, bool) {
-	e.configOverridesLock.RLock()
-	defer e.configOverridesLock.RUnlock()
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	config, ok := e.configOverrides[name]
 	return config, ok
 }
 
+func (e *evaluator) getLayerOverride(name string) (map[string]interface{}, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	layer, ok := e.layerOverrides[name]
+	return layer, ok
+}
+
 // Override the value of a Feature Gate for the given user
 func (e *evaluator) OverrideGate(gate string, val bool) {
-	e.gateOverridesLock.Lock()
-	defer e.gateOverridesLock.Unlock()
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.gateOverrides[gate] = val
 }
 
 // Override the DynamicConfig value for the given user
 func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
-	e.configOverridesLock.Lock()
-	defer e.configOverridesLock.Unlock()
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.configOverrides[config] = val
+}
+
+// Override the Layer value for the given user
+func (e *evaluator) OverrideLayer(layer string, val map[string]interface{}) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.layerOverrides[layer] = val
 }
 
 // Gets all evaluated values for the given user.

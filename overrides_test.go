@@ -52,4 +52,23 @@ func TestOverrides(t *testing.T) {
 	if !reflect.DeepEqual(newConfigOverride.Value, newConfig) {
 		t.Errorf("Failed to get override value for a config when in LocalMode")
 	}
+
+	layer := make(map[string]interface{})
+	layer["test"] = 123
+
+	c.OverrideLayer("any_layer", layer)
+	layerOverride := c.GetLayer(user, "any_layer")
+	if !reflect.DeepEqual(layerOverride.Value, layer) {
+		t.Errorf("Failed to get override value for a layer when in LocalMode")
+	}
+
+	newLayer := make(map[string]interface{})
+	newLayer["test"] = 456
+	newLayer["test2"] = "hello"
+
+	c.OverrideLayer("any_layer", newLayer)
+	newLayerOverride := c.GetLayer(user, "any_layer")
+	if !reflect.DeepEqual(newLayerOverride.Value, newLayer) {
+		t.Errorf("Failed to get override value for a layer when in LocalMode")
+	}
 }
