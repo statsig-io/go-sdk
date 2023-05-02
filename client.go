@@ -158,6 +158,11 @@ func (c *Client) OverrideConfig(config string, val map[string]interface{}) {
 	c.evaluator.OverrideConfig(config, val)
 }
 
+// Override the Layer value for the given user
+func (c *Client) OverrideLayer(layer string, val map[string]interface{}) {
+	c.evaluator.OverrideLayer(layer, val)
+}
+
 func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 	if len(events) > 500 {
 		err := errors.New(EventBatchSizeError)

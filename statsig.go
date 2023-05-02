@@ -137,6 +137,14 @@ func OverrideConfig(config string, val map[string]interface{}) {
 	instance.OverrideConfig(config, val)
 }
 
+// Override the Layer value for the given user
+func OverrideLayer(layer string, val map[string]interface{}) {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling OverrideLayer"))
+	}
+	instance.OverrideLayer(layer, val)
+}
+
 // Gets the DynamicConfig value of an Experiment for the given user
 func GetExperiment(user User, experiment string) DynamicConfig {
 	if !IsInitialized() {
