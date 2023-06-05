@@ -39,7 +39,7 @@ func newErrorBoundary(sdkKey string, options *Options) *errorBoundary {
 		api:      "https://statsigapi.net/v1",
 		endpoint: "/sdk_exception",
 		sdkKey:   sdkKey,
-		client:   &http.Client{},
+		client:   &http.Client{Timeout: time.Second * 3},
 		seen:     make(map[string]bool),
 	}
 	if options.API != "" {
@@ -84,12 +84,11 @@ func (e *errorBoundary) logException(exception error) {
 	if err != nil {
 		return
 	}
-	client := http.Client{}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("STATSIG-API-KEY", e.sdkKey)
 	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
 	req.Header.Add("STATSIG-SDK-TYPE", metadata.SDKType)
 	req.Header.Add("STATSIG-SDK-VERSION", metadata.SDKVersion)
 
-	_, _ = client.Do(req)
+	_, _ = e.client.Do(req)
 }
