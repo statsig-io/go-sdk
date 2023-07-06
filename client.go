@@ -25,7 +25,7 @@ func NewClient(sdkKey string) *Client {
 
 // Initializes a Statsig Client with the given sdkKey and options
 func NewClientWithOptions(sdkKey string, options *Options) *Client {
-	logProcessWithTimestamp("Initialize", "Starting...")
+	global.Logger().LogStep(StatsigProcessInitialize, "Starting...")
 	if len(options.API) == 0 {
 		options.API = "https://statsigapi.net/v1"
 	}
@@ -37,7 +37,7 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	transport := newTransport(sdkKey, options)
 	logger := newLogger(transport, options)
 	evaluator := newEvaluator(transport, errorBoundary, options)
-	logProcessWithTimestamp("Initialize", "Done")
+	global.Logger().LogStep(StatsigProcessInitialize, "Done")
 	return &Client{
 		sdkKey:        sdkKey,
 		evaluator:     evaluator,
@@ -196,7 +196,7 @@ func (c *Client) GetClientInitializeResponse(user User) ClientInitializeResponse
 func (c *Client) verifyUser(user User) bool {
 	if user.UserID == "" && len(user.CustomIDs) == 0 {
 		err := errors.New(EmptyUserError)
-		fmt.Println(err.Error())
+		global.Logger().LogError(err)
 		return false
 	}
 	return true

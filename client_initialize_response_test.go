@@ -61,7 +61,7 @@ func TestInitializeResponseConsistency(t *testing.T) {
 				t.Errorf("Error reading %s response body", endpoint)
 			}
 
-			InitializeWithOptions(secret, &Options{API: api})
+			InitializeWithOptions(secret, &Options{API: api, OutputLoggerOptions: getStatsigTestLoggerOptions(t)})
 			defer shutDownAndClearInstance()
 
 			formattedResponse := GetClientInitializeResponse(user)

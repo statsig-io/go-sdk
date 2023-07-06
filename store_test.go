@@ -111,6 +111,7 @@ func TestStoreSync(t *testing.T) {
 	opt := &Options{
 		API: testServer.URL,
 	}
+	InitializeGlobalOutputLogger(getStatsigTestLoggerOptions(t))
 	n := newTransport("secret-123", opt)
 	e := newErrorBoundary("client-key", opt)
 	s := newStoreInternal(n, time.Second, time.Second, "", nil, e, nil)

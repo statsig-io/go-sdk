@@ -48,8 +48,9 @@ func TestEvaluationDetails(t *testing.T) {
 	var user User
 	reset := func() {
 		opt = &Options{
-			API:         getTestServer(true).URL,
-			Environment: Environment{Tier: "test"},
+			API:                 getTestServer(true).URL,
+			Environment:         Environment{Tier: "test"},
+			OutputLoggerOptions: getStatsigTestLoggerOptions(t),
 		}
 		user = User{UserID: "some_user_id"}
 		events = []Event{}

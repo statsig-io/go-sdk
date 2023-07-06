@@ -1,9 +1,11 @@
 package statsig
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -46,6 +48,30 @@ var testAPIs = []string{
 	"https://statsigapi.net/v1",
 	"https://staging.statsigapi.net/v1",
 }
+var debugLogFile = "tmp/tests.log"
+
+func getStatsigTestLoggerOptions(t *testing.T) OutputLoggerOptions {
+	return OutputLoggerOptions{
+		LogCallback: func(message string, err error) {
+			var mu sync.RWMutex
+			mu.RLock()
+			f, e := os.OpenFile(debugLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			mu.RUnlock()
+			if e != nil {
+				fmt.Println(e.Error())
+			}
+			defer f.Close()
+			mu.Lock()
+			_, e = f.WriteString(fmt.Sprintf("(%s) %s", t.Name(), message))
+			mu.Unlock()
+			if e != nil {
+				fmt.Println(e.Error())
+			}
+		},
+		DisableInitDiagnostics: false,
+		DisableSyncDiagnostics: true,
+	}
+}
 
 func TestMain(m *testing.M) {
 	secret = os.Getenv("test_api_key")
@@ -57,12 +83,13 @@ func TestMain(m *testing.M) {
 		}
 		secret = string(bytes)
 	}
+	os.Remove(debugLogFile)
 	swallow_stderr(func() {
 		os.Exit(m.Run())
 	})
 }
 
-func Test(t *testing.T) {
+func TestEvaluation(t *testing.T) {
 	for _, api := range testAPIs {
 		test_helper(api, t)
 	}
@@ -70,6 +97,7 @@ func Test(t *testing.T) {
 
 func test_helper(apiOverride string, t *testing.T) {
 	t.Logf("Testing for " + apiOverride)
+	InitializeGlobalOutputLogger(getStatsigTestLoggerOptions(t))
 	c := NewClientWithOptions(secret, &Options{API: apiOverride})
 	var d data
 	err := c.transport.postRequest("/rulesets_e2e_test", nil, &d)
@@ -158,6 +186,7 @@ func TestStatsigLocalMode(t *testing.T) {
 	local := &Options{
 		LocalMode: true,
 	}
+	InitializeGlobalOutputLogger(getStatsigTestLoggerOptions(t))
 	local_c := NewClientWithOptions("", local)
 	network := &Options{}
 	net_c := NewClientWithOptions(secret, network)

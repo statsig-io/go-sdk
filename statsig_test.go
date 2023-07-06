@@ -16,7 +16,7 @@ func TestBootstrap(t *testing.T) {
 		t.Errorf("expected statsig to not be initialized yet")
 	}
 	bytes, _ := os.ReadFile("download_config_specs.json")
-	Initialize("secret-key")
+	InitializeWithOptions("secret-key", &Options{OutputLoggerOptions: getStatsigTestLoggerOptions(t)})
 	if !IsInitialized() {
 		t.Errorf("expected statsig to be initialized")
 	}
@@ -26,7 +26,8 @@ func TestBootstrap(t *testing.T) {
 	shutDownAndClearInstance()
 
 	opt := &Options{
-		BootstrapValues: string(bytes[:]),
+		BootstrapValues:     string(bytes[:]),
+		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
 	}
 	InitializeWithOptions("secret-key", opt)
 
@@ -57,6 +58,7 @@ func TestRulesUpdatedCallback(t *testing.T) {
 				callbacked = true
 			}
 		},
+		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
 	}
 
 	InitializeWithOptions("secret-key", opt)
@@ -73,14 +75,16 @@ func TestRulesUpdatedCallback(t *testing.T) {
 
 	// Now use rules from the previous update callback to bootstrap, and validate values
 	opt_bootstrap := &Options{
-		BootstrapValues: rules,
-		LocalMode:       true,
+		BootstrapValues:     rules,
+		LocalMode:           true,
+		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
 	}
 	InitializeWithOptions("secret-key", opt_bootstrap)
 
 	if !CheckGate(User{UserID: "123"}, "always_on_gate") {
 		t.Errorf("always_on_gate should return true bootstrap value is provided")
 	}
+
 	shutDownAndClearInstance()
 }
 
@@ -108,8 +112,9 @@ func TestLogImmediate(t *testing.T) {
 	}))
 	defer testServer.Close()
 	opt := &Options{
-		API:         testServer.URL,
-		Environment: Environment{Tier: "test"},
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
 	}
 	InitializeWithOptions("secret-key", opt)
 	event := Event{EventName: "test_event", User: User{UserID: "123"}}

@@ -27,17 +27,17 @@ type transport struct {
 }
 
 func getSessionID() string {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-		}
-	}()
 	return uuid.NewString()
 }
 
 func newTransport(secret string, options *Options) *transport {
 	api := defaultString(options.API, DefaultEndpoint)
 	api = strings.TrimSuffix(api, "/")
+	defer func() {
+		if err := recover(); err != nil {
+			global.Logger().LogError(err)
+		}
+	}()
 	sid := getSessionID()
 
 	return &transport{

@@ -55,6 +55,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 			},
 			Tier: "awesome_land",
 		},
+		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
 	}
 
 	InitializeWithOptions("secret-key", options)
@@ -170,7 +171,7 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 		ConfigSyncInterval: time.Millisecond * 10,
 		IDListSyncInterval: time.Millisecond * 10,
 	}
-
+	InitializeGlobalOutputLogger(getStatsigTestLoggerOptions(t))
 	client := NewClientWithOptions("secret-Key", options)
 
 	const (
@@ -233,7 +234,7 @@ func TestOverrideAPIsConcurrency(t *testing.T) {
 			Tier: "awesome_land",
 		},
 	}
-
+	InitializeGlobalOutputLogger(getStatsigTestLoggerOptions(t))
 	client := NewClientWithOptions("secret-Key", options)
 
 	const (

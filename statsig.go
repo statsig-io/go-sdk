@@ -13,8 +13,9 @@ var instance *Client
 
 // Initializes the global Statsig instance with the given sdkKey
 func Initialize(sdkKey string) {
+	InitializeGlobalOutputLogger(OutputLoggerOptions{})
 	if IsInitialized() {
-		fmt.Println("Statsig is already initialized.")
+		global.Logger().Log("Statsig is already initialized.", nil)
 		return
 	}
 
@@ -34,6 +35,13 @@ type Options struct {
 	RulesUpdatedCallback func(rules string, time int64)
 	InitTimeout          time.Duration
 	DataAdapter          IDataAdapter
+	OutputLoggerOptions  OutputLoggerOptions
+}
+
+type OutputLoggerOptions struct {
+	LogCallback            func(message string, err error)
+	DisableInitDiagnostics bool
+	DisableSyncDiagnostics bool
 }
 
 // See https://docs.statsig.com/guides/usingEnvironments
@@ -49,8 +57,9 @@ func IsInitialized() bool {
 
 // Initializes the global Statsig instance with the given sdkKey and options
 func InitializeWithOptions(sdkKey string, options *Options) {
+	InitializeGlobalOutputLogger(options.OutputLoggerOptions)
 	if IsInitialized() {
-		fmt.Println("Statsig is already initialized.")
+		global.Logger().Log("Statsig is already initialized.", nil)
 		return
 	}
 
@@ -65,7 +74,7 @@ func InitializeWithOptions(sdkKey string, options *Options) {
 		case res := <-channel:
 			instance = res
 		case <-time.After(options.InitTimeout):
-			logProcessWithTimestamp("Initialize", "Timed out")
+			global.Logger().LogStep(StatsigProcessInitialize, "Timed out")
 			return
 		}
 	} else {

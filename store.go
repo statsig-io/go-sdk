@@ -143,10 +143,13 @@ func newStoreInternal(
 		dataAdapter:          dataAdapter,
 		syncFailureCount:     0,
 	}
+	firstAttempt := true
 	if dataAdapter != nil {
+		firstAttempt = false
 		dataAdapter.initialize()
 		store.fetchConfigSpecsFromAdapter()
 	} else if bootstrapValues != "" {
+		firstAttempt = false
 		specs := downloadConfigSpecResponse{}
 		err := json.Unmarshal([]byte(bootstrapValues), &specs)
 		if err == nil {
@@ -157,7 +160,9 @@ func newStoreInternal(
 		}
 	}
 	if store.lastSyncTime == 0 {
-		store.logProcess("Retrying with network...")
+		if !firstAttempt {
+			store.logProcess("Retrying with network...")
+		}
 		store.fetchConfigSpecsFromServer(true)
 	}
 	store.mu.Lock()
@@ -309,7 +314,7 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.logProcess("Done processing specs")
 		return true
 	}
-	s.logProcess("Failed to process specs")
+	s.logProcess("No updates to specs")
 	return false
 }
 
@@ -467,13 +472,13 @@ func (s *store) stopPolling() {
 }
 
 func (s *store) logProcess(msg string) {
-	var process string
+	var process StatsigProcess
 	s.mu.RLock()
 	if s.initReason == reasonUninitialized {
-		process = "Initialize"
+		process = StatsigProcessInitialize
 	} else {
-		process = "Sync"
+		process = StatsigProcessSync
 	}
 	s.mu.RUnlock()
-	logProcessWithTimestamp(process, msg)
+	global.Logger().LogStep(process, msg)
 }

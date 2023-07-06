@@ -6,7 +6,10 @@ import (
 )
 
 func TestOverrides(t *testing.T) {
-	c := NewClientWithOptions(secret, &Options{LocalMode: true})
+	InitializeGlobalOutputLogger(getStatsigTestLoggerOptions(t))
+	c := NewClientWithOptions(secret, &Options{
+		LocalMode: true,
+	})
 
 	user := User{
 		UserID: "123",

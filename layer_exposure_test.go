@@ -39,8 +39,9 @@ func TestLayerExposure(t *testing.T) {
 	}))
 
 	opt := &Options{
-		API:         testServer.URL,
-		Environment: Environment{Tier: "test"},
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
 	}
 
 	user := User{UserID: "some_user_id"}

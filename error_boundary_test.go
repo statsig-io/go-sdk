@@ -51,7 +51,8 @@ func TestDCSError(t *testing.T) {
 	testServer := mock_server(t, nil, &hit)
 	defer testServer.Close()
 	opt := &Options{
-		API: testServer.URL,
+		API:                 testServer.URL,
+		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
 	}
 	InitializeWithOptions("secret-key", opt)
 	defer shutDownAndClearInstance()

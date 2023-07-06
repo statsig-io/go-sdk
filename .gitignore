@@ -28,3 +28,6 @@
 
 # Local History for Visual Studio Code
 .history/
+
+# Local tmp log files
+tmp/*.log
