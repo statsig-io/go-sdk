@@ -55,6 +55,7 @@ func getStatsigTestLoggerOptions(t *testing.T) OutputLoggerOptions {
 		LogCallback: func(message string, err error) {
 			var mu sync.RWMutex
 			mu.RLock()
+			_ = os.MkdirAll(filepath.Dir(debugLogFile), 0770)
 			f, e := os.OpenFile(debugLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			mu.RUnlock()
 			if e != nil {
