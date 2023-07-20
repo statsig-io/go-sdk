@@ -16,6 +16,7 @@ type Client struct {
 	transport     *transport
 	errorBoundary *errorBoundary
 	options       *Options
+	diagnostics   *diagnostics
 }
 
 // Initializes a Statsig Client with the given sdkKey
@@ -25,7 +26,8 @@ func NewClient(sdkKey string) *Client {
 
 // Initializes a Statsig Client with the given sdkKey and options
 func NewClientWithOptions(sdkKey string, options *Options) *Client {
-	global.Logger().LogStep(StatsigProcessInitialize, "Starting...")
+	diagnostics := newDiagnostics()
+	diagnostics.initialize().overall().start().markAndLogProcess()
 	if len(options.API) == 0 {
 		options.API = "https://statsigapi.net/v1"
 	}
@@ -35,9 +37,9 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 		panic(err)
 	}
 	transport := newTransport(sdkKey, options)
-	logger := newLogger(transport, options)
-	evaluator := newEvaluator(transport, errorBoundary, options)
-	global.Logger().LogStep(StatsigProcessInitialize, "Done")
+	logger := newLogger(transport, options, diagnostics)
+	evaluator := newEvaluator(transport, errorBoundary, options, diagnostics)
+	diagnostics.initialize().overall().end().success(true).markAndLogProcess()
 	return &Client{
 		sdkKey:        sdkKey,
 		evaluator:     evaluator,
@@ -45,6 +47,7 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 		transport:     transport,
 		errorBoundary: errorBoundary,
 		options:       options,
+		diagnostics:   diagnostics,
 	}
 }
 
@@ -309,7 +312,7 @@ func fetchGate(user User, gateName string, t *transport) gateResponse {
 		StatsigMetadata: t.metadata,
 	}
 	var res gateResponse
-	err := t.postRequest("/check_gate", input, &res)
+	_, err := t.postRequest("/check_gate", input, &res)
 	if err != nil {
 		return gateResponse{
 			Name:   gateName,
@@ -327,7 +330,7 @@ func fetchConfig(user User, configName string, t *transport) configResponse {
 		StatsigMetadata: t.metadata,
 	}
 	var res configResponse
-	err := t.postRequest("/get_config", input, &res)
+	_, err := t.postRequest("/get_config", input, &res)
 	if err != nil {
 		return configResponse{
 			Name:   configName,

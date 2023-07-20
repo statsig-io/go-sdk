@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	gateExposureEvent   = "statsig::gate_exposure"
-	configExposureEvent = "statsig::config_exposure"
-	layerExposureEvent  = "statsig::layer_exposure"
+	gateExposureEventName   = "statsig::gate_exposure"
+	configExposureEventName = "statsig::config_exposure"
+	layerExposureEventName  = "statsig::layer_exposure"
+	diagnosticsEventName    = "statsig::diagnostics"
 )
 
 type exposureEvent struct {
@@ -20,6 +21,12 @@ type exposureEvent struct {
 	Metadata           map[string]string   `json:"metadata"`
 	SecondaryExposures []map[string]string `json:"secondaryExposures"`
 	Time               int64               `json:"time"`
+}
+
+type diagnosticsEvent struct {
+	EventName string                 `json:"eventName"`
+	Metadata  map[string]interface{} `json:"metadata"`
+	Time      int64                  `json:"time"`
 }
 
 type logEventInput struct {
@@ -34,14 +41,16 @@ type logContext struct {
 }
 
 type logger struct {
-	events    []interface{}
-	transport *transport
-	tick      *time.Ticker
-	mu        sync.Mutex
-	maxEvents int
+	events      []interface{}
+	transport   *transport
+	tick        *time.Ticker
+	mu          sync.Mutex
+	maxEvents   int
+	diagnostics *diagnostics
+	options     *Options
 }
 
-func newLogger(transport *transport, options *Options) *logger {
+func newLogger(transport *transport, options *Options, diagnostics *diagnostics) *logger {
 	loggingInterval := time.Minute
 	maxEvents := 1000
 	if options.LoggingInterval > 0 {
@@ -51,10 +60,12 @@ func newLogger(transport *transport, options *Options) *logger {
 		maxEvents = options.LoggingMaxBufferSize
 	}
 	log := &logger{
-		events:    make([]interface{}, 0),
-		transport: transport,
-		tick:      time.NewTicker(loggingInterval),
-		maxEvents: maxEvents,
+		events:      make([]interface{}, 0),
+		transport:   transport,
+		tick:        time.NewTicker(loggingInterval),
+		maxEvents:   maxEvents,
+		diagnostics: diagnostics,
+		options:     options,
 	}
 
 	go log.backgroundFlush()
@@ -126,7 +137,7 @@ func (l *logger) logGateExposure(
 	}
 	evt := &exposureEvent{
 		User:               user,
-		EventName:          gateExposureEvent,
+		EventName:          gateExposureEventName,
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
@@ -150,7 +161,7 @@ func (l *logger) logConfigExposure(
 	}
 	evt := &exposureEvent{
 		User:               user,
-		EventName:          configExposureEvent,
+		EventName:          configExposureEventName,
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
@@ -186,7 +197,7 @@ func (l *logger) logLayerExposure(
 
 	evt := &exposureEvent{
 		User:               user,
-		EventName:          layerExposureEvent,
+		EventName:          layerExposureEventName,
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
@@ -194,6 +205,7 @@ func (l *logger) logLayerExposure(
 }
 
 func (l *logger) flush(closing bool) {
+	l.logDiagnosticsEvents(l.diagnostics)
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -223,5 +235,31 @@ func (l *logger) sendEvents(events []interface{}) {
 		StatsigMetadata: l.transport.metadata,
 	}
 	var res logEventResponse
-	_ = l.transport.retryablePostRequest("/log_event", input, &res, maxRetries)
+	_, _ = l.transport.retryablePostRequest("/log_event", input, &res, maxRetries)
+}
+
+func (l *logger) logDiagnosticsEvents(d *diagnostics) {
+	l.logDiagnosticsEvent(d.initDiagnostics)
+	l.logDiagnosticsEvent(d.syncDiagnostics)
+}
+
+func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
+	if l.options.StatsigLoggerOptions.DisableInitDiagnostics && d.context == InitializeContext {
+		return
+	}
+	if l.options.StatsigLoggerOptions.DisableSyncDiagnostics && d.context == ConfigSyncContext {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(d.markers) == 0 {
+		return
+	}
+	event := diagnosticsEvent{
+		EventName: diagnosticsEventName,
+		Time:      time.Now().Unix() * 1000,
+		Metadata:  d.serialize(),
+	}
+	d.clearMarkers()
+	l.logInternal(event)
 }

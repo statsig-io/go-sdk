@@ -16,7 +16,7 @@ func TestLog(t *testing.T) {
 		API: testServer.URL,
 	}
 	transport := newTransport("secret", opt)
-	logger := newLogger(transport, opt)
+	logger := newLogger(transport, opt, nil)
 
 	user := User{
 		UserID:            "123",
@@ -60,7 +60,7 @@ func TestLog(t *testing.T) {
 		t.Errorf("Gate exposure event type incorrect.")
 	}
 
-	gateExposureEvent := exposureEvent{EventName: gateExposureEvent, User: privateUser, Metadata: map[string]string{
+	gateExposureEvent := exposureEvent{EventName: gateExposureEventName, User: privateUser, Metadata: map[string]string{
 		"gate":      "test_gate",
 		"gateValue": strconv.FormatBool(true),
 		"ruleID":    "rule_id",
@@ -81,7 +81,7 @@ func TestLog(t *testing.T) {
 		t.Errorf("Config exposure event type incorrect.")
 	}
 
-	configExposureEvent := exposureEvent{EventName: configExposureEvent, User: privateUser, Metadata: map[string]string{
+	configExposureEvent := exposureEvent{EventName: configExposureEventName, User: privateUser, Metadata: map[string]string{
 		"config": "test_config",
 		"ruleID": "rule_id_config",
 	}, SecondaryExposures: exposures, Time: evt3.Time}

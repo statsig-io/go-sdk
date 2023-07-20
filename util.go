@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
+	"reflect"
 	"time"
 )
 
@@ -32,4 +34,18 @@ func getHashUint64Encoding(key string) uint64 {
 func getHashBase64StringEncoding(configName string) string {
 	hash := getHash(configName)
 	return base64.StdEncoding.EncodeToString(hash)
+}
+
+func safeGetFirst(slice []string) string {
+	if len(slice) > 0 {
+		return slice[0]
+	}
+	return ""
+}
+
+func compareMetadata(metadata map[string]interface{}, expected map[string]string) bool {
+	v, _ := json.Marshal(metadata)
+	var rawMetadata map[string]string
+	_ = json.Unmarshal(v, &rawMetadata)
+	return reflect.DeepEqual(rawMetadata, expected)
 }

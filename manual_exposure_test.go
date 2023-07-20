@@ -36,9 +36,10 @@ func TestManualExposure(t *testing.T) {
 	}))
 
 	opt := &Options{
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+		API:                  testServer.URL,
+		Environment:          Environment{Tier: "test"},
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 
 	user := User{UserID: "some_user_id"}

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -48,9 +47,10 @@ func TestEvaluationDetails(t *testing.T) {
 	var user User
 	reset := func() {
 		opt = &Options{
-			API:                 getTestServer(true).URL,
-			Environment:         Environment{Tier: "test"},
-			OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+			API:                  getTestServer(true).URL,
+			Environment:          Environment{Tier: "test"},
+			OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+			StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 		}
 		user = User{UserID: "some_user_id"}
 		events = []Event{}
@@ -97,7 +97,7 @@ func TestEvaluationDetails(t *testing.T) {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
 		}
 
-		if reflect.DeepEqual(events[0].Metadata, map[string]string{
+		if compareMetadata(events[0].Metadata, map[string]string{
 			"gate":           "always_on_gate",
 			"gateValue":      "true",
 			"ruleID":         "6N6Z8ODekNYZ7F8gFdoLP5",
@@ -108,7 +108,7 @@ func TestEvaluationDetails(t *testing.T) {
 		}) == false {
 			t.Errorf("Invalid metadata %v", events[0].Metadata)
 		}
-		if reflect.DeepEqual(events[1].Metadata, map[string]string{
+		if compareMetadata(events[1].Metadata, map[string]string{
 			"config":         "test_config",
 			"ruleID":         "default",
 			"reason":         "Network",
@@ -118,7 +118,7 @@ func TestEvaluationDetails(t *testing.T) {
 		}) == false {
 			t.Errorf("Invalid metadata %v", events[1].Metadata)
 		}
-		if reflect.DeepEqual(events[2].Metadata, map[string]string{
+		if compareMetadata(events[2].Metadata, map[string]string{
 			"config":         "sample_experiment",
 			"ruleID":         "2RamGsERWbWMIMnSfOlQuX",
 			"reason":         "Network",
@@ -143,7 +143,7 @@ func TestEvaluationDetails(t *testing.T) {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
 		}
 
-		if reflect.DeepEqual(events[0].Metadata, map[string]string{
+		if compareMetadata(events[0].Metadata, map[string]string{
 			"gate":           "always_on_gate",
 			"gateValue":      "true",
 			"ruleID":         "6N6Z8ODekNYZ7F8gFdoLP5",
@@ -154,7 +154,7 @@ func TestEvaluationDetails(t *testing.T) {
 		}) == false {
 			t.Errorf("Invalid metadata %v", events[0].Metadata)
 		}
-		if reflect.DeepEqual(events[1].Metadata, map[string]string{
+		if compareMetadata(events[1].Metadata, map[string]string{
 			"config":         "test_config",
 			"ruleID":         "default",
 			"reason":         "Bootstrap",
@@ -164,7 +164,7 @@ func TestEvaluationDetails(t *testing.T) {
 		}) == false {
 			t.Errorf("Invalid metadata %v", events[1].Metadata)
 		}
-		if reflect.DeepEqual(events[2].Metadata, map[string]string{
+		if compareMetadata(events[2].Metadata, map[string]string{
 			"config":         "sample_experiment",
 			"ruleID":         "2RamGsERWbWMIMnSfOlQuX",
 			"reason":         "Bootstrap",
@@ -189,7 +189,7 @@ func TestEvaluationDetails(t *testing.T) {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
 		}
 
-		if reflect.DeepEqual(events[0].Metadata, map[string]string{
+		if compareMetadata(events[0].Metadata, map[string]string{
 			"gate":           "always_on_gate",
 			"gateValue":      "false",
 			"ruleID":         "",
@@ -200,7 +200,7 @@ func TestEvaluationDetails(t *testing.T) {
 		}) == false {
 			t.Errorf("Invalid metadata %v", events[0].Metadata)
 		}
-		if reflect.DeepEqual(events[1].Metadata, map[string]string{
+		if compareMetadata(events[1].Metadata, map[string]string{
 			"config":         "test_config",
 			"ruleID":         "",
 			"reason":         "Unrecognized",
@@ -210,7 +210,7 @@ func TestEvaluationDetails(t *testing.T) {
 		}) == false {
 			t.Errorf("Invalid metadata %v", events[1].Metadata)
 		}
-		if reflect.DeepEqual(events[2].Metadata, map[string]string{
+		if compareMetadata(events[2].Metadata, map[string]string{
 			"config":         "sample_experiment",
 			"ruleID":         "",
 			"reason":         "Unrecognized",
@@ -234,7 +234,7 @@ func TestEvaluationDetails(t *testing.T) {
 			t.Errorf("Should receive exactly 2 log_event. Got %d", len(events))
 		}
 
-		if reflect.DeepEqual(events[0].Metadata, map[string]string{
+		if compareMetadata(events[0].Metadata, map[string]string{
 			"gate":           "always_on_gate",
 			"gateValue":      "false",
 			"ruleID":         "override",
@@ -245,7 +245,7 @@ func TestEvaluationDetails(t *testing.T) {
 		}) == false {
 			t.Errorf("Invalid metadata %v", events[0].Metadata)
 		}
-		if reflect.DeepEqual(events[1].Metadata, map[string]string{
+		if compareMetadata(events[1].Metadata, map[string]string{
 			"config":         "test_config",
 			"ruleID":         "override",
 			"reason":         "LocalOverride",

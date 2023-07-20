@@ -36,10 +36,11 @@ func TestBootstrapWithAdapter(t *testing.T) {
 	defer dataAdapter.shutdown()
 	dataAdapter.set(CONFIG_SPECS_KEY, string(dcs_bytes))
 	options := &Options{
-		DataAdapter:         dataAdapter,
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+		DataAdapter:          dataAdapter,
+		API:                  testServer.URL,
+		Environment:          Environment{Tier: "test"},
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 	InitializeWithOptions("secret-key", options)
 	user := User{UserID: "statsig_user", Email: "statsiguser@statsig.com"}
@@ -81,10 +82,11 @@ func TestSaveToAdapter(t *testing.T) {
 	}))
 	dataAdapter := dataAdapterExample{store: make(map[string]string)}
 	options := &Options{
-		DataAdapter:         dataAdapter,
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+		DataAdapter:          dataAdapter,
+		API:                  testServer.URL,
+		Environment:          Environment{Tier: "test"},
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 	InitializeWithOptions("secret-key", options)
 	defer shutDownAndClearInstance()
@@ -120,11 +122,12 @@ func TestAdapterWithPolling(t *testing.T) {
 	}))
 	dataAdapter := dataAdapterWithPollingExample{store: make(map[string]string)}
 	options := &Options{
-		DataAdapter:         &dataAdapter,
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		ConfigSyncInterval:  100 * time.Millisecond,
-		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+		DataAdapter:          &dataAdapter,
+		API:                  testServer.URL,
+		Environment:          Environment{Tier: "test"},
+		ConfigSyncInterval:   100 * time.Millisecond,
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 	InitializeWithOptions("secret-key", options)
 	defer shutDownAndClearInstance()
@@ -168,10 +171,11 @@ func TestIncorrectlyImplementedAdapter(t *testing.T) {
 	}))
 	dataAdapter := brokenDataAdapterExample{}
 	options := &Options{
-		DataAdapter:         dataAdapter,
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+		DataAdapter:          dataAdapter,
+		API:                  testServer.URL,
+		Environment:          Environment{Tier: "test"},
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 	stderrLogs := swallow_stderr(func() {
 		InitializeWithOptions("secret-key", options)

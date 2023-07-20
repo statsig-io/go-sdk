@@ -20,10 +20,11 @@ func TestStoreSyncFailure(t *testing.T) {
 	}))
 	defer testServer.Close()
 	opt := &Options{
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		ConfigSyncInterval:  100 * time.Millisecond,
-		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+		API:                  testServer.URL,
+		Environment:          Environment{Tier: "test"},
+		ConfigSyncInterval:   100 * time.Millisecond,
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 
 	syncOutdatedMax = 200 * time.Millisecond

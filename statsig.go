@@ -36,10 +36,16 @@ type Options struct {
 	InitTimeout          time.Duration
 	DataAdapter          IDataAdapter
 	OutputLoggerOptions  OutputLoggerOptions
+	StatsigLoggerOptions StatsigLoggerOptions
 }
 
 type OutputLoggerOptions struct {
 	LogCallback            func(message string, err error)
+	DisableInitDiagnostics bool
+	DisableSyncDiagnostics bool
+}
+
+type StatsigLoggerOptions struct {
 	DisableInitDiagnostics bool
 	DisableSyncDiagnostics bool
 }

@@ -50,7 +50,7 @@ var testAPIs = []string{
 }
 var debugLogFile = "tmp/tests.log"
 
-func getStatsigTestLoggerOptions(t *testing.T) OutputLoggerOptions {
+func getOutputLoggerOptionsForTest(t *testing.T) OutputLoggerOptions {
 	return OutputLoggerOptions{
 		LogCallback: func(message string, err error) {
 			var mu sync.RWMutex
@@ -70,6 +70,13 @@ func getStatsigTestLoggerOptions(t *testing.T) OutputLoggerOptions {
 			}
 		},
 		DisableInitDiagnostics: false,
+		DisableSyncDiagnostics: true,
+	}
+}
+
+func getStatsigLoggerOptionsForTest(t *testing.T) StatsigLoggerOptions {
+	return StatsigLoggerOptions{
+		DisableInitDiagnostics: true,
 		DisableSyncDiagnostics: true,
 	}
 }
@@ -98,10 +105,10 @@ func TestEvaluation(t *testing.T) {
 
 func test_helper(apiOverride string, t *testing.T) {
 	t.Logf("Testing for " + apiOverride)
-	InitializeGlobalOutputLogger(getStatsigTestLoggerOptions(t))
+	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
 	c := NewClientWithOptions(secret, &Options{API: apiOverride})
 	var d data
-	err := c.transport.postRequest("/rulesets_e2e_test", nil, &d)
+	_, err := c.transport.postRequest("/rulesets_e2e_test", nil, &d)
 
 	if err != nil || len(d.Entries) == 0 {
 		t.Errorf("Could not download test data")
@@ -118,7 +125,7 @@ func test_helper(apiOverride string, t *testing.T) {
 		for gate, serverResult := range entry.GatesV2 {
 			sdkResult := c.evaluator.checkGate(u, gate)
 			if sdkResult.Pass != serverResult.Value {
-				t.Errorf("Values are different for gate %s. SDK got %t but server is %t. User is %s",
+				t.Errorf("Values are different for gate %s. SDK got %t but server is %t. User is %+v",
 					gate, sdkResult.Pass, serverResult.Value, u)
 			}
 
@@ -137,7 +144,7 @@ func test_helper(apiOverride string, t *testing.T) {
 		for config, serverResult := range entry.Configs {
 			sdkResult := c.evaluator.getConfig(u, config)
 			if !reflect.DeepEqual(sdkResult.ConfigValue.Value, serverResult.Value) {
-				t.Errorf("Values are different for config %s. SDK got %s but server is %s. User is %s",
+				t.Errorf("Values are different for config %s. SDK got %s but server is %s. User is %+v",
 					config, sdkResult.ConfigValue.Value, serverResult.Value, u)
 			}
 
@@ -156,7 +163,7 @@ func test_helper(apiOverride string, t *testing.T) {
 		for layer, serverResult := range entry.Layers {
 			sdkResult := c.evaluator.getLayer(u, layer)
 			if !reflect.DeepEqual(sdkResult.ConfigValue.Value, serverResult.Value) {
-				t.Errorf("Values are different for layer %s. SDK got %s but server is %s. User is %s",
+				t.Errorf("Values are different for layer %s. SDK got %s but server is %s. User is %+v",
 					layer, sdkResult.ConfigValue.Value, serverResult.Value, u)
 			}
 
@@ -187,7 +194,7 @@ func TestStatsigLocalMode(t *testing.T) {
 	local := &Options{
 		LocalMode: true,
 	}
-	InitializeGlobalOutputLogger(getStatsigTestLoggerOptions(t))
+	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
 	local_c := NewClientWithOptions("", local)
 	network := &Options{}
 	net_c := NewClientWithOptions(secret, network)

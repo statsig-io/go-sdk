@@ -84,6 +84,7 @@ type store struct {
 	lastSyncTime         int64
 	initialSyncTime      int64
 	initReason           evaluationReason
+	initializedIDLists   bool
 	transport            *transport
 	configSyncInterval   time.Duration
 	idListSyncInterval   time.Duration
@@ -92,6 +93,7 @@ type store struct {
 	errorBoundary        *errorBoundary
 	dataAdapter          IDataAdapter
 	syncFailureCount     int
+	diagnostics          *diagnostics
 	mu                   sync.RWMutex
 }
 
@@ -101,6 +103,7 @@ func newStore(
 	transport *transport,
 	errorBoundary *errorBoundary,
 	options *Options,
+	diagnostics *diagnostics,
 ) *store {
 	configSyncInterval := 10 * time.Second
 	idListSyncInterval := time.Minute
@@ -118,6 +121,7 @@ func newStore(
 		options.RulesUpdatedCallback,
 		errorBoundary,
 		options.DataAdapter,
+		diagnostics,
 	)
 }
 
@@ -129,6 +133,7 @@ func newStoreInternal(
 	rulesUpdatedCallback func(rules string, time int64),
 	errorBoundary *errorBoundary,
 	dataAdapter IDataAdapter,
+	diagnostics *diagnostics,
 ) *store {
 	store := &store{
 		featureGates:         make(map[string]configSpec),
@@ -140,8 +145,10 @@ func newStoreInternal(
 		rulesUpdatedCallback: rulesUpdatedCallback,
 		errorBoundary:        errorBoundary,
 		initReason:           reasonUninitialized,
+		initializedIDLists:   false,
 		dataAdapter:          dataAdapter,
 		syncFailureCount:     0,
+		diagnostics:          diagnostics,
 	}
 	firstAttempt := true
 	if dataAdapter != nil {
@@ -150,10 +157,7 @@ func newStoreInternal(
 		store.fetchConfigSpecsFromAdapter()
 	} else if bootstrapValues != "" {
 		firstAttempt = false
-		specs := downloadConfigSpecResponse{}
-		err := json.Unmarshal([]byte(bootstrapValues), &specs)
-		if err == nil {
-			store.setConfigSpecs(specs)
+		if store.processConfigSpecs(bootstrapValues, store.addDiagnostics().bootstrap()) {
 			store.mu.Lock()
 			store.initReason = reasonBootstrap
 			store.mu.Unlock()
@@ -161,7 +165,7 @@ func newStoreInternal(
 	}
 	if store.lastSyncTime == 0 {
 		if !firstAttempt {
-			store.logProcess("Retrying with network...")
+			store.diagnostics.initDiagnostics.logProcess("Retrying with network...")
 		}
 		store.fetchConfigSpecsFromServer(true)
 	}
@@ -169,6 +173,9 @@ func newStoreInternal(
 	store.initialSyncTime = store.lastSyncTime
 	store.mu.Unlock()
 	store.syncIDLists()
+	store.mu.Lock()
+	store.initializedIDLists = true
+	store.mu.Unlock()
 	go store.pollForRulesetChanges()
 	go store.pollForIDListChanges()
 	return store
@@ -203,18 +210,15 @@ func (s *store) getExperimentLayer(experimentName string) (string, bool) {
 }
 
 func (s *store) fetchConfigSpecsFromAdapter() {
-	s.logProcess("Loading specs from adapter...")
+	s.addDiagnostics().dataStoreConfigSpecs().fetch().start().markAndLogProcess()
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error calling data adapter get: %s\n", err.(error).Error())
 		}
 	}()
 	specString := s.dataAdapter.get(CONFIG_SPECS_KEY)
-	specs := downloadConfigSpecResponse{}
-	err := json.Unmarshal([]byte(specString), &specs)
-	if err == nil {
-		s.logProcess("Done loading specs")
-		s.setConfigSpecs(specs)
+	s.addDiagnostics().dataStoreConfigSpecs().fetch().end().success(true).markAndLogProcess()
+	if s.processConfigSpecs(specString, s.addDiagnostics().dataStoreConfigSpecs()) {
 		s.mu.Lock()
 		s.initReason = reasonDataAdapter
 		s.mu.Unlock()
@@ -250,7 +254,7 @@ func (s *store) handleSyncError(err error, isColdStart bool) {
 }
 
 func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
-	s.logProcess("Loading specs from network...")
+	s.addDiagnostics().downloadConfigSpecs().networkRequest().start().markAndLogProcess()
 	s.mu.RLock()
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
@@ -258,13 +262,19 @@ func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 	}
 	s.mu.RUnlock()
 	var specs downloadConfigSpecResponse
-	err := s.transport.postRequest("/download_config_specs", input, &specs)
-	if err != nil {
+	res, err := s.transport.postRequest("/download_config_specs", input, &specs)
+	if res == nil || err != nil {
+		marker := s.addDiagnostics().downloadConfigSpecs().networkRequest().end().success(false)
+		if res != nil {
+			marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
+		}
+		marker.markAndLogProcess()
 		s.handleSyncError(err, isColdStart)
 		return
 	}
-	s.logProcess("Done loading specs")
-	if s.setConfigSpecs(specs) {
+	s.addDiagnostics().downloadConfigSpecs().networkRequest().end().
+		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).markAndLogProcess()
+	if s.processConfigSpecs(specs, s.addDiagnostics().downloadConfigSpecs()) {
 		s.mu.Lock()
 		s.initReason = reasonNetwork
 		s.mu.Unlock()
@@ -278,8 +288,26 @@ func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 	}
 }
 
+func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *marker) bool {
+	diagnosticsMarker.process().start().markAndLogProcess()
+	specs := downloadConfigSpecResponse{}
+	success := false
+	switch specsTyped := configSpecs.(type) {
+	case string:
+		err := json.Unmarshal([]byte(specsTyped), &specs)
+		if err == nil {
+			success = s.setConfigSpecs(specs)
+		}
+	case downloadConfigSpecResponse:
+		success = s.setConfigSpecs(specsTyped)
+	default:
+		success = false
+	}
+	diagnosticsMarker.process().end().success(success).markAndLogProcess()
+	return success
+}
+
 func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
-	s.logProcess("Processing specs...")
 	if specs.HasUpdates {
 		// TODO: when adding eval details, differentiate REASON between bootstrap and network here
 		newGates := make(map[string]configSpec)
@@ -311,10 +339,8 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.experimentToLayer = newExperimentToLayer
 		s.lastSyncTime = specs.Time
 		s.mu.Unlock()
-		s.logProcess("Done processing specs")
 		return true
 	}
-	s.logProcess("No updates to specs")
 	return false
 }
 
@@ -342,12 +368,20 @@ func (s *store) setIDList(name string, list *idList) {
 
 func (s *store) syncIDLists() {
 	var serverLists map[string]idList
-	err := s.transport.postRequest("/get_id_lists", getIDListsInput{StatsigMetadata: s.transport.metadata}, &serverLists)
-	if err != nil {
+	s.addDiagnostics().getIdListSources().networkRequest().start().markAndLogProcess()
+	res, err := s.transport.postRequest("/get_id_lists", getIDListsInput{StatsigMetadata: s.transport.metadata}, &serverLists)
+	if res == nil || err != nil {
+		marker := s.addDiagnostics().getIdListSources().networkRequest().end().success(false)
+		if res != nil {
+			marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
+		}
+		marker.markAndLogProcess()
 		s.errorBoundary.logException(err)
 		return
 	}
-
+	s.addDiagnostics().getIdListSources().networkRequest().end().
+		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).markAndLogProcess()
+	s.addDiagnostics().getIdListSources().process().start().idListCount(len(serverLists)).markAndLogProcess()
 	wg := sync.WaitGroup{}
 	for name, serverList := range serverLists {
 		localList := s.getIDList(name)
@@ -382,26 +416,38 @@ func (s *store) syncIDLists() {
 		wg.Add(1)
 		go func(name string, l *idList) {
 			defer wg.Done()
+			s.addDiagnostics().getIdList().networkRequest().start().url(l.URL).markAndLogProcess()
 			res, err := s.transport.get(l.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", l.Size)})
 			if err != nil || res == nil {
+				marker := s.addDiagnostics().getIdList().networkRequest().end().url(l.URL).success(false)
+				if res != nil {
+					marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
+				}
+				marker.markAndLogProcess()
 				s.errorBoundary.logException(err)
 				return
 			}
 			defer res.Body.Close()
+			s.addDiagnostics().getIdList().networkRequest().end().url(l.URL).
+				success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).markAndLogProcess()
+			s.addDiagnostics().getIdList().process().start().url(l.URL).markAndLogProcess()
 
 			length, err := strconv.Atoi(res.Header.Get("content-length"))
 			if err != nil || length <= 0 {
+				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).markAndLogProcess()
 				s.errorBoundary.logException(err)
 				return
 			}
 
 			bodyBytes, err := io.ReadAll(res.Body)
 			if err != nil {
+				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).markAndLogProcess()
 				s.errorBoundary.logException(err)
 				return
 			}
 			content := string(bodyBytes)
 			if len(content) <= 1 || (string(content[0]) != "-" && string(content[0]) != "+") {
+				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).markAndLogProcess()
 				s.deleteIDList(name)
 				return
 			}
@@ -421,6 +467,7 @@ func (s *store) syncIDLists() {
 				}
 			}
 			atomic.AddInt64((&l.Size), int64(length))
+			s.addDiagnostics().getIdList().process().end().url(l.URL).success(true).markAndLogProcess()
 		}(name, localList)
 	}
 	wg.Wait()
@@ -429,6 +476,7 @@ func (s *store) syncIDLists() {
 			s.deleteIDList(name)
 		}
 	}
+	s.addDiagnostics().getIdListSources().process().end().success(true).idListCount(len(serverLists)).markAndLogProcess()
 }
 
 func (s *store) pollForIDListChanges() {
@@ -471,14 +519,14 @@ func (s *store) stopPolling() {
 	s.shutdown = true
 }
 
-func (s *store) logProcess(msg string) {
-	var process StatsigProcess
+func (s *store) addDiagnostics() *marker {
+	var marker *marker
 	s.mu.RLock()
-	if s.initReason == reasonUninitialized {
-		process = StatsigProcessInitialize
+	if !s.initializedIDLists {
+		marker = s.diagnostics.initialize()
 	} else {
-		process = StatsigProcessSync
+		marker = s.diagnostics.configSync()
 	}
 	s.mu.RUnlock()
-	global.Logger().LogStep(process, msg)
+	return marker
 }

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -39,9 +38,10 @@ func TestLayerExposure(t *testing.T) {
 	}))
 
 	opt := &Options{
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+		API:                  testServer.URL,
+		Environment:          Environment{Tier: "test"},
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 
 	user := User{UserID: "some_user_id"}
@@ -110,7 +110,7 @@ func TestLayerExposure(t *testing.T) {
 			t.Errorf("Should receive exactly one log_event")
 		}
 
-		if reflect.DeepEqual(events[0].Metadata, map[string]string{
+		if compareMetadata(events[0].Metadata, map[string]string{
 			"config":              "unallocated_layer",
 			"ruleID":              "default",
 			"allocatedExperiment": "",
@@ -138,7 +138,7 @@ func TestLayerExposure(t *testing.T) {
 			t.Errorf("Should receive exactly two log_events")
 		}
 
-		if reflect.DeepEqual(events[0].Metadata, map[string]string{
+		if compareMetadata(events[0].Metadata, map[string]string{
 			"config":              "explicit_vs_implicit_parameter_layer",
 			"ruleID":              "alwaysPass",
 			"allocatedExperiment": "experiment",
@@ -152,7 +152,7 @@ func TestLayerExposure(t *testing.T) {
 			t.Errorf("Invalid metadata")
 		}
 
-		if reflect.DeepEqual(events[1].Metadata, map[string]string{
+		if compareMetadata(events[1].Metadata, map[string]string{
 			"config":              "explicit_vs_implicit_parameter_layer",
 			"ruleID":              "alwaysPass",
 			"allocatedExperiment": "",

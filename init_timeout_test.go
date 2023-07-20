@@ -22,8 +22,9 @@ func TestInitTimeout(t *testing.T) {
 
 	t.Run("No timeout option", func(t *testing.T) {
 		options := &Options{
-			API:                 testServer.URL,
-			OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+			API:                  testServer.URL,
+			OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+			StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 		}
 		start := time.Now()
 		InitializeWithOptions("secret-key", options)
@@ -42,9 +43,10 @@ func TestInitTimeout(t *testing.T) {
 
 	t.Run("Initalize finish before timeout", func(t *testing.T) {
 		options := &Options{
-			API:                 testServer.URL,
-			InitTimeout:         5 * time.Second,
-			OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+			API:                  testServer.URL,
+			InitTimeout:          5 * time.Second,
+			OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+			StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 		}
 		start := time.Now()
 		InitializeWithOptions("secret-key", options)
@@ -66,9 +68,10 @@ func TestInitTimeout(t *testing.T) {
 
 	t.Run("Initialize timed out", func(t *testing.T) {
 		options := &Options{
-			API:                 testServer.URL,
-			InitTimeout:         100 * time.Millisecond,
-			OutputLoggerOptions: getStatsigTestLoggerOptions(t),
+			API:                  testServer.URL,
+			InitTimeout:          100 * time.Millisecond,
+			OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+			StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 		}
 		start := time.Now()
 		InitializeWithOptions("secret-key", options)

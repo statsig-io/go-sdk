@@ -45,8 +45,9 @@ func newEvaluator(
 	transport *transport,
 	errorBoundary *errorBoundary,
 	options *Options,
+	diagnostics *diagnostics,
 ) *evaluator {
-	store := newStore(transport, errorBoundary, options)
+	store := newStore(transport, errorBoundary, options, diagnostics)
 	parser := uaparser.NewFromSaved()
 	countryLookup := countrylookup.New()
 	defer func() {

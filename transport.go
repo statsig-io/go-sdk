@@ -54,7 +54,7 @@ func (transport *transport) postRequest(
 	endpoint string,
 	in interface{},
 	out interface{},
-) error {
+) (*http.Response, error) {
 	return transport.postRequestInternal(endpoint, in, out, 0, 0)
 }
 
@@ -63,7 +63,7 @@ func (transport *transport) retryablePostRequest(
 	in interface{},
 	out interface{},
 	retries int,
-) error {
+) (*http.Response, error) {
 	return transport.postRequestInternal(endpoint, in, out, retries, time.Second)
 }
 
@@ -73,27 +73,27 @@ func (transport *transport) postRequestInternal(
 	out interface{},
 	retries int,
 	backoff time.Duration,
-) error {
+) (*http.Response, error) {
 	if transport.options.LocalMode {
-		return nil
+		return nil, nil
 	}
 	body, err := json.Marshal(in)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return retry(retries, time.Duration(backoff), func() (bool, error) {
+	return retry(retries, time.Duration(backoff), func() (*http.Response, bool, error) {
 		response, err := transport.doRequest(endpoint, body)
 		if err != nil {
-			return response != nil, err
+			return response, response != nil, err
 		}
 		defer response.Body.Close()
 
 		if response.StatusCode >= 200 && response.StatusCode < 300 {
-			return false, json.NewDecoder(response.Body).Decode(&out)
+			return response, false, json.NewDecoder(response.Body).Decode(&out)
 		}
 
-		return shouldRetry(response.StatusCode), fmt.Errorf("http response error code: %d", response.StatusCode)
+		return response, shouldRetry(response.StatusCode), fmt.Errorf("http response error code: %d", response.StatusCode)
 	})
 }
 
@@ -126,18 +126,18 @@ func (transport *transport) get(url string, headers map[string]string) (*http.Re
 	return transport.client.Do(req)
 }
 
-func retry(retries int, backoff time.Duration, fn func() (bool, error)) error {
+func retry(retries int, backoff time.Duration, fn func() (*http.Response, bool, error)) (*http.Response, error) {
 	for {
-		if retry, err := fn(); retry {
+		if response, retry, err := fn(); retry {
 			if retries <= 0 {
-				return err
+				return response, err
 			}
 
 			retries--
 			time.Sleep(backoff)
 			backoff = backoff * backoffMultiplier
 		} else {
-			return err
+			return response, err
 		}
 	}
 }
