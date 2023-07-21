@@ -697,30 +697,41 @@ func arrayAny(arr interface{}, val interface{}, fun func(x, y interface{}) bool)
 }
 
 func getTime(a interface{}) time.Time {
-	var t_sec time.Time
-	var t_msec time.Time
-	switch a := a.(type) {
-	case float64:
-		t_sec = time.Unix(int64(a), 0)
-		t_msec = time.Unix(int64(a)/1000, 0)
-	case int64:
-		t_sec = time.Unix(a, 0)
-		t_msec = time.Unix(a/1000, 0)
-	case int32:
-		t_sec = time.Unix(int64(a), 0)
-		t_msec = time.Unix(int64(a)/1000, 0)
-	case int:
-		t_sec = time.Unix(int64(a), 0)
-		t_msec = time.Unix(int64(a)/1000, 0)
-	case string:
-		v, err := strconv.ParseInt(a, 10, 64)
-		if err != nil {
-			t_sec = time.Unix(v, 0)
-			t_msec = time.Unix(v/1000, 0)
+	switch v := a.(type) {
+	case float64, int64, int32, int:
+		t_sec := time.Unix(getUnixTimestamp(v), 0)
+		if t_sec.Year() > time.Now().Year()+100 {
+			return time.Unix(getUnixTimestamp(v)/1000, 0)
 		}
+		return t_sec
+	case string:
+		t, err := time.Parse(time.RFC3339, v)
+		if err == nil {
+			return t
+		}
+		vInt, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return time.Time{}
+		}
+		t_sec := time.Unix(getUnixTimestamp(vInt), 0)
+		if t_sec.Year() > time.Now().Year()+100 {
+			return time.Unix(getUnixTimestamp(vInt)/1000, 0)
+		}
+		return t_sec
 	}
-	if t_sec.Year() > time.Now().Year()+100 {
-		return t_msec
+	return time.Time{}
+}
+
+func getUnixTimestamp(v interface{}) int64 {
+	switch v := v.(type) {
+	case float64:
+		return int64(v)
+	case int64:
+		return v
+	case int32:
+		return int64(v)
+	case int:
+		return int64(v)
 	}
-	return t_sec
+	return 0
 }
