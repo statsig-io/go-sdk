@@ -210,14 +210,14 @@ func (s *store) getExperimentLayer(experimentName string) (string, bool) {
 }
 
 func (s *store) fetchConfigSpecsFromAdapter() {
-	s.addDiagnostics().dataStoreConfigSpecs().fetch().start().markAndLogProcess()
+	s.addDiagnostics().dataStoreConfigSpecs().fetch().start().mark()
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error calling data adapter get: %s\n", err.(error).Error())
 		}
 	}()
 	specString := s.dataAdapter.get(CONFIG_SPECS_KEY)
-	s.addDiagnostics().dataStoreConfigSpecs().fetch().end().success(true).markAndLogProcess()
+	s.addDiagnostics().dataStoreConfigSpecs().fetch().end().success(true).mark()
 	if s.processConfigSpecs(specString, s.addDiagnostics().dataStoreConfigSpecs()) {
 		s.mu.Lock()
 		s.initReason = reasonDataAdapter
@@ -254,7 +254,7 @@ func (s *store) handleSyncError(err error, isColdStart bool) {
 }
 
 func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
-	s.addDiagnostics().downloadConfigSpecs().networkRequest().start().markAndLogProcess()
+	s.addDiagnostics().downloadConfigSpecs().networkRequest().start().mark()
 	s.mu.RLock()
 	input := &downloadConfigsInput{
 		SinceTime:       s.lastSyncTime,
@@ -268,12 +268,12 @@ func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 		if res != nil {
 			marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
 		}
-		marker.markAndLogProcess()
+		marker.mark()
 		s.handleSyncError(err, isColdStart)
 		return
 	}
 	s.addDiagnostics().downloadConfigSpecs().networkRequest().end().
-		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).markAndLogProcess()
+		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
 	if s.processConfigSpecs(specs, s.addDiagnostics().downloadConfigSpecs()) {
 		s.mu.Lock()
 		s.initReason = reasonNetwork
@@ -289,7 +289,7 @@ func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 }
 
 func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *marker) bool {
-	diagnosticsMarker.process().start().markAndLogProcess()
+	diagnosticsMarker.process().start().mark()
 	specs := downloadConfigSpecResponse{}
 	success := false
 	switch specsTyped := configSpecs.(type) {
@@ -303,7 +303,7 @@ func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *m
 	default:
 		success = false
 	}
-	diagnosticsMarker.process().end().success(success).markAndLogProcess()
+	diagnosticsMarker.process().end().success(success).mark()
 	return success
 }
 
@@ -368,20 +368,20 @@ func (s *store) setIDList(name string, list *idList) {
 
 func (s *store) syncIDLists() {
 	var serverLists map[string]idList
-	s.addDiagnostics().getIdListSources().networkRequest().start().markAndLogProcess()
+	s.addDiagnostics().getIdListSources().networkRequest().start().mark()
 	res, err := s.transport.postRequest("/get_id_lists", getIDListsInput{StatsigMetadata: s.transport.metadata}, &serverLists)
 	if res == nil || err != nil {
 		marker := s.addDiagnostics().getIdListSources().networkRequest().end().success(false)
 		if res != nil {
 			marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
 		}
-		marker.markAndLogProcess()
+		marker.mark()
 		s.errorBoundary.logException(err)
 		return
 	}
 	s.addDiagnostics().getIdListSources().networkRequest().end().
-		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).markAndLogProcess()
-	s.addDiagnostics().getIdListSources().process().start().idListCount(len(serverLists)).markAndLogProcess()
+		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
+	s.addDiagnostics().getIdListSources().process().start().idListCount(len(serverLists)).mark()
 	wg := sync.WaitGroup{}
 	for name, serverList := range serverLists {
 		localList := s.getIDList(name)
@@ -416,38 +416,38 @@ func (s *store) syncIDLists() {
 		wg.Add(1)
 		go func(name string, l *idList) {
 			defer wg.Done()
-			s.addDiagnostics().getIdList().networkRequest().start().url(l.URL).markAndLogProcess()
+			s.addDiagnostics().getIdList().networkRequest().start().url(l.URL).mark()
 			res, err := s.transport.get(l.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", l.Size)})
 			if err != nil || res == nil {
 				marker := s.addDiagnostics().getIdList().networkRequest().end().url(l.URL).success(false)
 				if res != nil {
 					marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
 				}
-				marker.markAndLogProcess()
+				marker.mark()
 				s.errorBoundary.logException(err)
 				return
 			}
 			defer res.Body.Close()
 			s.addDiagnostics().getIdList().networkRequest().end().url(l.URL).
-				success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).markAndLogProcess()
-			s.addDiagnostics().getIdList().process().start().url(l.URL).markAndLogProcess()
+				success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
+			s.addDiagnostics().getIdList().process().start().url(l.URL).mark()
 
 			length, err := strconv.Atoi(res.Header.Get("content-length"))
 			if err != nil || length <= 0 {
-				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).markAndLogProcess()
+				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).mark()
 				s.errorBoundary.logException(err)
 				return
 			}
 
 			bodyBytes, err := io.ReadAll(res.Body)
 			if err != nil {
-				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).markAndLogProcess()
+				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).mark()
 				s.errorBoundary.logException(err)
 				return
 			}
 			content := string(bodyBytes)
 			if len(content) <= 1 || (string(content[0]) != "-" && string(content[0]) != "+") {
-				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).markAndLogProcess()
+				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).mark()
 				s.deleteIDList(name)
 				return
 			}
@@ -467,7 +467,7 @@ func (s *store) syncIDLists() {
 				}
 			}
 			atomic.AddInt64((&l.Size), int64(length))
-			s.addDiagnostics().getIdList().process().end().url(l.URL).success(true).markAndLogProcess()
+			s.addDiagnostics().getIdList().process().end().url(l.URL).success(true).mark()
 		}(name, localList)
 	}
 	wg.Wait()
@@ -476,7 +476,7 @@ func (s *store) syncIDLists() {
 			s.deleteIDList(name)
 		}
 	}
-	s.addDiagnostics().getIdListSources().process().end().success(true).idListCount(len(serverLists)).markAndLogProcess()
+	s.addDiagnostics().getIdListSources().process().end().success(true).idListCount(len(serverLists)).mark()
 }
 
 func (s *store) pollForIDListChanges() {

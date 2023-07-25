@@ -27,7 +27,7 @@ func NewClient(sdkKey string) *Client {
 // Initializes a Statsig Client with the given sdkKey and options
 func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	diagnostics := newDiagnostics()
-	diagnostics.initialize().overall().start().markAndLogProcess()
+	diagnostics.initialize().overall().start().mark()
 	if len(options.API) == 0 {
 		options.API = "https://statsigapi.net/v1"
 	}
@@ -39,7 +39,7 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	transport := newTransport(sdkKey, options)
 	logger := newLogger(transport, options, diagnostics)
 	evaluator := newEvaluator(transport, errorBoundary, options, diagnostics)
-	diagnostics.initialize().overall().end().success(true).markAndLogProcess()
+	diagnostics.initialize().overall().end().success(true).mark()
 	return &Client{
 		sdkKey:        sdkKey,
 		evaluator:     evaluator,

@@ -251,8 +251,9 @@ func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
 		return
 	}
 	d.mu.Lock()
-	defer d.mu.Unlock()
-	if len(d.markers) == 0 {
+	markersLength := len(d.markers)
+	d.mu.Unlock()
+	if markersLength == 0 {
 		return
 	}
 	event := diagnosticsEvent{

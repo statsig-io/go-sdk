@@ -91,6 +91,8 @@ func (d *diagnosticsBase) logProcess(msg string) {
 }
 
 func (d *diagnosticsBase) serialize() map[string]interface{} {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 	return map[string]interface{}{
 		"context": d.context,
 		"markers": d.markers,
@@ -98,6 +100,8 @@ func (d *diagnosticsBase) serialize() map[string]interface{} {
 }
 
 func (d *diagnosticsBase) clearMarkers() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.markers = nil
 }
 
@@ -211,11 +215,15 @@ func (m *marker) url(val string) *marker {
 }
 
 /* End of chain */
-func (m *marker) markAndLogProcess() {
+func (m *marker) mark() {
 	m.Timestamp = time.Now().Unix() * 1000
 	m.diagnostics.mu.Lock()
 	defer m.diagnostics.mu.Unlock()
 	m.diagnostics.markers = append(m.diagnostics.markers, *m)
+	m.logProcess()
+}
+
+func (m *marker) logProcess() {
 	var msg string
 	if *m.Key == OverallKey {
 		if *m.Action == StartAction {

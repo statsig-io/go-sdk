@@ -150,14 +150,14 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 			DisableInitDiagnostics: false,
 			DisableSyncDiagnostics: false,
 		},
-		ConfigSyncInterval: time.Millisecond * 90,
-		IDListSyncInterval: time.Millisecond * 100,
-		LoggingInterval:    time.Millisecond * 110,
+		ConfigSyncInterval: time.Millisecond * 900,
+		IDListSyncInterval: time.Millisecond * 1000,
+		LoggingInterval:    time.Millisecond * 1100,
 	}
 	InitializeWithOptions("secret-key", options)
 	defer shutDownAndClearInstance()
 
-	time.Sleep(120 * time.Millisecond)
+	time.Sleep(1200 * time.Millisecond)
 
 	eventsCopy := copyEvents(&events, &mu)
 	if len(eventsCopy) != 2 {
@@ -245,15 +245,15 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 			DisableInitDiagnostics: false,
 			DisableSyncDiagnostics: false,
 		},
-		ConfigSyncInterval: time.Millisecond * 90,
-		IDListSyncInterval: time.Millisecond * 100,
-		LoggingInterval:    time.Millisecond * 110,
+		ConfigSyncInterval: time.Millisecond * 900,
+		IDListSyncInterval: time.Millisecond * 1000,
+		LoggingInterval:    time.Millisecond * 1100,
 	}
 	InitializeWithOptions("secret-key", options)
 	defer shutDownAndClearInstance()
 
 	// First config sync
-	time.Sleep(120 * time.Millisecond)
+	time.Sleep(1200 * time.Millisecond)
 
 	eventsCopy := copyEvents(&events, &mu)
 	if len(eventsCopy) != 2 { // initialize & config_sync
@@ -270,7 +270,7 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 	}
 
 	// Second config sync
-	time.Sleep(120 * time.Millisecond)
+	time.Sleep(1200 * time.Millisecond)
 
 	eventsCopy = copyEvents(&events, &mu)
 	if len(eventsCopy) != 1 {
