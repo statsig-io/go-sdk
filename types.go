@@ -21,11 +21,11 @@ type User struct {
 
 // an event to be sent to Statsig for logging and analysis
 type Event struct {
-	EventName string                 `json:"eventName"`
-	User      User                   `json:"user"`
-	Value     string                 `json:"value"`
-	Metadata  map[string]interface{} `json:"metadata"`
-	Time      int64                  `json:"time"`
+	EventName string            `json:"eventName"`
+	User      User              `json:"user"`
+	Value     string            `json:"value"`
+	Metadata  map[string]string `json:"metadata"`
+	Time      int64             `json:"time"`
 }
 
 type configBase struct {

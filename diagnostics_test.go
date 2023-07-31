@@ -13,6 +13,223 @@ import (
 	"time"
 )
 
+type Pair struct {
+	A string
+	B interface{}
+}
+
+type Events []map[string]interface{}
+
+func TestInitDiagnostics(t *testing.T) {
+	var events Events
+	testServer := getTestServer(true, func(newEvents Events) {
+		events = newEvents
+	})
+	defer testServer.Close()
+
+	options := &Options{
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DisableInitDiagnostics: false,
+			DisableSyncDiagnostics: false,
+		},
+	}
+	InitializeWithOptions("secret-key", options)
+	shutDownAndClearInstance()
+
+	markers := extractMarkers(events, 0)
+
+	if len(markers) != 14 {
+		t.Errorf("Expected %d markers but got %d", 14, len(markers))
+	}
+
+	assertMarkerEqual(t, markers[0], "overall", "", "start")
+	assertMarkerEqual(t, markers[1], "download_config_specs", "network_request", "start")
+	assertMarkerEqual(t, markers[2], "download_config_specs", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
+	assertMarkerEqual(t, markers[3], "download_config_specs", "process", "start")
+	assertMarkerEqual(t, markers[4], "download_config_specs", "process", "end", Pair{"success", true})
+	assertMarkerEqual(t, markers[5], "get_id_list_sources", "network_request", "start")
+	assertMarkerEqual(t, markers[6], "get_id_list_sources", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
+	assertMarkerEqual(t, markers[7], "get_id_list_sources", "process", "start", Pair{"idListCount", float64(1)})
+	assertMarkerEqual(t, markers[8], "get_id_list", "network_request", "start")
+	assertMarkerEqual(t, markers[9], "get_id_list", "network_request", "end", Pair{"statusCode", float64(200)})
+	assertMarkerEqual(t, markers[10], "get_id_list", "process", "start")
+	assertMarkerEqual(t, markers[11], "get_id_list", "process", "end", Pair{"success", false})
+	assertMarkerEqual(t, markers[12], "get_id_list_sources", "process", "end", Pair{"success", true}, Pair{"idListCount", float64(1)})
+	assertMarkerEqual(t, markers[13], "overall", "", "end", Pair{"success", true})
+}
+
+func TestConfigSyncDiagnostics(t *testing.T) {
+	var mu sync.Mutex
+
+	count := 0
+	testServer := getTestServer(true, func(events Events) {
+		mu.Lock()
+		defer mu.Unlock()
+		count += 1
+
+		if count == 1 {
+			if len(events) != 2 {
+				t.Errorf("Expected 2 diagnostics events, received %d", len(events))
+			}
+
+			markers := extractMarkers(events, 1)
+
+			if len(markers) != 12 {
+				t.Errorf("Expected %d markers but got %d", 12, len(markers))
+			}
+
+			assertMarkerEqual(t, markers[0], "download_config_specs", "network_request", "start")
+			assertMarkerEqual(t, markers[1], "download_config_specs", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
+			assertMarkerEqual(t, markers[2], "download_config_specs", "process", "start")
+			assertMarkerEqual(t, markers[3], "download_config_specs", "process", "end", Pair{"success", true})
+			assertMarkerEqual(t, markers[4], "get_id_list_sources", "network_request", "start")
+			assertMarkerEqual(t, markers[5], "get_id_list_sources", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
+			assertMarkerEqual(t, markers[6], "get_id_list_sources", "process", "start", Pair{"idListCount", float64(1)})
+			assertMarkerEqual(t, markers[7], "get_id_list", "network_request", "start")
+			assertMarkerEqual(t, markers[8], "get_id_list", "network_request", "end", Pair{"statusCode", float64(200)})
+			assertMarkerEqual(t, markers[9], "get_id_list", "process", "start")
+			assertMarkerEqual(t, markers[10], "get_id_list", "process", "end", Pair{"success", false})
+			assertMarkerEqual(t, markers[11], "get_id_list_sources", "process", "end", Pair{"success", true}, Pair{"idListCount", float64(1)})
+		}
+	})
+	defer testServer.Close()
+
+	options := &Options{
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DisableInitDiagnostics: false,
+			DisableSyncDiagnostics: false,
+		},
+		ConfigSyncInterval: time.Millisecond * 900,
+		IDListSyncInterval: time.Millisecond * 1000,
+		LoggingInterval:    time.Millisecond * 1100,
+	}
+	InitializeWithOptions("secret-key", options)
+	defer shutDownAndClearInstance()
+
+	waitForCondition(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return count == 1
+	})
+}
+
+func TestBootstrapDiagnostics(t *testing.T) {
+	var events Events
+	testServer := getTestServer(true, func(newEvents Events) {
+		events = newEvents
+	})
+	defer testServer.Close()
+
+	bytes, _ := os.ReadFile("download_config_specs.json")
+
+	options := &Options{
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DisableInitDiagnostics: false,
+			DisableSyncDiagnostics: false,
+		},
+		BootstrapValues: string(bytes),
+	}
+	InitializeWithOptions("secret-key", options)
+	shutDownAndClearInstance()
+
+	if len(events) != 1 {
+		t.Errorf("Expected 1 diagnostics events, received %d", len(events))
+	}
+
+	markers := extractMarkers(events, 0)
+
+	if len(markers) != 12 {
+		t.Errorf("Expected %d markers but got %d", 12, len(markers))
+	}
+
+	assertMarkerEqual(t, markers[0], "overall", "", "start")
+	assertMarkerEqual(t, markers[1], "bootstrap", "process", "start")
+	assertMarkerEqual(t, markers[2], "bootstrap", "process", "end", Pair{"success", true})
+	assertMarkerEqual(t, markers[3], "get_id_list_sources", "network_request", "start")
+	assertMarkerEqual(t, markers[4], "get_id_list_sources", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
+	assertMarkerEqual(t, markers[5], "get_id_list_sources", "process", "start", Pair{"idListCount", float64(1)})
+	assertMarkerEqual(t, markers[6], "get_id_list", "network_request", "start")
+	assertMarkerEqual(t, markers[7], "get_id_list", "network_request", "end", Pair{"statusCode", float64(200)})
+	assertMarkerEqual(t, markers[8], "get_id_list", "process", "start")
+	assertMarkerEqual(t, markers[9], "get_id_list", "process", "end", Pair{"success", false})
+	assertMarkerEqual(t, markers[10], "get_id_list_sources", "process", "end", Pair{"success", true}, Pair{"idListCount", float64(1)})
+	assertMarkerEqual(t, markers[11], "overall", "", "end", Pair{"success", true})
+}
+
+func TestDiagnosticsGetCleared(t *testing.T) {
+	var mu sync.Mutex
+	count := 0
+	testServer := getTestServer(true, func(events Events) {
+		mu.Lock()
+		defer mu.Unlock()
+		count += 1
+
+		if count == 1 {
+			if len(events) != 2 { // initialize & config_sync
+				t.Errorf("Expected 2 diagnostics events, received %d", len(events))
+			}
+
+			metadata := events[1]["metadata"].(map[string]interface{})
+			if metadata["context"] != "config_sync" {
+				t.Errorf("Expected marker context to be 'config_sync' but got %s", metadata["context"])
+			}
+			markers := extractMarkers(events, 1)
+
+			if len(markers) != 12 {
+				t.Errorf("Expected %d markers but got %d", 12, len(markers))
+			}
+		}
+
+		if count == 2 {
+			if len(events) != 1 {
+				t.Errorf("Expected 1 diagnostics events, received %d", len(events))
+			}
+
+			metadata := events[0]["metadata"].(map[string]interface{})
+			markers := extractMarkers(events, 0)
+
+			if metadata["context"] != "config_sync" {
+				t.Errorf("Expected marker context to be 'config_sync' but got %s", metadata["context"])
+			}
+
+			if len(markers) != 12 {
+				t.Errorf("Expected %d markers but got %d", 12, len(markers))
+			}
+		}
+	})
+	defer testServer.Close()
+
+	options := &Options{
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DisableInitDiagnostics: false,
+			DisableSyncDiagnostics: false,
+		},
+		ConfigSyncInterval: time.Millisecond * 900,
+		IDListSyncInterval: time.Millisecond * 1000,
+		LoggingInterval:    time.Millisecond * 1100,
+	}
+	InitializeWithOptions("secret-key", options)
+	defer shutDownAndClearInstance()
+
+	waitForCondition(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return count == 2
+	})
+}
+
 func getTestIDListServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		if strings.Contains(req.URL.Path, "my_id_list") {
@@ -23,7 +240,7 @@ func getTestIDListServer() *httptest.Server {
 	}))
 }
 
-func getTestServer(dcsOnline bool, events *[]Event, mu *sync.RWMutex) *httptest.Server {
+func getTestServer(dcsOnline bool, onLog func(events Events)) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Add("x-statsig-region", "az-westus-2")
 		if strings.Contains(req.URL.Path, "download_config_specs") {
@@ -39,8 +256,8 @@ func getTestServer(dcsOnline bool, events *[]Event, mu *sync.RWMutex) *httptest.
 		} else if strings.Contains(req.URL.Path, "log_event") {
 			res.WriteHeader(http.StatusOK)
 			type requestInput struct {
-				Events          []Event         `json:"events"`
-				StatsigMetadata statsigMetadata `json:"statsigMetadata"`
+				Events          []map[string]interface{} `json:"events"`
+				StatsigMetadata statsigMetadata          `json:"statsigMetadata"`
 			}
 			input := &requestInput{}
 			defer req.Body.Close()
@@ -48,9 +265,10 @@ func getTestServer(dcsOnline bool, events *[]Event, mu *sync.RWMutex) *httptest.
 			_, _ = buf.ReadFrom(req.Body)
 
 			_ = json.Unmarshal(buf.Bytes(), &input)
-			mu.Lock()
-			*events = input.Events
-			mu.Unlock()
+
+			if onLog != nil {
+				onLog(input.Events)
+			}
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			res.WriteHeader(http.StatusOK)
 			response, _ := json.Marshal(map[string]map[string]interface{}{
@@ -65,11 +283,6 @@ func getTestServer(dcsOnline bool, events *[]Event, mu *sync.RWMutex) *httptest.
 			_, _ = res.Write(response)
 		}
 	}))
-}
-
-type Pair struct {
-	A string
-	B interface{}
 }
 
 func assertMarkerEqual(t *testing.T, marker map[string]interface{}, key string, step string, action string, tags ...Pair) {
@@ -92,204 +305,27 @@ func assertMarkerEqual(t *testing.T, marker map[string]interface{}, key string, 
 	}
 }
 
-func TestInitDiagnostics(t *testing.T) {
-	var mu sync.RWMutex
-	events := []Event{}
-	testServer := getTestServer(true, &events, &mu)
+func extractMarkers(events []map[string]interface{}, index int) []map[string]interface{} {
+	initializeDiagnostics := events[index]["metadata"].(map[string]interface{})
+	markers := initializeDiagnostics["markers"].([]interface{})
 
-	options := &Options{
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: StatsigLoggerOptions{
-			DisableInitDiagnostics: false,
-			DisableSyncDiagnostics: false,
-		},
+	details := make([]map[string]interface{}, len(markers))
+	for i, m := range markers {
+		details[i] = m.(map[string]interface{})
 	}
-	InitializeWithOptions("secret-key", options)
-	shutDownAndClearInstance()
 
-	eventsCopy := copyEvents(&events, &mu)
-	if len(eventsCopy) != 1 {
-		t.Errorf("Expected 1 diagnostics events, received %d", len(eventsCopy))
-	}
-	initializeDiagnostics := eventsCopy[0].Metadata
-	markers, ok := initializeDiagnostics["markers"].([]interface{})
-	if !ok || initializeDiagnostics["context"] != "initialize" {
-		t.Errorf("Expected marker context to be 'initialize' but got %s", initializeDiagnostics["context"])
-	}
-	if len(markers) != 14 {
-		t.Errorf("Expected %d markers but got %d", 14, len(markers))
-	}
-	assertMarkerEqual(t, markers[0].(map[string]interface{}), "overall", "", "start")
-	assertMarkerEqual(t, markers[1].(map[string]interface{}), "download_config_specs", "network_request", "start")
-	assertMarkerEqual(t, markers[2].(map[string]interface{}), "download_config_specs", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
-	assertMarkerEqual(t, markers[3].(map[string]interface{}), "download_config_specs", "process", "start")
-	assertMarkerEqual(t, markers[4].(map[string]interface{}), "download_config_specs", "process", "end", Pair{"success", true})
-	assertMarkerEqual(t, markers[5].(map[string]interface{}), "get_id_list_sources", "network_request", "start")
-	assertMarkerEqual(t, markers[6].(map[string]interface{}), "get_id_list_sources", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
-	assertMarkerEqual(t, markers[7].(map[string]interface{}), "get_id_list_sources", "process", "start", Pair{"idListCount", float64(1)})
-	assertMarkerEqual(t, markers[8].(map[string]interface{}), "get_id_list", "network_request", "start")
-	assertMarkerEqual(t, markers[9].(map[string]interface{}), "get_id_list", "network_request", "end", Pair{"statusCode", float64(200)})
-	assertMarkerEqual(t, markers[10].(map[string]interface{}), "get_id_list", "process", "start")
-	assertMarkerEqual(t, markers[11].(map[string]interface{}), "get_id_list", "process", "end", Pair{"success", false})
-	assertMarkerEqual(t, markers[12].(map[string]interface{}), "get_id_list_sources", "process", "end", Pair{"success", true}, Pair{"idListCount", float64(1)})
-	assertMarkerEqual(t, markers[13].(map[string]interface{}), "overall", "", "end", Pair{"success", true})
+	return details
 }
 
-func TestConfigSyncDiagnostics(t *testing.T) {
-	var mu sync.RWMutex
-	events := []Event{}
-	testServer := getTestServer(true, &events, &mu)
-
-	options := &Options{
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: StatsigLoggerOptions{
-			DisableInitDiagnostics: false,
-			DisableSyncDiagnostics: false,
-		},
-		ConfigSyncInterval: time.Millisecond * 900,
-		IDListSyncInterval: time.Millisecond * 1000,
-		LoggingInterval:    time.Millisecond * 1100,
-	}
-	InitializeWithOptions("secret-key", options)
-	defer shutDownAndClearInstance()
-
-	time.Sleep(1200 * time.Millisecond)
-
-	eventsCopy := copyEvents(&events, &mu)
-	if len(eventsCopy) != 2 {
-		t.Errorf("Expected 2 diagnostics events, received %d", len(eventsCopy))
+func waitForCondition(t *testing.T, condition func() bool) {
+	timeout := 2000 * time.Millisecond
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if condition() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond) // Adjust the polling interval as needed
 	}
 
-	configSyncDiagnostics := eventsCopy[1].Metadata
-	markers, ok := configSyncDiagnostics["markers"].([]interface{})
-	if !ok || configSyncDiagnostics["context"] != "config_sync" {
-		t.Errorf("Expected marker context to be 'config_sync' but got %s", configSyncDiagnostics["context"])
-	}
-	if len(markers) != 12 {
-		t.Errorf("Expected %d markers but got %d", 12, len(markers))
-	}
-	assertMarkerEqual(t, markers[0].(map[string]interface{}), "download_config_specs", "network_request", "start")
-	assertMarkerEqual(t, markers[1].(map[string]interface{}), "download_config_specs", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
-	assertMarkerEqual(t, markers[2].(map[string]interface{}), "download_config_specs", "process", "start")
-	assertMarkerEqual(t, markers[3].(map[string]interface{}), "download_config_specs", "process", "end", Pair{"success", true})
-	assertMarkerEqual(t, markers[4].(map[string]interface{}), "get_id_list_sources", "network_request", "start")
-	assertMarkerEqual(t, markers[5].(map[string]interface{}), "get_id_list_sources", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
-	assertMarkerEqual(t, markers[6].(map[string]interface{}), "get_id_list_sources", "process", "start", Pair{"idListCount", float64(1)})
-	assertMarkerEqual(t, markers[7].(map[string]interface{}), "get_id_list", "network_request", "start")
-	assertMarkerEqual(t, markers[8].(map[string]interface{}), "get_id_list", "network_request", "end", Pair{"statusCode", float64(200)})
-	assertMarkerEqual(t, markers[9].(map[string]interface{}), "get_id_list", "process", "start")
-	assertMarkerEqual(t, markers[10].(map[string]interface{}), "get_id_list", "process", "end", Pair{"success", false})
-	assertMarkerEqual(t, markers[11].(map[string]interface{}), "get_id_list_sources", "process", "end", Pair{"success", true}, Pair{"idListCount", float64(1)})
-}
-
-func TestBootstrapDiagnostics(t *testing.T) {
-	var mu sync.RWMutex
-	events := []Event{}
-	testServer := getTestServer(true, &events, &mu)
-	bytes, _ := os.ReadFile("download_config_specs.json")
-
-	options := &Options{
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: StatsigLoggerOptions{
-			DisableInitDiagnostics: false,
-			DisableSyncDiagnostics: false,
-		},
-		BootstrapValues: string(bytes),
-	}
-	InitializeWithOptions("secret-key", options)
-	shutDownAndClearInstance()
-
-	eventsCopy := copyEvents(&events, &mu)
-	if len(eventsCopy) != 1 {
-		t.Errorf("Expected 1 diagnostics events, received %d", len(eventsCopy))
-	}
-
-	bootstrapDiagnostics := eventsCopy[0].Metadata
-	markers, ok := bootstrapDiagnostics["markers"].([]interface{})
-	if !ok || bootstrapDiagnostics["context"] != "initialize" {
-		t.Errorf("Expected marker context to be 'initialize' but got %s", bootstrapDiagnostics["context"])
-	}
-	if len(markers) != 12 {
-		t.Errorf("Expected %d markers but got %d", 12, len(markers))
-	}
-	assertMarkerEqual(t, markers[0].(map[string]interface{}), "overall", "", "start")
-	assertMarkerEqual(t, markers[1].(map[string]interface{}), "bootstrap", "process", "start")
-	assertMarkerEqual(t, markers[2].(map[string]interface{}), "bootstrap", "process", "end", Pair{"success", true})
-	assertMarkerEqual(t, markers[3].(map[string]interface{}), "get_id_list_sources", "network_request", "start")
-	assertMarkerEqual(t, markers[4].(map[string]interface{}), "get_id_list_sources", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
-	assertMarkerEqual(t, markers[5].(map[string]interface{}), "get_id_list_sources", "process", "start", Pair{"idListCount", float64(1)})
-	assertMarkerEqual(t, markers[6].(map[string]interface{}), "get_id_list", "network_request", "start")
-	assertMarkerEqual(t, markers[7].(map[string]interface{}), "get_id_list", "network_request", "end", Pair{"statusCode", float64(200)})
-	assertMarkerEqual(t, markers[8].(map[string]interface{}), "get_id_list", "process", "start")
-	assertMarkerEqual(t, markers[9].(map[string]interface{}), "get_id_list", "process", "end", Pair{"success", false})
-	assertMarkerEqual(t, markers[10].(map[string]interface{}), "get_id_list_sources", "process", "end", Pair{"success", true}, Pair{"idListCount", float64(1)})
-	assertMarkerEqual(t, markers[11].(map[string]interface{}), "overall", "", "end", Pair{"success", true})
-}
-
-func TestDiagnosticsGetCleared(t *testing.T) {
-	var mu sync.RWMutex
-	events := []Event{}
-	testServer := getTestServer(true, &events, &mu)
-
-	options := &Options{
-		API:                 testServer.URL,
-		Environment:         Environment{Tier: "test"},
-		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: StatsigLoggerOptions{
-			DisableInitDiagnostics: false,
-			DisableSyncDiagnostics: false,
-		},
-		ConfigSyncInterval: time.Millisecond * 900,
-		IDListSyncInterval: time.Millisecond * 1000,
-		LoggingInterval:    time.Millisecond * 1100,
-	}
-	InitializeWithOptions("secret-key", options)
-	defer shutDownAndClearInstance()
-
-	// First config sync
-	time.Sleep(1200 * time.Millisecond)
-
-	eventsCopy := copyEvents(&events, &mu)
-	if len(eventsCopy) != 2 { // initialize & config_sync
-		t.Errorf("Expected 2 diagnostics events, received %d", len(eventsCopy))
-	}
-
-	configSyncDiagnostics := eventsCopy[1].Metadata
-	markers, ok := configSyncDiagnostics["markers"].([]interface{})
-	if !ok || configSyncDiagnostics["context"] != "config_sync" {
-		t.Errorf("Expected marker context to be 'config_sync' but got %s", configSyncDiagnostics["context"])
-	}
-	if len(markers) != 12 {
-		t.Errorf("Expected %d markers but got %d", 12, len(markers))
-	}
-
-	// Second config sync
-	time.Sleep(1200 * time.Millisecond)
-
-	eventsCopy = copyEvents(&events, &mu)
-	if len(eventsCopy) != 1 {
-		t.Errorf("Expected 1 diagnostics events, received %d", len(eventsCopy))
-	}
-	configSyncDiagnostics = eventsCopy[0].Metadata
-	markers, ok = configSyncDiagnostics["markers"].([]interface{})
-	if !ok || configSyncDiagnostics["context"] != "config_sync" {
-		t.Errorf("Expected marker context to be 'config_sync' but got %s", configSyncDiagnostics["context"])
-	}
-	if len(markers) != 12 {
-		t.Errorf("Expected %d markers but got %d", 12, len(markers))
-	}
-}
-
-func copyEvents(events *[]Event, mu *sync.RWMutex) []Event {
-	mu.RLock()
-	defer mu.RUnlock()
-	eventsCopy := make([]Event, len(*events))
-	copy(eventsCopy, *events)
-	return eventsCopy
+	t.Errorf("Timeout Expired")
 }

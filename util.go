@@ -43,7 +43,7 @@ func safeGetFirst(slice []string) string {
 	return ""
 }
 
-func compareMetadata(metadata map[string]interface{}, expected map[string]string) bool {
+func compareMetadata(metadata map[string]string, expected map[string]string) bool {
 	v, _ := json.Marshal(metadata)
 	var rawMetadata map[string]string
 	_ = json.Unmarshal(v, &rawMetadata)
