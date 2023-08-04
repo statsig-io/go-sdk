@@ -52,7 +52,7 @@ func newEvaluator(
 	countryLookup := countrylookup.New()
 	defer func() {
 		if err := recover(); err != nil {
-			errorBoundary.logException(err.(error))
+			errorBoundary.logException(toError(err))
 			global.Logger().LogError(err)
 		}
 	}()
@@ -630,12 +630,12 @@ func compareStrings(s1 interface{}, s2 interface{}, ignoreCase bool, fun func(x,
 		return false
 	}
 	if reflect.TypeOf(s1).Kind() == reflect.String {
-		str1 = s1.(string)
+		str1 = toString(s1)
 	} else {
 		str1 = fmt.Sprintf("%v", s1)
 	}
 	if reflect.TypeOf(s2).Kind() == reflect.String {
-		str2 = s2.(string)
+		str2 = toString(s2)
 	} else {
 		str2 = fmt.Sprintf("%v", s2)
 	}

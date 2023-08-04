@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"time"
 )
@@ -48,4 +49,18 @@ func compareMetadata(metadata map[string]string, expected map[string]string) boo
 	var rawMetadata map[string]string
 	_ = json.Unmarshal(v, &rawMetadata)
 	return reflect.DeepEqual(rawMetadata, expected)
+}
+
+func toError(err interface{}) error {
+	errAsError, ok := err.(error)
+	if ok {
+		return errAsError
+	} else {
+		errAsString, ok := err.(string)
+		if ok {
+			return errors.New(errAsString)
+		} else {
+			return errors.New("")
+		}
+	}
 }

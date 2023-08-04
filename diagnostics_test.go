@@ -178,7 +178,10 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 				t.Errorf("Expected 2 diagnostics events, received %d", len(events))
 			}
 
-			metadata := events[1]["metadata"].(map[string]interface{})
+			metadata, ok := events[1]["metadata"].(map[string]interface{})
+			if !ok {
+				t.Error("Expected metadata to be of type map[string]interface{}")
+			}
 			if metadata["context"] != "config_sync" {
 				t.Errorf("Expected marker context to be 'config_sync' but got %s", metadata["context"])
 			}
@@ -194,7 +197,10 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 				t.Errorf("Expected 1 diagnostics events, received %d", len(events))
 			}
 
-			metadata := events[0]["metadata"].(map[string]interface{})
+			metadata, ok := events[0]["metadata"].(map[string]interface{})
+			if !ok {
+				t.Error("Expected metadata to be of type map[string]interface{}")
+			}
 			markers := extractMarkers(events, 0)
 
 			if metadata["context"] != "config_sync" {
@@ -306,12 +312,21 @@ func assertMarkerEqual(t *testing.T, marker map[string]interface{}, key string, 
 }
 
 func extractMarkers(events []map[string]interface{}, index int) []map[string]interface{} {
-	initializeDiagnostics := events[index]["metadata"].(map[string]interface{})
-	markers := initializeDiagnostics["markers"].([]interface{})
+	initializeDiagnostics, ok := events[index]["metadata"].(map[string]interface{})
+	if !ok {
+		initializeDiagnostics = make(map[string]interface{})
+	}
+	markers, ok := initializeDiagnostics["markers"].([]interface{})
+	if !ok {
+		markers = make([]interface{}, 0)
+	}
 
 	details := make([]map[string]interface{}, len(markers))
 	for i, m := range markers {
-		details[i] = m.(map[string]interface{})
+		details[i], ok = m.(map[string]interface{})
+		if !ok {
+			details[i] = make(map[string]interface{})
+		}
 	}
 
 	return details

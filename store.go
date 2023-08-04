@@ -213,7 +213,7 @@ func (s *store) fetchConfigSpecsFromAdapter() {
 	s.addDiagnostics().dataStoreConfigSpecs().fetch().start().mark()
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error calling data adapter get: %s\n", err.(error).Error())
+			fmt.Fprintf(os.Stderr, "Error calling data adapter get: %s\n", toError(err).Error())
 		}
 	}()
 	specString := s.dataAdapter.get(CONFIG_SPECS_KEY)
@@ -229,7 +229,7 @@ func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
 	specString, err := json.Marshal(specs)
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error calling data adapter set: %s\n", err.(error).Error())
+			fmt.Fprintf(os.Stderr, "Error calling data adapter set: %s\n", toError(err).Error())
 		}
 	}()
 	if err == nil {
