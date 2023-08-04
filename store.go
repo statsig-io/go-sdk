@@ -48,13 +48,14 @@ type configCondition struct {
 }
 
 type downloadConfigSpecResponse struct {
-	HasUpdates     bool                `json:"has_updates"`
-	Time           int64               `json:"time"`
-	FeatureGates   []configSpec        `json:"feature_gates"`
-	DynamicConfigs []configSpec        `json:"dynamic_configs"`
-	LayerConfigs   []configSpec        `json:"layer_configs"`
-	Layers         map[string][]string `json:"layers"`
-	IDLists        map[string]bool     `json:"id_lists"`
+	HasUpdates             bool                `json:"has_updates"`
+	Time                   int64               `json:"time"`
+	FeatureGates           []configSpec        `json:"feature_gates"`
+	DynamicConfigs         []configSpec        `json:"dynamic_configs"`
+	LayerConfigs           []configSpec        `json:"layer_configs"`
+	Layers                 map[string][]string `json:"layers"`
+	IDLists                map[string]bool     `json:"id_lists"`
+	DiagnosticsSampleRates map[string]int      `json:"diagnostics"`
 }
 
 type downloadConfigsInput struct {
@@ -308,6 +309,9 @@ func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *m
 }
 
 func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
+	s.diagnostics.initDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
+	s.diagnostics.syncDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
+
 	if specs.HasUpdates {
 		// TODO: when adding eval details, differentiate REASON between bootstrap and network here
 		newGates := make(map[string]configSpec)

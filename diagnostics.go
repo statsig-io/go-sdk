@@ -1,6 +1,7 @@
 package statsig
 
 import (
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -39,9 +40,10 @@ const (
 )
 
 type diagnosticsBase struct {
-	context DiagnosticsContext
-	markers []marker
-	mu      sync.RWMutex
+	context       DiagnosticsContext
+	markers       []marker
+	mu            sync.RWMutex
+	samplingRates map[string]int
 }
 
 type diagnostics struct {
@@ -90,13 +92,41 @@ func (d *diagnosticsBase) logProcess(msg string) {
 	global.Logger().LogStep(process, msg)
 }
 
-func (d *diagnosticsBase) serialize() map[string]interface{} {
+func (d *diagnosticsBase) serializeWithSampling() map[string]interface{} {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
+
+	markers := make([]marker, 0)
+	sampledKeys := make(map[string]bool)
+	for _, marker := range d.markers {
+		markerKey := string(*marker.Key)
+		if _, exists := sampledKeys[markerKey]; !exists {
+			sampleRate, exists := d.samplingRates[markerKey]
+			if !exists {
+				sampledKeys[markerKey] = false
+			} else {
+				sampledKeys[markerKey] = sample(sampleRate)
+			}
+		}
+		if !sampledKeys[markerKey] {
+			markers = append(markers, marker)
+		}
+	}
 	return map[string]interface{}{
 		"context": d.context,
-		"markers": d.markers,
+		"markers": markers,
 	}
+}
+
+func (d *diagnosticsBase) updateSamplingRates(samplingRates map[string]int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.samplingRates = samplingRates
+}
+
+func sample(rate int) bool {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Intn(rate) == 0
 }
 
 func (d *diagnosticsBase) clearMarkers() {

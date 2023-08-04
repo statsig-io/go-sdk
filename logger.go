@@ -250,16 +250,15 @@ func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
 	if l.options.StatsigLoggerOptions.DisableSyncDiagnostics && d.context == ConfigSyncContext {
 		return
 	}
-	d.mu.Lock()
-	markersLength := len(d.markers)
-	d.mu.Unlock()
-	if markersLength == 0 {
+	serialized := d.serializeWithSampling()
+	markers, ok := serialized["markers"]
+	if !ok || len(markers.([]marker)) == 0 {
 		return
 	}
 	event := diagnosticsEvent{
 		EventName: diagnosticsEventName,
 		Time:      time.Now().Unix() * 1000,
-		Metadata:  d.serialize(),
+		Metadata:  serialized,
 	}
 	d.clearMarkers()
 	l.logInternal(event)

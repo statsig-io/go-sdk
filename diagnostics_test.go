@@ -24,7 +24,7 @@ func TestInitDiagnostics(t *testing.T) {
 	var events Events
 	testServer := getTestServer(true, func(newEvents Events) {
 		events = newEvents
-	})
+	}, false)
 	defer testServer.Close()
 
 	options := &Options{
@@ -94,7 +94,7 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 			assertMarkerEqual(t, markers[10], "get_id_list", "process", "end", Pair{"success", false})
 			assertMarkerEqual(t, markers[11], "get_id_list_sources", "process", "end", Pair{"success", true}, Pair{"idListCount", float64(1)})
 		}
-	})
+	}, false)
 	defer testServer.Close()
 
 	options := &Options{
@@ -123,7 +123,7 @@ func TestBootstrapDiagnostics(t *testing.T) {
 	var events Events
 	testServer := getTestServer(true, func(newEvents Events) {
 		events = newEvents
-	})
+	}, false)
 	defer testServer.Close()
 
 	bytes, _ := os.ReadFile("download_config_specs.json")
@@ -211,7 +211,7 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 				t.Errorf("Expected %d markers but got %d", 12, len(markers))
 			}
 		}
-	})
+	}, false)
 	defer testServer.Close()
 
 	options := &Options{
@@ -236,6 +236,50 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 	})
 }
 
+func TestDiagnosticsSampling(t *testing.T) {
+	var events Events
+
+	testServer := getTestServer(true, func(newEvents Events) {
+		events = append(events, newEvents...)
+	}, true)
+	defer testServer.Close()
+
+	options := &Options{
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DisableInitDiagnostics: false,
+			DisableSyncDiagnostics: false,
+		},
+		ConfigSyncInterval: time.Millisecond * 99999,
+		IDListSyncInterval: time.Millisecond * 99999,
+		LoggingInterval:    time.Millisecond * 99999,
+	}
+	InitializeWithOptions("secret-key", options)
+	defer shutDownAndClearInstance()
+
+	for i := 1; i <= 10; i++ {
+		instance.evaluator.store.fetchConfigSpecsFromServer(false)
+		instance.logger.flush(false)
+	}
+	numEvents := len(events)
+	if !(numEvents > 0 && numEvents < 10) {
+		t.Errorf("Expected between %d and %d events, received %d", 0, 10, numEvents)
+	}
+
+	events = nil
+
+	for i := 1; i <= 10; i++ {
+		instance.evaluator.store.syncIDLists()
+		instance.logger.flush(false)
+	}
+	numEvents = len(events)
+	if !(numEvents > 0 && numEvents < 10) {
+		t.Errorf("Expected between %d and %d events, received %d", 0, 10, numEvents)
+	}
+}
+
 func getTestIDListServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		if strings.Contains(req.URL.Path, "my_id_list") {
@@ -246,7 +290,7 @@ func getTestIDListServer() *httptest.Server {
 	}))
 }
 
-func getTestServer(dcsOnline bool, onLog func(events Events)) *httptest.Server {
+func getTestServer(dcsOnline bool, onLog func(events Events), withSampling bool) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Add("x-statsig-region", "az-westus-2")
 		if strings.Contains(req.URL.Path, "download_config_specs") {
@@ -254,7 +298,11 @@ func getTestServer(dcsOnline bool, onLog func(events Events)) *httptest.Server {
 				res.WriteHeader(http.StatusInternalServerError)
 			} else {
 				var in *downloadConfigsInput
-				bytes, _ := os.ReadFile("download_config_specs.json")
+				dcsFile := "download_config_specs.json"
+				if withSampling {
+					dcsFile = "download_config_specs_with_diagnostics_sampling.json"
+				}
+				bytes, _ := os.ReadFile(dcsFile)
 				_ = json.NewDecoder(req.Body).Decode(&in)
 				res.WriteHeader(http.StatusOK)
 				_, _ = res.Write(bytes)
