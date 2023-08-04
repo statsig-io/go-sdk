@@ -1,6 +1,6 @@
 package statsig
 
-// User specific attributes for evaluating Feature Gates, Experiments, and DyanmicConfigs
+// User specific attributes for evaluating Feature Gates, Experiments, and DynamicConfigs
 //
 // NOTE: UserID is **required** - see https://docs.statsig.com/messages/serverRequiredUserID\
 // PrivateAttributes are only used for user targeting/grouping in feature gates, dynamic configs,
