@@ -130,8 +130,8 @@ func test_helper(apiOverride string, t *testing.T) {
 			}
 
 			if sdkResult.Id != serverResult.RuleID {
-				t.Errorf("Rule IDs are different for gate %s. SDK got %s but server is %s",
-					gate, sdkResult.Id, serverResult.RuleID)
+				t.Errorf("Rule IDs are different for gate %s. SDK got %s but server is %s. User is %+v",
+					gate, sdkResult.Id, serverResult.RuleID, u)
 			}
 
 			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {

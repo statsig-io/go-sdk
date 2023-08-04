@@ -438,8 +438,12 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 			return compareStrings(x, y, true, func(s1, s2 string) bool { return strings.Contains(s1, s2) })
 		})
 	case "str_matches":
-		matched, _ := regexp.MatchString(cond.TargetValue.(string), value.(string))
-		pass = matched
+		if cond.TargetValue == nil || value == nil {
+			pass = cond.TargetValue == nil && value == nil
+		} else {
+			matched, _ := regexp.MatchString(toString(cond.TargetValue), toString(value))
+			pass = matched
+		}
 
 	// strict equality
 	case "eq", "neq":
@@ -468,9 +472,9 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 	case "in_segment_list", "not_in_segment_list":
 		inlist := false
 		if reflect.TypeOf(cond.TargetValue).String() == "string" && reflect.TypeOf(value).String() == "string" {
-			list := e.store.getIDList(cond.TargetValue.(string))
+			list := e.store.getIDList(toString(cond.TargetValue))
 			if list != nil {
-				h := sha256.Sum256([]byte(value.(string)))
+				h := sha256.Sum256([]byte(toString(value)))
 				_, inlist = list.ids.Load(base64.StdEncoding.EncodeToString(h[:])[:8])
 			}
 		}
@@ -497,7 +501,9 @@ func getFromUser(user User, field string) interface{} {
 	case "ip", "ipaddress", "ip_address":
 		value = user.IpAddress
 	case "useragent", "user_agent":
-		value = user.UserAgent
+		if user.UserAgent != "" { // UserAgent cannot be empty string
+			value = user.UserAgent
+		}
 	case "country":
 		value = user.Country
 	case "locale":
@@ -599,6 +605,14 @@ func getNumericValue(a interface{}) (float64, bool) {
 		}
 	}
 	return 0, false
+}
+
+func toString(a interface{}) string {
+	asString, ok := a.(string)
+	if !ok {
+		return ""
+	}
+	return asString
 }
 
 func compareNumbers(a, b interface{}, fun func(x, y float64) bool) bool {
