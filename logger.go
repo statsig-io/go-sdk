@@ -251,8 +251,12 @@ func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
 		return
 	}
 	serialized := d.serializeWithSampling()
-	markers, ok := serialized["markers"]
-	if !ok || len(markers.([]marker)) == 0 {
+	markers, exists := serialized["markers"]
+	if !exists {
+		return
+	}
+	markersTyped, ok := markers.([]marker)
+	if !ok || len(markersTyped) == 0 {
 		return
 	}
 	event := diagnosticsEvent{
