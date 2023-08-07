@@ -466,8 +466,8 @@
   "time": 1631638014811,
   "id_lists": { "list_1": true, "list_2": true },
   "diagnostics": {
-    "download_config_specs": 2,
-    "get_id_list": 2,
-    "get_id_list_sources": 2
+    "download_config_specs": 5000,
+    "get_id_list": 5000,
+    "get_id_list_sources": 5000
   }
 }

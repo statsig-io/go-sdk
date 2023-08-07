@@ -1,6 +1,7 @@
 package statsig
 
 import (
+	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -124,9 +125,9 @@ func (d *diagnosticsBase) updateSamplingRates(samplingRates map[string]int) {
 	d.samplingRates = samplingRates
 }
 
-func sample(rate int) bool {
+func sample(rate_over_ten_thousand int) bool {
 	rand.Seed(time.Now().UnixNano())
-	return rand.Intn(rate) == 0
+	return int(math.Floor(rand.Float64()*10_000)) < rate_over_ten_thousand
 }
 
 func (d *diagnosticsBase) clearMarkers() {
