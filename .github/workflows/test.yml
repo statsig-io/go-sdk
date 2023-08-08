@@ -6,12 +6,9 @@ on:
     branches: [main]
   push:
     branches: [main]
-  schedule:
-    - cron: "0 0,15 * * *"
 
 jobs:
   test:
-    if: github.event_name != 'schedule' || github.event.repository.private
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
