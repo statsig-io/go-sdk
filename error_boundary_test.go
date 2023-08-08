@@ -56,7 +56,7 @@ func TestDCSError(t *testing.T) {
 		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 	InitializeWithOptions("secret-key", opt)
-	defer shutDownAndClearInstance()
+	defer ShutdownAndDangerouslyClearInstance()
 	if !hit {
 		t.Error("Expected sdk_exception endpoint to be hit")
 	}

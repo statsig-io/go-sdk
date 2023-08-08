@@ -37,7 +37,7 @@ func TestInitDiagnostics(t *testing.T) {
 		},
 	}
 	InitializeWithOptions("secret-key", options)
-	shutDownAndClearInstance()
+	ShutdownAndDangerouslyClearInstance()
 
 	markers := extractMarkers(events, 0)
 
@@ -110,7 +110,7 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 		LoggingInterval:    time.Millisecond * 1100,
 	}
 	InitializeWithOptions("secret-key", options)
-	defer shutDownAndClearInstance()
+	defer ShutdownAndDangerouslyClearInstance()
 
 	waitForCondition(t, func() bool {
 		mu.Lock()
@@ -139,7 +139,7 @@ func TestBootstrapDiagnostics(t *testing.T) {
 		BootstrapValues: string(bytes),
 	}
 	InitializeWithOptions("secret-key", options)
-	shutDownAndClearInstance()
+	ShutdownAndDangerouslyClearInstance()
 
 	if len(events) != 1 {
 		t.Errorf("Expected 1 diagnostics events, received %d", len(events))
@@ -227,7 +227,7 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 		LoggingInterval:    time.Millisecond * 1100,
 	}
 	InitializeWithOptions("secret-key", options)
-	defer shutDownAndClearInstance()
+	defer ShutdownAndDangerouslyClearInstance()
 
 	waitForCondition(t, func() bool {
 		mu.Lock()
@@ -257,7 +257,7 @@ func TestDiagnosticsSampling(t *testing.T) {
 		LoggingInterval:    time.Millisecond * 99999,
 	}
 	InitializeWithOptions("secret-key", options)
-	defer shutDownAndClearInstance()
+	defer ShutdownAndDangerouslyClearInstance()
 
 	for i := 1; i <= 10; i++ {
 		instance.evaluator.store.fetchConfigSpecsFromServer(false)

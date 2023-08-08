@@ -66,7 +66,7 @@ func TestInitializeResponseConsistency(t *testing.T) {
 				OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
 				StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 			})
-			defer shutDownAndClearInstance()
+			defer ShutdownAndDangerouslyClearInstance()
 
 			formattedResponse := GetClientInitializeResponse(user)
 			filterClientInitializeResponse(&formattedResponse)

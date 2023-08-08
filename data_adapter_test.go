@@ -58,7 +58,7 @@ func TestBootstrapWithAdapter(t *testing.T) {
 		if layer.GetString("experiment_param", "") != "control" {
 			t.Errorf("Expected layer param to return control")
 		}
-		shutDownAndClearInstance() // shutdown here to flush event queue
+		ShutdownAndDangerouslyClearInstance() // shutdown here to flush event queue
 		if len(events) != 3 {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
 		}
@@ -89,7 +89,7 @@ func TestSaveToAdapter(t *testing.T) {
 		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 	InitializeWithOptions("secret-key", options)
-	defer shutDownAndClearInstance()
+	defer ShutdownAndDangerouslyClearInstance()
 
 	t.Run("updates adapter with newer values from network", func(t *testing.T) {
 		specString := dataAdapter.get(CONFIG_SPECS_KEY)
@@ -130,7 +130,7 @@ func TestAdapterWithPolling(t *testing.T) {
 		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 	InitializeWithOptions("secret-key", options)
-	defer shutDownAndClearInstance()
+	defer ShutdownAndDangerouslyClearInstance()
 	user := User{UserID: "statsig_user", Email: "statsiguser@statsig.com"}
 	t.Run("updating adapter also updates statsig store", func(t *testing.T) {
 		value := CheckGate(user, "always_on_gate")
@@ -198,7 +198,7 @@ func TestIncorrectlyImplementedAdapter(t *testing.T) {
 		if layer.GetString("experiment_param", "") != "control" {
 			t.Errorf("Expected layer param to return control")
 		}
-		shutDownAndClearInstance() // shutdown here to flush event queue
+		ShutdownAndDangerouslyClearInstance() // shutdown here to flush event queue
 		if len(events) != 3 {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
 		}

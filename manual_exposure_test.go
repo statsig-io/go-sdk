@@ -58,7 +58,7 @@ func TestManualExposure(t *testing.T) {
 		GetExperimentWithExposureLoggingDisabled(user, "sample_experiment")
 		layer := GetLayerWithExposureLoggingDisabled(user, "a_layer")
 		layer.GetString("experiment_param", "")
-		shutDownAndClearInstance()
+		ShutdownAndDangerouslyClearInstance()
 
 		if len(events) != 0 {
 			t.Errorf("Should receive no log_event")
@@ -73,7 +73,7 @@ func TestManualExposure(t *testing.T) {
 		ManuallyLogConfigExposure(user, "test_config")
 		ManuallyLogExperimentExposure(user, "sample_experiment")
 		ManuallyLogLayerParameterExposure(user, "a_layer", "experiment_param")
-		shutDownAndClearInstance()
+		ShutdownAndDangerouslyClearInstance()
 
 		if len(events) != 4 {
 			t.Errorf("Should receive exactly 4 log_events")

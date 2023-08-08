@@ -26,7 +26,7 @@ func TestBootstrap(t *testing.T) {
 	if CheckGate(User{UserID: "123"}, "always_on_gate") {
 		t.Errorf("always_on_gate should return false when there is no bootstrap value")
 	}
-	shutDownAndClearInstance()
+	ShutdownAndDangerouslyClearInstance()
 
 	opt := &Options{
 		BootstrapValues:      string(bytes[:]),
@@ -38,7 +38,7 @@ func TestBootstrap(t *testing.T) {
 	if !CheckGate(User{UserID: "123"}, "always_on_gate") {
 		t.Errorf("always_on_gate should return true bootstrap value is provided")
 	}
-	shutDownAndClearInstance()
+	ShutdownAndDangerouslyClearInstance()
 }
 
 func TestRulesUpdatedCallback(t *testing.T) {
@@ -76,7 +76,7 @@ func TestRulesUpdatedCallback(t *testing.T) {
 		t.Errorf("fractional_gate should return true for the given user")
 	}
 
-	shutDownAndClearInstance()
+	ShutdownAndDangerouslyClearInstance()
 
 	// Now use rules from the previous update callback to bootstrap, and validate values
 	opt_bootstrap := &Options{
@@ -91,7 +91,7 @@ func TestRulesUpdatedCallback(t *testing.T) {
 		t.Errorf("always_on_gate should return true bootstrap value is provided")
 	}
 
-	shutDownAndClearInstance()
+	ShutdownAndDangerouslyClearInstance()
 }
 
 func TestLogImmediate(t *testing.T) {
@@ -136,7 +136,7 @@ func TestLogImmediate(t *testing.T) {
 		t.Errorf("Environment not set on user")
 	}
 
-	shutDownAndClearInstance()
+	ShutdownAndDangerouslyClearInstance()
 }
 
 func TestVersion(t *testing.T) {

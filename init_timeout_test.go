@@ -38,7 +38,7 @@ func TestInitTimeout(t *testing.T) {
 			}
 		}()
 		CheckGate(user, "nonexistent-gate")
-		shutDownAndClearInstance()
+		ShutdownAndDangerouslyClearInstance()
 	})
 
 	t.Run("Initalize finish before timeout", func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestInitTimeout(t *testing.T) {
 			}
 		}()
 		CheckGate(user, "nonexistent-gate")
-		shutDownAndClearInstance()
+		ShutdownAndDangerouslyClearInstance()
 	})
 
 	t.Run("Initialize timed out", func(t *testing.T) {
@@ -85,6 +85,6 @@ func TestInitTimeout(t *testing.T) {
 			}
 		}()
 		CheckGate(user, "nonexistent-gate")
-		shutDownAndClearInstance()
+		ShutdownAndDangerouslyClearInstance()
 	})
 }

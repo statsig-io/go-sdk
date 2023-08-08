@@ -91,7 +91,7 @@ func TestEvaluationDetails(t *testing.T) {
 		_ = GetExperiment(user, "sample_experiment")
 		layer := GetLayer(user, "unallocated_layer")
 		layer.GetNumber("an_int", 0)
-		shutDownAndClearInstance()
+		ShutdownAndDangerouslyClearInstance()
 
 		if len(events) != 3 {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
@@ -137,7 +137,7 @@ func TestEvaluationDetails(t *testing.T) {
 		_ = GetExperiment(user, "sample_experiment")
 		layer := GetLayer(user, "unallocated_layer")
 		layer.GetNumber("an_int", 0)
-		shutDownAndClearInstance()
+		ShutdownAndDangerouslyClearInstance()
 
 		if len(events) != 3 {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
@@ -183,7 +183,7 @@ func TestEvaluationDetails(t *testing.T) {
 		_ = GetExperiment(user, "sample_experiment")
 		layer := GetLayer(user, "unallocated_layer")
 		layer.GetNumber("an_int", 0)
-		shutDownAndClearInstance()
+		ShutdownAndDangerouslyClearInstance()
 
 		if len(events) != 3 {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
@@ -228,7 +228,7 @@ func TestEvaluationDetails(t *testing.T) {
 		OverrideConfig("test_config", map[string]interface{}{})
 		_ = CheckGate(user, "always_on_gate")
 		_ = GetConfig(user, "test_config")
-		shutDownAndClearInstance()
+		ShutdownAndDangerouslyClearInstance()
 
 		if len(events) != 2 {
 			t.Errorf("Should receive exactly 2 log_event. Got %d", len(events))

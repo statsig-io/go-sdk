@@ -241,7 +241,7 @@ func Shutdown() {
 }
 
 // For test only so we can clear the shared instance. Not thread safe.
-func shutDownAndClearInstance() {
+func ShutdownAndDangerouslyClearInstance() {
 	Shutdown()
 	instance = nil
 }
