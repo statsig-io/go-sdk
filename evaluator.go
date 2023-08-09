@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -40,6 +41,7 @@ type evalResult struct {
 }
 
 const dynamicConfigType = "dynamic_config"
+const maxRecursiveDepth = 300
 
 func newEvaluator(
 	transport *transport,
@@ -81,6 +83,10 @@ func (e *evaluator) createEvaluationDetails(reason evaluationReason) *evaluation
 }
 
 func (e *evaluator) checkGate(user User, gateName string) *evalResult {
+	return e.evalGate(user, gateName, 0)
+}
+
+func (e *evaluator) evalGate(user User, gateName string, depth int) *evalResult {
 	if gateOverride, hasOverride := e.getGateOverride(gateName); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
@@ -91,7 +97,7 @@ func (e *evaluator) checkGate(user User, gateName string) *evalResult {
 		}
 	}
 	if gate, hasGate := e.store.getGate(gateName); hasGate {
-		return e.eval(user, gate)
+		return e.eval(user, gate, depth+1)
 	}
 	emptyEvalResult := new(evalResult)
 	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
@@ -100,6 +106,10 @@ func (e *evaluator) checkGate(user User, gateName string) *evalResult {
 }
 
 func (e *evaluator) getConfig(user User, configName string) *evalResult {
+	return e.evalConfig(user, configName, 0)
+}
+
+func (e *evaluator) evalConfig(user User, configName string, depth int) *evalResult {
 	if configOverride, hasOverride := e.getConfigOverride(configName); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
@@ -111,7 +121,7 @@ func (e *evaluator) getConfig(user User, configName string) *evalResult {
 		}
 	}
 	if config, hasConfig := e.store.getDynamicConfig(configName); hasConfig {
-		return e.eval(user, config)
+		return e.eval(user, config, depth+1)
 	}
 	emptyEvalResult := new(evalResult)
 	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
@@ -120,6 +130,10 @@ func (e *evaluator) getConfig(user User, configName string) *evalResult {
 }
 
 func (e *evaluator) getLayer(user User, name string) *evalResult {
+	return e.evalLayer(user, name, 0)
+}
+
+func (e *evaluator) evalLayer(user User, name string, depth int) *evalResult {
 	if layerOverride, hasOverride := e.getLayerOverride(name); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
@@ -131,7 +145,7 @@ func (e *evaluator) getLayer(user User, name string) *evalResult {
 		}
 	}
 	if config, hasConfig := e.store.getLayerConfig(name); hasConfig {
-		return e.eval(user, config)
+		return e.eval(user, config, depth+1)
 	}
 	emptyEvalResult := new(evalResult)
 	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
@@ -187,7 +201,10 @@ func (e *evaluator) getClientInitializeResponse(user User) ClientInitializeRespo
 	return getClientInitializeResponse(user, e.store, e.eval)
 }
 
-func (e *evaluator) eval(user User, spec configSpec) *evalResult {
+func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
+	if depth > maxRecursiveDepth {
+		panic(errors.New("Statsig Evaluation Depth Exceeded"))
+	}
 	var configValue map[string]interface{}
 	e.store.mu.RLock()
 	reason := e.store.initReason
@@ -205,14 +222,14 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 	defaultRuleID := "default"
 	if spec.Enabled {
 		for _, rule := range spec.Rules {
-			r := e.evalRule(user, rule)
+			r := e.evalRule(user, rule, depth+1)
 			if r.FetchFromServer {
 				return r
 			}
 			exposures = append(exposures, r.SecondaryExposures...)
 			if r.Pass {
 
-				delegatedResult := e.evalDelegate(user, rule, exposures)
+				delegatedResult := e.evalDelegate(user, rule, exposures, depth+1)
 				if delegatedResult != nil {
 					return delegatedResult
 				}
@@ -266,13 +283,13 @@ func (e *evaluator) eval(user User, spec configSpec) *evalResult {
 	return &evalResult{Pass: false, Id: defaultRuleID, SecondaryExposures: exposures}
 }
 
-func (e *evaluator) evalDelegate(user User, rule configRule, exposures []map[string]string) *evalResult {
+func (e *evaluator) evalDelegate(user User, rule configRule, exposures []map[string]string, depth int) *evalResult {
 	config, hasConfig := e.store.getDynamicConfig(rule.ConfigDelegate)
 	if !hasConfig {
 		return nil
 	}
 
-	result := e.eval(user, config)
+	result := e.eval(user, config, depth+1)
 	result.ConfigDelegate = rule.ConfigDelegate
 	result.SecondaryExposures = append(exposures, result.SecondaryExposures...)
 	result.UndelegatedSecondaryExposures = exposures
@@ -308,11 +325,11 @@ func getUnitID(user User, idType string) string {
 	return user.UserID
 }
 
-func (e *evaluator) evalRule(user User, rule configRule) *evalResult {
+func (e *evaluator) evalRule(user User, rule configRule, depth int) *evalResult {
 	var exposures = make([]map[string]string, 0)
 	var finalResult = &evalResult{Pass: true, FetchFromServer: false}
 	for _, cond := range rule.Conditions {
-		res := e.evalCondition(user, cond)
+		res := e.evalCondition(user, cond, depth+1)
 		if !res.Pass {
 			finalResult.Pass = false
 		}
@@ -325,7 +342,7 @@ func (e *evaluator) evalRule(user User, rule configRule) *evalResult {
 	return finalResult
 }
 
-func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
+func (e *evaluator) evalCondition(user User, cond configCondition, depth int) *evalResult {
 	var value interface{}
 	condType := strings.ToLower(cond.Type)
 	op := strings.ToLower(cond.Operator)
@@ -337,7 +354,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition) *evalResult {
 		if !ok {
 			return &evalResult{Pass: false}
 		}
-		result := e.checkGate(user, dependentGateName)
+		result := e.evalGate(user, dependentGateName, depth+1)
 		if result.FetchFromServer {
 			return &evalResult{FetchFromServer: true}
 		}

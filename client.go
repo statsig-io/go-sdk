@@ -65,13 +65,15 @@ func (c *Client) CheckGateWithExposureLoggingDisabled(user User, gate string) bo
 
 // Logs an exposure event for the dynamic config
 func (c *Client) ManuallyLogGateExposure(user User, gate string) {
-	if !c.verifyUser(user) {
-		return
-	}
-	user = normalizeUser(user, *c.options)
-	res := c.evaluator.checkGate(user, gate)
-	context := &logContext{isManualExposure: true}
-	c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+	c.errorBoundary.captureVoid(func() {
+		if !c.verifyUser(user) {
+			return
+		}
+		user = normalizeUser(user, *c.options)
+		res := c.evaluator.checkGate(user, gate)
+		context := &logContext{isManualExposure: true}
+		c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+	})
 }
 
 // Gets the DynamicConfig value for the given user
@@ -88,13 +90,15 @@ func (c *Client) GetConfigWithExposureLoggingDisabled(user User, config string) 
 
 // Logs an exposure event for the config
 func (c *Client) ManuallyLogConfigExposure(user User, config string) {
-	if !c.verifyUser(user) {
-		return
-	}
-	user = normalizeUser(user, *c.options)
-	res := c.evaluator.getConfig(user, config)
-	context := &logContext{isManualExposure: true}
-	c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+	c.errorBoundary.captureVoid(func() {
+		if !c.verifyUser(user) {
+			return
+		}
+		user = normalizeUser(user, *c.options)
+		res := c.evaluator.getConfig(user, config)
+		context := &logContext{isManualExposure: true}
+		c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+	})
 }
 
 // Gets the DynamicConfig value of an Experiment for the given user
@@ -132,38 +136,42 @@ func (c *Client) GetLayerWithExposureLoggingDisabled(user User, layer string) La
 
 // Logs an exposure event for the parameter in the given layer
 func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, parameter string) {
-	if !c.verifyUser(user) {
-		return
-	}
-	user = normalizeUser(user, *c.options)
-	res := c.evaluator.getLayer(user, layer)
-	config := NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, nil).configBase
-	context := &logContext{isManualExposure: true}
-	c.logger.logLayerExposure(user, config, parameter, *res, res.EvaluationDetails, context)
+	c.errorBoundary.captureVoid(func() {
+		if !c.verifyUser(user) {
+			return
+		}
+		user = normalizeUser(user, *c.options)
+		res := c.evaluator.getLayer(user, layer)
+		config := NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, nil).configBase
+		context := &logContext{isManualExposure: true}
+		c.logger.logLayerExposure(user, config, parameter, *res, res.EvaluationDetails, context)
+	})
 }
 
 // Logs an event to Statsig for analysis in the Statsig Console
 func (c *Client) LogEvent(event Event) {
-	event.User = normalizeUser(event.User, *c.options)
-	if event.EventName == "" {
-		return
-	}
-	c.logger.logCustom(event)
+	c.errorBoundary.captureVoid(func() {
+		event.User = normalizeUser(event.User, *c.options)
+		if event.EventName == "" {
+			return
+		}
+		c.logger.logCustom(event)
+	})
 }
 
 // Override the value of a Feature Gate for the given user
 func (c *Client) OverrideGate(gate string, val bool) {
-	c.evaluator.OverrideGate(gate, val)
+	c.errorBoundary.captureVoid(func() { c.evaluator.OverrideGate(gate, val) })
 }
 
 // Override the DynamicConfig value for the given user
 func (c *Client) OverrideConfig(config string, val map[string]interface{}) {
-	c.evaluator.OverrideConfig(config, val)
+	c.errorBoundary.captureVoid(func() { c.evaluator.OverrideConfig(config, val) })
 }
 
 // Override the Layer value for the given user
 func (c *Client) OverrideLayer(layer string, val map[string]interface{}) {
-	c.evaluator.OverrideLayer(layer, val)
+	c.errorBoundary.captureVoid(func() { c.evaluator.OverrideLayer(layer, val) })
 }
 
 func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
@@ -189,11 +197,13 @@ func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 }
 
 func (c *Client) GetClientInitializeResponse(user User) ClientInitializeResponse {
-	if !c.verifyUser(user) {
-		return *new(ClientInitializeResponse)
-	}
-	user = normalizeUser(user, *c.options)
-	return c.evaluator.getClientInitializeResponse(user)
+	return c.errorBoundary.captureGetClientInitializeResponse(func() ClientInitializeResponse {
+		if !c.verifyUser(user) {
+			return *new(ClientInitializeResponse)
+		}
+		user = normalizeUser(user, *c.options)
+		return c.evaluator.getClientInitializeResponse(user)
+	})
 }
 
 func (c *Client) verifyUser(user User) bool {
@@ -208,8 +218,10 @@ func (c *Client) verifyUser(user User) bool {
 // Cleans up Statsig, persisting any Event Logs and cleanup processes
 // Using any method is undefined after Shutdown() has been called
 func (c *Client) Shutdown() {
-	c.logger.flush(true)
-	c.evaluator.shutdown()
+	c.errorBoundary.captureVoid(func() {
+		c.logger.flush(true)
+		c.evaluator.shutdown()
+	})
 }
 
 type checkGateOptions struct {
@@ -249,60 +261,66 @@ type getConfigInput struct {
 }
 
 func (c *Client) checkGateImpl(user User, gate string, options checkGateOptions) bool {
-	if !c.verifyUser(user) {
-		return false
-	}
-	user = normalizeUser(user, *c.options)
-	res := c.evaluator.checkGate(user, gate)
-	if res.FetchFromServer {
-		serverRes := fetchGate(user, gate, c.transport)
-		res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
-	} else {
-		if options.logExposure {
-			context := &logContext{isManualExposure: false}
-			c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+	return c.errorBoundary.captureCheckGate(func() bool {
+		if !c.verifyUser(user) {
+			return false
 		}
-	}
-	return res.Pass
+		user = normalizeUser(user, *c.options)
+		res := c.evaluator.checkGate(user, gate)
+		if res.FetchFromServer {
+			serverRes := fetchGate(user, gate, c.transport)
+			res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
+		} else {
+			if options.logExposure {
+				context := &logContext{isManualExposure: false}
+				c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+			}
+		}
+		return res.Pass
+	})
 }
 
 func (c *Client) getConfigImpl(user User, config string, options getConfigOptions) DynamicConfig {
-	if !c.verifyUser(user) {
-		return *NewConfig(config, nil, "")
-	}
-	user = normalizeUser(user, *c.options)
-	res := c.evaluator.getConfig(user, config)
-	if res.FetchFromServer {
-		res = c.fetchConfigFromServer(user, config)
-	} else {
-		if options.logExposure {
-			context := &logContext{isManualExposure: false}
-			c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+	return c.errorBoundary.captureGetConfig(func() DynamicConfig {
+		if !c.verifyUser(user) {
+			return *NewConfig(config, nil, "")
 		}
-	}
-	return res.ConfigValue
+		user = normalizeUser(user, *c.options)
+		res := c.evaluator.getConfig(user, config)
+		if res.FetchFromServer {
+			res = c.fetchConfigFromServer(user, config)
+		} else {
+			if options.logExposure {
+				context := &logContext{isManualExposure: false}
+				c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+			}
+		}
+		return res.ConfigValue
+	})
 }
 
 func (c *Client) getLayerImpl(user User, layer string, options getLayerOptions) Layer {
-	if !c.verifyUser(user) {
-		return *NewLayer(layer, nil, "", nil)
-	}
-
-	user = normalizeUser(user, *c.options)
-	res := c.evaluator.getLayer(user, layer)
-
-	if res.FetchFromServer {
-		res = c.fetchConfigFromServer(user, layer)
-	}
-
-	logFunc := func(config configBase, parameterName string) {
-		if options.logExposure {
-			context := &logContext{isManualExposure: false}
-			c.logger.logLayerExposure(user, config, parameterName, *res, res.EvaluationDetails, context)
+	return c.errorBoundary.captureGetLayer(func() Layer {
+		if !c.verifyUser(user) {
+			return *NewLayer(layer, nil, "", nil)
 		}
-	}
 
-	return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, &logFunc)
+		user = normalizeUser(user, *c.options)
+		res := c.evaluator.getLayer(user, layer)
+
+		if res.FetchFromServer {
+			res = c.fetchConfigFromServer(user, layer)
+		}
+
+		logFunc := func(config configBase, parameterName string) {
+			if options.logExposure {
+				context := &logContext{isManualExposure: false}
+				c.logger.logLayerExposure(user, config, parameterName, *res, res.EvaluationDetails, context)
+			}
+		}
+
+		return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, &logFunc)
+	})
 }
 
 func fetchGate(user User, gateName string, t *transport) gateResponse {

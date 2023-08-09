@@ -73,7 +73,7 @@ func mergeMaps(a map[string]interface{}, b map[string]interface{}) {
 func getClientInitializeResponse(
 	user User,
 	store *store,
-	evalFunc func(user User, spec configSpec) *evalResult,
+	evalFunc func(user User, spec configSpec, depth int) *evalResult,
 ) ClientInitializeResponse {
 	evalResultToBaseResponse := func(name string, eval *evalResult) (string, baseSpecInitializeResponse) {
 		hashedName := getHashBase64StringEncoding(name)
@@ -85,7 +85,7 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 	gateToResponse := func(gateName string, spec configSpec) (string, GateInitializeResponse) {
-		evalResult := evalFunc(user, spec)
+		evalResult := evalFunc(user, spec, 0)
 		hashedName, base := evalResultToBaseResponse(gateName, evalResult)
 		result := GateInitializeResponse{
 			baseSpecInitializeResponse: base,
@@ -94,7 +94,7 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 	configToResponse := func(configName string, spec configSpec) (string, ConfigInitializeResponse) {
-		evalResult := evalFunc(user, spec)
+		evalResult := evalFunc(user, spec, 0)
 		hashedName, base := evalResultToBaseResponse(configName, evalResult)
 		result := ConfigInitializeResponse{
 			baseSpecInitializeResponse: base,
@@ -129,7 +129,7 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 	layerToResponse := func(layerName string, spec configSpec) (string, LayerInitializeResponse) {
-		evalResult := evalFunc(user, spec)
+		evalResult := evalFunc(user, spec, 0)
 		hashedName, base := evalResultToBaseResponse(layerName, evalResult)
 		result := LayerInitializeResponse{
 			baseSpecInitializeResponse:    base,
@@ -149,7 +149,7 @@ func getClientInitializeResponse(
 		}
 		if delegate != "" {
 			delegateSpec, exists := store.getDynamicConfig(delegate)
-			delegateResult := evalFunc(user, delegateSpec)
+			delegateResult := evalFunc(user, delegateSpec, 0)
 			if exists {
 				result.AllocatedExperimentName = getHashBase64StringEncoding(delegate)
 				result.IsUserInExperiment = new(bool)

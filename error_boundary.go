@@ -28,6 +28,9 @@ type logExceptionResponse struct {
 	Success bool
 }
 
+var ErrorBoundaryAPI = "https://statsigapi.net/v1"
+var ErrorBoundaryEndpoint = "/sdk_exception"
+
 const (
 	InvalidSDKKeyError  string = "Must provide a valid SDK key."
 	EmptyUserError      string = "A non-empty StatsigUser.UserID or StatsigUser.CustomIDs is required. See https://docs.statsig.com/messages/serverRequiredUserID"
@@ -36,8 +39,8 @@ const (
 
 func newErrorBoundary(sdkKey string, options *Options) *errorBoundary {
 	errorBoundary := &errorBoundary{
-		api:      "https://statsigapi.net/v1",
-		endpoint: "/sdk_exception",
+		api:      ErrorBoundaryAPI,
+		endpoint: ErrorBoundaryEndpoint,
 		sdkKey:   sdkKey,
 		client:   &http.Client{Timeout: time.Second * 3},
 		seen:     make(map[string]bool),
@@ -56,6 +59,38 @@ func (e *errorBoundary) checkSeen(exceptionString string) bool {
 	}
 	e.seen[exceptionString] = true
 	return false
+}
+
+func (e *errorBoundary) captureCheckGate(task func() bool) bool {
+	defer e.ebRecover()
+	return task()
+}
+
+func (e *errorBoundary) captureGetConfig(task func() DynamicConfig) DynamicConfig {
+	defer e.ebRecover()
+	return task()
+}
+
+func (e *errorBoundary) captureGetLayer(task func() Layer) Layer {
+	defer e.ebRecover()
+	return task()
+}
+
+func (e *errorBoundary) captureGetClientInitializeResponse(task func() ClientInitializeResponse) ClientInitializeResponse {
+	defer e.ebRecover()
+	return task()
+}
+
+func (e *errorBoundary) captureVoid(task func()) {
+	defer e.ebRecover()
+	task()
+}
+
+func (e *errorBoundary) ebRecover() {
+	if err := recover(); err != nil {
+		e.logException(toError(err))
+		global.Logger().LogError(err)
+	}
 }
 
 func (e *errorBoundary) logException(exception error) {
