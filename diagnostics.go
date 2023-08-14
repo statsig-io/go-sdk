@@ -247,7 +247,7 @@ func (m *marker) url(val string) *marker {
 
 /* End of chain */
 func (m *marker) mark() {
-	m.Timestamp = time.Now().Unix() * 1000
+	m.Timestamp = time.Now().UnixNano() / 1000000.0
 	m.diagnostics.mu.Lock()
 	defer m.diagnostics.mu.Unlock()
 	m.diagnostics.markers = append(m.diagnostics.markers, *m)
