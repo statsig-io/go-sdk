@@ -82,7 +82,7 @@ func (l *logger) backgroundFlush() {
 func (l *logger) logCustom(evt Event) {
 	evt.User.PrivateAttributes = nil
 	if evt.Time == 0 {
-		evt.Time = time.Now().Unix() * 1000
+		evt.Time = getUnixMilli()
 	}
 	l.logInternal(evt)
 }
@@ -103,7 +103,7 @@ func (l *logger) logExposureWithEvaluationDetails(
 func (l *logger) logExposure(evt exposureEvent) {
 	evt.User.PrivateAttributes = nil
 	if evt.Time == 0 {
-		evt.Time = time.Now().Unix() * 1000
+		evt.Time = getUnixMilli()
 	}
 	l.logInternal(evt)
 }
@@ -261,7 +261,7 @@ func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
 	}
 	event := diagnosticsEvent{
 		EventName: diagnosticsEventName,
-		Time:      time.Now().Unix() * 1000,
+		Time:      getUnixMilli(),
 		Metadata:  serialized,
 	}
 	d.clearMarkers()

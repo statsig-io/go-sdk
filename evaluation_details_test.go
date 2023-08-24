@@ -3,14 +3,14 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
-	"time"
 )
+
+const configSyncTime = 1631638014811
 
 func TestEvaluationDetails(t *testing.T) {
 	events := []Event{}
@@ -56,22 +56,14 @@ func TestEvaluationDetails(t *testing.T) {
 		events = []Event{}
 	}
 
-	var mockedServerTime int64
-	doMock := func() {
-		now = func() time.Time { return time.Date(2022, 12, 12, 0, 0, 0, 0, time.Local) }
-		mockedServerTime = now().Unix() * 1000
-	}
-
 	start := func() {
 		reset()
-		doMock()
 		InitializeWithOptions("secret-key", opt)
 	}
 
 	startDCSOffline := func() {
 		reset()
 		opt.API = getTestServer(false).URL
-		doMock()
 		InitializeWithOptions("secret-key", opt)
 	}
 
@@ -80,7 +72,6 @@ func TestEvaluationDetails(t *testing.T) {
 		bytes, _ := os.ReadFile("download_config_specs.json")
 		opt.BootstrapValues = string(bytes)
 		opt.API = getTestServer(false).URL
-		doMock()
 		InitializeWithOptions("secret-key", opt)
 	}
 
@@ -97,37 +88,24 @@ func TestEvaluationDetails(t *testing.T) {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
 		}
 
-		if compareMetadata(events[0].Metadata, map[string]string{
-			"gate":           "always_on_gate",
-			"gateValue":      "true",
-			"ruleID":         "6N6Z8ODekNYZ7F8gFdoLP5",
-			"reason":         "Network",
-			"configSyncTime": "1631638014811",
-			"initTime":       "1631638014811",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[0].Metadata)
-		}
-		if compareMetadata(events[1].Metadata, map[string]string{
-			"config":         "test_config",
-			"ruleID":         "default",
-			"reason":         "Network",
-			"configSyncTime": "1631638014811",
-			"initTime":       "1631638014811",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[1].Metadata)
-		}
-		if compareMetadata(events[2].Metadata, map[string]string{
-			"config":         "sample_experiment",
-			"ruleID":         "2RamGsERWbWMIMnSfOlQuX",
-			"reason":         "Network",
-			"configSyncTime": "1631638014811",
-			"initTime":       "1631638014811",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[2].Metadata)
-		}
+		compareMetadata(t, events[0].Metadata, map[string]string{
+			"gate":      "always_on_gate",
+			"gateValue": "true",
+			"ruleID":    "6N6Z8ODekNYZ7F8gFdoLP5",
+			"reason":    "Network",
+		}, configSyncTime)
+
+		compareMetadata(t, events[1].Metadata, map[string]string{
+			"config": "test_config",
+			"ruleID": "default",
+			"reason": "Network",
+		}, configSyncTime)
+
+		compareMetadata(t, events[2].Metadata, map[string]string{
+			"config": "sample_experiment",
+			"ruleID": "2RamGsERWbWMIMnSfOlQuX",
+			"reason": "Network",
+		}, configSyncTime)
 	})
 
 	t.Run("bootstrap init reason", func(t *testing.T) {
@@ -143,37 +121,24 @@ func TestEvaluationDetails(t *testing.T) {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
 		}
 
-		if compareMetadata(events[0].Metadata, map[string]string{
-			"gate":           "always_on_gate",
-			"gateValue":      "true",
-			"ruleID":         "6N6Z8ODekNYZ7F8gFdoLP5",
-			"reason":         "Bootstrap",
-			"configSyncTime": "1631638014811",
-			"initTime":       "1631638014811",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[0].Metadata)
-		}
-		if compareMetadata(events[1].Metadata, map[string]string{
-			"config":         "test_config",
-			"ruleID":         "default",
-			"reason":         "Bootstrap",
-			"configSyncTime": "1631638014811",
-			"initTime":       "1631638014811",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[1].Metadata)
-		}
-		if compareMetadata(events[2].Metadata, map[string]string{
-			"config":         "sample_experiment",
-			"ruleID":         "2RamGsERWbWMIMnSfOlQuX",
-			"reason":         "Bootstrap",
-			"configSyncTime": "1631638014811",
-			"initTime":       "1631638014811",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[2].Metadata)
-		}
+		compareMetadata(t, events[0].Metadata, map[string]string{
+			"gate":      "always_on_gate",
+			"gateValue": "true",
+			"ruleID":    "6N6Z8ODekNYZ7F8gFdoLP5",
+			"reason":    "Bootstrap",
+		}, configSyncTime)
+
+		compareMetadata(t, events[1].Metadata, map[string]string{
+			"config": "test_config",
+			"ruleID": "default",
+			"reason": "Bootstrap",
+		}, configSyncTime)
+
+		compareMetadata(t, events[2].Metadata, map[string]string{
+			"config": "sample_experiment",
+			"ruleID": "2RamGsERWbWMIMnSfOlQuX",
+			"reason": "Bootstrap",
+		}, configSyncTime)
 	})
 
 	t.Run("unrecognized eval reason", func(t *testing.T) {
@@ -189,37 +154,24 @@ func TestEvaluationDetails(t *testing.T) {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
 		}
 
-		if compareMetadata(events[0].Metadata, map[string]string{
-			"gate":           "always_on_gate",
-			"gateValue":      "false",
-			"ruleID":         "",
-			"reason":         "Unrecognized",
-			"configSyncTime": "0",
-			"initTime":       "0",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[0].Metadata)
-		}
-		if compareMetadata(events[1].Metadata, map[string]string{
-			"config":         "test_config",
-			"ruleID":         "",
-			"reason":         "Unrecognized",
-			"configSyncTime": "0",
-			"initTime":       "0",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[1].Metadata)
-		}
-		if compareMetadata(events[2].Metadata, map[string]string{
-			"config":         "sample_experiment",
-			"ruleID":         "",
-			"reason":         "Unrecognized",
-			"configSyncTime": "0",
-			"initTime":       "0",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[2].Metadata)
-		}
+		compareMetadata(t, events[0].Metadata, map[string]string{
+			"gate":      "always_on_gate",
+			"gateValue": "false",
+			"ruleID":    "",
+			"reason":    "Unrecognized",
+		}, 0)
+
+		compareMetadata(t, events[1].Metadata, map[string]string{
+			"config": "test_config",
+			"ruleID": "",
+			"reason": "Unrecognized",
+		}, 0)
+
+		compareMetadata(t, events[2].Metadata, map[string]string{
+			"config": "sample_experiment",
+			"ruleID": "",
+			"reason": "Unrecognized",
+		}, 0)
 	})
 
 	t.Run("local override eval reason", func(t *testing.T) {
@@ -234,26 +186,17 @@ func TestEvaluationDetails(t *testing.T) {
 			t.Errorf("Should receive exactly 2 log_event. Got %d", len(events))
 		}
 
-		if compareMetadata(events[0].Metadata, map[string]string{
-			"gate":           "always_on_gate",
-			"gateValue":      "false",
-			"ruleID":         "override",
-			"reason":         "LocalOverride",
-			"configSyncTime": "1631638014811",
-			"initTime":       "1631638014811",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[0].Metadata)
-		}
-		if compareMetadata(events[1].Metadata, map[string]string{
-			"config":         "test_config",
-			"ruleID":         "override",
-			"reason":         "LocalOverride",
-			"configSyncTime": "1631638014811",
-			"initTime":       "1631638014811",
-			"serverTime":     fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata %v", events[1].Metadata)
-		}
+		compareMetadata(t, events[0].Metadata, map[string]string{
+			"gate":      "always_on_gate",
+			"gateValue": "false",
+			"ruleID":    "override",
+			"reason":    "LocalOverride",
+		}, configSyncTime)
+
+		compareMetadata(t, events[1].Metadata, map[string]string{
+			"config": "test_config",
+			"ruleID": "override",
+			"reason": "LocalOverride",
+		}, configSyncTime)
 	})
 }

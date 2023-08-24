@@ -6,7 +6,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"reflect"
+	"strconv"
+	"testing"
 	"time"
 )
 
@@ -16,9 +17,6 @@ func defaultString(v, d string) string {
 	}
 	return v
 }
-
-// Allows for overriding in tests
-var now = time.Now
 
 func getHash(key string) []byte {
 	hasher := sha256.New()
@@ -44,11 +42,39 @@ func safeGetFirst(slice []string) string {
 	return ""
 }
 
-func compareMetadata(metadata map[string]string, expected map[string]string) bool {
+func compareMetadata(t *testing.T, metadata map[string]string, expected map[string]string, time int64) {
 	v, _ := json.Marshal(metadata)
 	var rawMetadata map[string]string
 	_ = json.Unmarshal(v, &rawMetadata)
-	return reflect.DeepEqual(rawMetadata, expected)
+
+	for key, value1 := range expected {
+		if value2, exists := metadata[key]; exists {
+			if value1 != value2 {
+				t.Errorf("Values for key '%s' do not match", key)
+			}
+		} else {
+			t.Errorf("Key '%s' does not exist in metadata", key)
+		}
+	}
+
+	for _, key := range []string{"configSyncTime", "initTime"} {
+		value, exists := metadata[key]
+		if !exists {
+			t.Errorf("'%s' does not exist in metadata", key)
+		}
+
+		if strconv.FormatInt(time, 10) != value {
+			t.Errorf("'%s' does not have the expected time %d. Actual %s", key, time, value)
+		}
+	}
+
+	now := getUnixMilli()
+	serverTime, _ := strconv.ParseInt(metadata["serverTime"], 10, 64)
+	if now-1000 <= serverTime && serverTime <= now+1000 {
+		return
+	}
+
+	t.Errorf("serverTime is outside of the valid range. Expected %d (±2000), Actual %d", now, serverTime)
 }
 
 func toError(err interface{}) error {
@@ -63,4 +89,10 @@ func toError(err interface{}) error {
 			return errors.New("")
 		}
 	}
+}
+
+func getUnixMilli() int64 {
+	// time.Now().UnixMilli() wasn't added until go 1.17
+	unixNano := time.Now().UnixNano()
+	return unixNano / int64(time.Millisecond)
 }

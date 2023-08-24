@@ -27,6 +27,6 @@ func newEvaluationDetails(
 		reason:         reason,
 		configSyncTime: configSyncTime,
 		initTime:       initTime,
-		serverTime:     now().Unix() * 1000,
+		serverTime:     getUnixMilli(),
 	}
 }

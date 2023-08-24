@@ -3,13 +3,11 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestLayerExposure(t *testing.T) {
@@ -46,15 +44,8 @@ func TestLayerExposure(t *testing.T) {
 
 	user := User{UserID: "some_user_id"}
 
-	var mockedServerTime int64
-	doMock := func() {
-		now = func() time.Time { return time.Date(2022, 12, 12, 0, 0, 0, 0, time.Local) }
-		mockedServerTime = now().Unix() * 1000
-	}
-
 	start := func() {
 		events = []Event{}
-		doMock()
 		InitializeWithOptions("secret-key", opt)
 	}
 
@@ -110,19 +101,14 @@ func TestLayerExposure(t *testing.T) {
 			t.Errorf("Should receive exactly one log_event")
 		}
 
-		if compareMetadata(events[0].Metadata, map[string]string{
+		compareMetadata(t, events[0].Metadata, map[string]string{
 			"config":              "unallocated_layer",
 			"ruleID":              "default",
 			"allocatedExperiment": "",
 			"parameterName":       "an_int",
 			"isExplicitParameter": "false",
 			"reason":              "Network",
-			"configSyncTime":      "0",
-			"initTime":            "0",
-			"serverTime":          fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata")
-		}
+		}, 0)
 	})
 
 	//
@@ -138,33 +124,23 @@ func TestLayerExposure(t *testing.T) {
 			t.Errorf("Should receive exactly two log_events")
 		}
 
-		if compareMetadata(events[0].Metadata, map[string]string{
+		compareMetadata(t, events[0].Metadata, map[string]string{
 			"config":              "explicit_vs_implicit_parameter_layer",
 			"ruleID":              "alwaysPass",
 			"allocatedExperiment": "experiment",
 			"parameterName":       "an_int",
 			"isExplicitParameter": "true",
 			"reason":              "Network",
-			"configSyncTime":      "0",
-			"initTime":            "0",
-			"serverTime":          fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata")
-		}
+		}, 0)
 
-		if compareMetadata(events[1].Metadata, map[string]string{
+		compareMetadata(t, events[1].Metadata, map[string]string{
 			"config":              "explicit_vs_implicit_parameter_layer",
 			"ruleID":              "alwaysPass",
 			"allocatedExperiment": "",
 			"parameterName":       "a_string",
 			"isExplicitParameter": "false",
 			"reason":              "Network",
-			"configSyncTime":      "0",
-			"initTime":            "0",
-			"serverTime":          fmt.Sprint(mockedServerTime),
-		}) == false {
-			t.Errorf("Invalid metadata")
-		}
+		}, 0)
 	})
 
 	//

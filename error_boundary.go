@@ -121,7 +121,7 @@ func (e *errorBoundary) logException(exception error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("STATSIG-API-KEY", e.sdkKey)
-	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(getUnixMilli(), 10))
 	req.Header.Add("STATSIG-SDK-TYPE", metadata.SDKType)
 	req.Header.Add("STATSIG-SDK-VERSION", metadata.SDKVersion)
 

@@ -31,14 +31,14 @@ func TestStoreSync(t *testing.T) {
 			if counter.configsCount == 0 {
 				r = &downloadConfigSpecResponse{
 					HasUpdates:     true,
-					Time:           time.Now().Unix(),
+					Time:           getUnixMilli(),
 					FeatureGates:   []configSpec{{Name: "gate_1"}},
 					DynamicConfigs: []configSpec{{Name: "exp_1"}},
 				}
 			} else {
 				r = &downloadConfigSpecResponse{
 					HasUpdates:     true,
-					Time:           time.Now().Unix(),
+					Time:           getUnixMilli(),
 					FeatureGates:   []configSpec{{Name: "gate_1"}, {Name: "gate_2"}},
 					DynamicConfigs: []configSpec{{Name: "exp_1"}, {Name: "exp_2"}},
 				}

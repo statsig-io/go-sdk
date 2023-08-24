@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"testing"
-	"time"
 )
 
 func TestInitializeResponseConsistency(t *testing.T) {
@@ -42,7 +41,7 @@ func TestInitializeResponseConsistency(t *testing.T) {
 			clientKey := os.Getenv("test_client_key")
 			req.Header.Add("STATSIG-API-KEY", clientKey)
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(time.Now().Unix()*1000, 10))
+			req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(getUnixMilli(), 10))
 			req.Header.Add("STATSIG-SDK-TYPE", getStatsigMetadata().SDKType)
 			req.Header.Add("STATSIG-SDK-VERSION", getStatsigMetadata().SDKVersion)
 			client := http.Client{}
