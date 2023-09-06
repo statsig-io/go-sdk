@@ -48,6 +48,7 @@ type OutputLoggerOptions struct {
 type StatsigLoggerOptions struct {
 	DisableInitDiagnostics bool
 	DisableSyncDiagnostics bool
+	DisableApiDiagnostics  bool
 }
 
 // See https://docs.statsig.com/guides/usingEnvironments

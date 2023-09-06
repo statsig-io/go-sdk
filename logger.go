@@ -241,6 +241,7 @@ func (l *logger) sendEvents(events []interface{}) {
 func (l *logger) logDiagnosticsEvents(d *diagnostics) {
 	l.logDiagnosticsEvent(d.initDiagnostics)
 	l.logDiagnosticsEvent(d.syncDiagnostics)
+	l.logDiagnosticsEvent(d.apiDiagnostics)
 }
 
 func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
@@ -248,6 +249,9 @@ func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
 		return
 	}
 	if l.options.StatsigLoggerOptions.DisableSyncDiagnostics && d.context == ConfigSyncContext {
+		return
+	}
+	if l.options.StatsigLoggerOptions.DisableApiDiagnostics && d.context == ApiCallContext {
 		return
 	}
 	serialized := d.serializeWithSampling()

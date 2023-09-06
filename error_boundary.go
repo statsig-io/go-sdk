@@ -11,12 +11,13 @@ import (
 )
 
 type errorBoundary struct {
-	api      string
-	endpoint string
-	sdkKey   string
-	client   *http.Client
-	seen     map[string]bool
-	seenLock sync.RWMutex
+	api         string
+	endpoint    string
+	sdkKey      string
+	client      *http.Client
+	seen        map[string]bool
+	seenLock    sync.RWMutex
+	diagnostics *diagnostics
 }
 
 type logExceptionRequestBody struct {
@@ -37,13 +38,14 @@ const (
 	EventBatchSizeError string = "The max number of events supported in one batch is 500. Please reduce the slice size and try again."
 )
 
-func newErrorBoundary(sdkKey string, options *Options) *errorBoundary {
+func newErrorBoundary(sdkKey string, options *Options, diagnostics *diagnostics) *errorBoundary {
 	errorBoundary := &errorBoundary{
-		api:      ErrorBoundaryAPI,
-		endpoint: ErrorBoundaryEndpoint,
-		sdkKey:   sdkKey,
-		client:   &http.Client{Timeout: time.Second * 3},
-		seen:     make(map[string]bool),
+		api:         ErrorBoundaryAPI,
+		endpoint:    ErrorBoundaryEndpoint,
+		sdkKey:      sdkKey,
+		client:      &http.Client{Timeout: time.Second * 3},
+		seen:        make(map[string]bool),
+		diagnostics: diagnostics,
 	}
 	if options.API != "" {
 		errorBoundary.api = options.API
@@ -62,34 +64,50 @@ func (e *errorBoundary) checkSeen(exceptionString string) bool {
 }
 
 func (e *errorBoundary) captureCheckGate(task func() bool) bool {
-	defer e.ebRecover()
-	return task()
+	defer e.ebRecover(func() {
+		e.diagnostics.api().checkGate().end().success(false).mark()
+	})
+	e.diagnostics.api().checkGate().start().mark()
+	res := task()
+	e.diagnostics.api().checkGate().end().success(true).mark()
+	return res
 }
 
 func (e *errorBoundary) captureGetConfig(task func() DynamicConfig) DynamicConfig {
-	defer e.ebRecover()
-	return task()
+	defer e.ebRecover(func() {
+		e.diagnostics.api().getConfig().end().success(false).mark()
+	})
+	e.diagnostics.api().getConfig().start().mark()
+	res := task()
+	e.diagnostics.api().getConfig().end().success(true).mark()
+	return res
 }
 
 func (e *errorBoundary) captureGetLayer(task func() Layer) Layer {
-	defer e.ebRecover()
-	return task()
+	defer e.ebRecover(func() {
+		e.diagnostics.api().getLayer().end().success(false).mark()
+	})
+	e.diagnostics.api().getLayer().start().mark()
+	res := task()
+	e.diagnostics.api().getLayer().end().success(true).mark()
+	return res
 }
 
 func (e *errorBoundary) captureGetClientInitializeResponse(task func() ClientInitializeResponse) ClientInitializeResponse {
-	defer e.ebRecover()
+	defer e.ebRecover(func() {})
 	return task()
 }
 
 func (e *errorBoundary) captureVoid(task func()) {
-	defer e.ebRecover()
+	defer e.ebRecover(func() {})
 	task()
 }
 
-func (e *errorBoundary) ebRecover() {
+func (e *errorBoundary) ebRecover(recoverCallback func()) {
 	if err := recover(); err != nil {
 		e.logException(toError(err))
 		global.Logger().LogError(err)
+		recoverCallback()
 	}
 }
 

@@ -34,6 +34,7 @@ func TestInitDiagnostics(t *testing.T) {
 		StatsigLoggerOptions: StatsigLoggerOptions{
 			DisableInitDiagnostics: false,
 			DisableSyncDiagnostics: false,
+			DisableApiDiagnostics:  false,
 		},
 	}
 	InitializeWithOptions("secret-key", options)
@@ -104,6 +105,7 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 		StatsigLoggerOptions: StatsigLoggerOptions{
 			DisableInitDiagnostics: false,
 			DisableSyncDiagnostics: false,
+			DisableApiDiagnostics:  false,
 		},
 		ConfigSyncInterval: time.Millisecond * 900,
 		IDListSyncInterval: time.Millisecond * 1000,
@@ -117,6 +119,47 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 		defer mu.Unlock()
 		return count == 1
 	})
+}
+
+func TestApiCallDiagnostics(t *testing.T) {
+	var events Events
+	testServer := getTestServer(true, func(newEvents Events) {
+		events = newEvents
+	}, false)
+	defer testServer.Close()
+
+	options := &Options{
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DisableInitDiagnostics: false,
+			DisableSyncDiagnostics: false,
+			DisableApiDiagnostics:  false,
+		},
+	}
+	InitializeWithOptions("secret-key", options)
+	user := User{UserID: "123"}
+	CheckGate(user, "non_existent_gate")
+	GetConfig(user, "non_existent_config")
+	GetExperiment(user, "non_existent_experiment")
+	GetLayer(user, "non_existent_layer")
+	ShutdownAndDangerouslyClearInstance()
+
+	markers := extractMarkers(events, 4) // 3 exposure events, init diagnostics, api diagnostics
+
+	if len(markers) != 8 {
+		t.Errorf("Expected %d markers but got %d", 8, len(markers))
+	}
+
+	assertMarkerEqual(t, markers[0], "check_gate", "", "start")
+	assertMarkerEqual(t, markers[1], "check_gate", "", "end", Pair{"success", true})
+	assertMarkerEqual(t, markers[2], "get_config", "", "start")
+	assertMarkerEqual(t, markers[3], "get_config", "", "end", Pair{"success", true})
+	assertMarkerEqual(t, markers[4], "get_config", "", "start")
+	assertMarkerEqual(t, markers[5], "get_config", "", "end", Pair{"success", true})
+	assertMarkerEqual(t, markers[6], "get_layer", "", "start")
+	assertMarkerEqual(t, markers[7], "get_layer", "", "end", Pair{"success", true})
 }
 
 func TestBootstrapDiagnostics(t *testing.T) {
@@ -135,6 +178,7 @@ func TestBootstrapDiagnostics(t *testing.T) {
 		StatsigLoggerOptions: StatsigLoggerOptions{
 			DisableInitDiagnostics: false,
 			DisableSyncDiagnostics: false,
+			DisableApiDiagnostics:  false,
 		},
 		BootstrapValues: string(bytes),
 	}
@@ -221,6 +265,7 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 		StatsigLoggerOptions: StatsigLoggerOptions{
 			DisableInitDiagnostics: false,
 			DisableSyncDiagnostics: false,
+			DisableApiDiagnostics:  false,
 		},
 		ConfigSyncInterval: time.Millisecond * 900,
 		IDListSyncInterval: time.Millisecond * 1000,
@@ -251,6 +296,7 @@ func TestDiagnosticsSampling(t *testing.T) {
 		StatsigLoggerOptions: StatsigLoggerOptions{
 			DisableInitDiagnostics: false,
 			DisableSyncDiagnostics: false,
+			DisableApiDiagnostics:  false,
 		},
 		ConfigSyncInterval: time.Millisecond * 99999,
 		IDListSyncInterval: time.Millisecond * 99999,

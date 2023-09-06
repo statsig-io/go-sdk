@@ -78,6 +78,7 @@ func getStatsigLoggerOptionsForTest(t *testing.T) StatsigLoggerOptions {
 	return StatsigLoggerOptions{
 		DisableInitDiagnostics: true,
 		DisableSyncDiagnostics: true,
+		DisableApiDiagnostics:  true,
 	}
 }
 

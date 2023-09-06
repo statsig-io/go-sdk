@@ -113,8 +113,9 @@ func TestStoreSync(t *testing.T) {
 	}
 	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
 	n := newTransport("secret-123", opt)
-	e := newErrorBoundary("client-key", opt)
-	s := newStoreInternal(n, time.Second, time.Second, "", nil, e, nil, newDiagnostics())
+	d := newDiagnostics()
+	e := newErrorBoundary("client-key", opt, d)
+	s := newStoreInternal(n, time.Second, time.Second, "", nil, e, nil, d)
 
 	if s.getGatesCount() != 1 {
 		t.Errorf("Wrong number of feature gates after initialize")

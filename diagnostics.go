@@ -12,6 +12,7 @@ type DiagnosticsContext string
 const (
 	InitializeContext DiagnosticsContext = "initialize"
 	ConfigSyncContext DiagnosticsContext = "config_sync"
+	ApiCallContext    DiagnosticsContext = "api_call"
 )
 
 type DiagnosticsKey string
@@ -23,6 +24,9 @@ const (
 	GetIDListKey            DiagnosticsKey = "get_id_list"
 	OverallKey              DiagnosticsKey = "overall"
 	DataStoreConfigSpecsKey DiagnosticsKey = "data_store_config_specs"
+	CheckGateApiKey         DiagnosticsKey = "check_gate"
+	GetConfigApiKey         DiagnosticsKey = "get_config"
+	GetLayerApiKey          DiagnosticsKey = "get_layer"
 )
 
 type DiagnosticsStep string
@@ -50,6 +54,7 @@ type diagnosticsBase struct {
 type diagnostics struct {
 	initDiagnostics *diagnosticsBase
 	syncDiagnostics *diagnosticsBase
+	apiDiagnostics  *diagnosticsBase
 }
 
 type marker struct {
@@ -77,6 +82,10 @@ func newDiagnostics() *diagnostics {
 		},
 		syncDiagnostics: &diagnosticsBase{
 			context: ConfigSyncContext,
+			markers: make([]marker, 0),
+		},
+		apiDiagnostics: &diagnosticsBase{
+			context: ApiCallContext,
 			markers: make([]marker, 0),
 		},
 	}
@@ -145,6 +154,10 @@ func (d *diagnostics) configSync() *marker {
 	return &marker{diagnostics: d.syncDiagnostics}
 }
 
+func (d *diagnostics) api() *marker {
+	return &marker{diagnostics: d.apiDiagnostics}
+}
+
 /* Keys */
 func (m *marker) downloadConfigSpecs() *marker {
 	m.Key = new(DiagnosticsKey)
@@ -179,6 +192,24 @@ func (m *marker) overall() *marker {
 func (m *marker) dataStoreConfigSpecs() *marker {
 	m.Key = new(DiagnosticsKey)
 	*m.Key = DataStoreConfigSpecsKey
+	return m
+}
+
+func (m *marker) checkGate() *marker {
+	m.Key = new(DiagnosticsKey)
+	*m.Key = CheckGateApiKey
+	return m
+}
+
+func (m *marker) getConfig() *marker {
+	m.Key = new(DiagnosticsKey)
+	*m.Key = GetConfigApiKey
+	return m
+}
+
+func (m *marker) getLayer() *marker {
+	m.Key = new(DiagnosticsKey)
+	*m.Key = GetLayerApiKey
 	return m
 }
 

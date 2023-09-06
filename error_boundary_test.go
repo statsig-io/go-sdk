@@ -39,7 +39,8 @@ func TestLogException(t *testing.T) {
 	opt := &Options{
 		API: testServer.URL,
 	}
-	errorBoundary := newErrorBoundary("client-key", opt)
+	diagnostics := newDiagnostics()
+	errorBoundary := newErrorBoundary("client-key", opt, diagnostics)
 	errorBoundary.logException(err)
 	if !hit {
 		t.Error("Expected sdk_exception endpoint to be hit")
@@ -70,7 +71,8 @@ func TestRepeatedError(t *testing.T) {
 	opt := &Options{
 		API: testServer.URL,
 	}
-	errorBoundary := newErrorBoundary("client-key", opt)
+	diagnostics := newDiagnostics()
+	errorBoundary := newErrorBoundary("client-key", opt, diagnostics)
 	errorBoundary.logException(err)
 	if !hit {
 		t.Error("Expected sdk_exception endpoint to be hit")
