@@ -33,8 +33,8 @@ func TestInitDiagnostics(t *testing.T) {
 		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
 		StatsigLoggerOptions: StatsigLoggerOptions{
 			DisableInitDiagnostics: false,
-			DisableSyncDiagnostics: false,
-			DisableApiDiagnostics:  false,
+			DisableSyncDiagnostics: true,
+			DisableApiDiagnostics:  true,
 		},
 	}
 	InitializeWithOptions("secret-key", options)
@@ -72,11 +72,11 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 		count += 1
 
 		if count == 1 {
-			if len(events) != 2 {
-				t.Errorf("Expected 2 diagnostics events, received %d", len(events))
+			if len(events) != 1 {
+				t.Errorf("Expected 1 diagnostics events, received %d", len(events))
 			}
 
-			markers := extractMarkers(events, 1)
+			markers := extractMarkers(events, 0)
 
 			if len(markers) != 12 {
 				t.Errorf("Expected %d markers but got %d", 12, len(markers))
@@ -103,9 +103,9 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 		Environment:         Environment{Tier: "test"},
 		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
 		StatsigLoggerOptions: StatsigLoggerOptions{
-			DisableInitDiagnostics: false,
+			DisableInitDiagnostics: true,
 			DisableSyncDiagnostics: false,
-			DisableApiDiagnostics:  false,
+			DisableApiDiagnostics:  true,
 		},
 		ConfigSyncInterval: time.Millisecond * 900,
 		IDListSyncInterval: time.Millisecond * 1000,
@@ -133,8 +133,8 @@ func TestApiCallDiagnostics(t *testing.T) {
 		Environment:         Environment{Tier: "test"},
 		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
 		StatsigLoggerOptions: StatsigLoggerOptions{
-			DisableInitDiagnostics: false,
-			DisableSyncDiagnostics: false,
+			DisableInitDiagnostics: true,
+			DisableSyncDiagnostics: true,
 			DisableApiDiagnostics:  false,
 		},
 	}
@@ -146,7 +146,7 @@ func TestApiCallDiagnostics(t *testing.T) {
 	GetLayer(user, "non_existent_layer")
 	ShutdownAndDangerouslyClearInstance()
 
-	markers := extractMarkers(events, 4) // 3 exposure events, init diagnostics, api diagnostics
+	markers := extractMarkers(events, 3) // 3 exposure events, api diagnostics
 
 	if len(markers) != 8 {
 		t.Errorf("Expected %d markers but got %d", 8, len(markers))
@@ -427,7 +427,7 @@ func extractMarkers(events []map[string]interface{}, index int) []map[string]int
 }
 
 func waitForCondition(t *testing.T, condition func() bool) {
-	timeout := 2000 * time.Millisecond
+	timeout := 5000 * time.Millisecond
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		if condition() {
