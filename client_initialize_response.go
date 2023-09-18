@@ -74,6 +74,7 @@ func getClientInitializeResponse(
 	user User,
 	store *store,
 	evalFunc func(user User, spec configSpec, depth int) *evalResult,
+	clientKey string,
 ) ClientInitializeResponse {
 	evalResultToBaseResponse := func(name string, eval *evalResult) (string, baseSpecInitializeResponse) {
 		hashedName := getHashBase64StringEncoding(name)
@@ -164,10 +165,14 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 
+	appId, _ := store.getAppIDForSDKKey(clientKey)
 	featureGates := make(map[string]GateInitializeResponse)
 	dynamicConfigs := make(map[string]ConfigInitializeResponse)
 	layerConfigs := make(map[string]LayerInitializeResponse)
 	for name, spec := range store.featureGates {
+		if !spec.hasTargetAppID(appId) {
+			continue
+		}
 		entityType := strings.ToLower(spec.Entity)
 		if entityType != "segment" && entityType != "holdout" {
 			hashedName, res := gateToResponse(name, spec)
@@ -175,10 +180,16 @@ func getClientInitializeResponse(
 		}
 	}
 	for name, spec := range store.dynamicConfigs {
+		if !spec.hasTargetAppID(appId) {
+			continue
+		}
 		hashedName, res := configToResponse(name, spec)
 		dynamicConfigs[hashedName] = res
 	}
 	for name, spec := range store.layerConfigs {
+		if !spec.hasTargetAppID(appId) {
+			continue
+		}
 		hashedName, res := layerToResponse(name, spec)
 		layerConfigs[hashedName] = res
 	}

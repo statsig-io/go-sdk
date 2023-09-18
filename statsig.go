@@ -229,7 +229,14 @@ func GetClientInitializeResponse(user User) ClientInitializeResponse {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetClientInitializeResponse"))
 	}
-	return instance.GetClientInitializeResponse(user)
+	return instance.GetClientInitializeResponse(user, "")
+}
+
+func GetClientInitializeResponseForTargetApp(user User, clientKey string) ClientInitializeResponse {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetClientInitializeResponseForTargetApp"))
+	}
+	return instance.GetClientInitializeResponse(user, clientKey)
 }
 
 // Cleans up Statsig, persisting any Event Logs and cleanup processes

@@ -196,13 +196,13 @@ func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 	return c.transport.doRequest("/log_event", body)
 }
 
-func (c *Client) GetClientInitializeResponse(user User) ClientInitializeResponse {
+func (c *Client) GetClientInitializeResponse(user User, clientKey string) ClientInitializeResponse {
 	return c.errorBoundary.captureGetClientInitializeResponse(func() ClientInitializeResponse {
 		if !c.verifyUser(user) {
 			return *new(ClientInitializeResponse)
 		}
 		user = normalizeUser(user, *c.options)
-		return c.evaluator.getClientInitializeResponse(user)
+		return c.evaluator.getClientInitializeResponse(user, clientKey)
 	})
 }
 

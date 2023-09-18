@@ -197,8 +197,8 @@ func (e *evaluator) OverrideLayer(layer string, val map[string]interface{}) {
 
 // Gets all evaluated values for the given user.
 // These values can then be given to a Statsig Client SDK via bootstrapping.
-func (e *evaluator) getClientInitializeResponse(user User) ClientInitializeResponse {
-	return getClientInitializeResponse(user, e.store, e.eval)
+func (e *evaluator) getClientInitializeResponse(user User, clientKey string) ClientInitializeResponse {
+	return getClientInitializeResponse(user, e.store, e.eval, clientKey)
 }
 
 func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {

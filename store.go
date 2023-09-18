@@ -24,6 +24,19 @@ type configSpec struct {
 	Entity             string          `json:"entity"`
 	IsActive           *bool           `json:"isActive,omitempty"`
 	HasSharedParams    *bool           `json:"hasSharedParams,omitempty"`
+	TargetAppIDs       []string        `json:"targetAppIDs,omitempty"`
+}
+
+func (c configSpec) hasTargetAppID(appId string) bool {
+	if appId == "" {
+		return true
+	}
+	for _, e := range c.TargetAppIDs {
+		if e == appId {
+			return true
+		}
+	}
+	return false
 }
 
 type configRule struct {
@@ -56,6 +69,7 @@ type downloadConfigSpecResponse struct {
 	Layers                 map[string][]string `json:"layers"`
 	IDLists                map[string]bool     `json:"id_lists"`
 	DiagnosticsSampleRates map[string]int      `json:"diagnostics"`
+	SDKKeysToAppID         map[string]string   `json:"sdk_keys_to_app_ids,omitempty"`
 }
 
 type downloadConfigsInput struct {
@@ -81,6 +95,7 @@ type store struct {
 	dynamicConfigs       map[string]configSpec
 	layerConfigs         map[string]configSpec
 	experimentToLayer    map[string]string
+	sdkKeysToAppID       map[string]string
 	idLists              map[string]*idList
 	lastSyncTime         int64
 	initialSyncTime      int64
@@ -208,6 +223,13 @@ func (s *store) getExperimentLayer(experimentName string) (string, bool) {
 	defer s.mu.RUnlock()
 	layer, ok := s.experimentToLayer[experimentName]
 	return layer, ok
+}
+
+func (s *store) getAppIDForSDKKey(clientKey string) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	appId, ok := s.sdkKeysToAppID[clientKey]
+	return appId, ok
 }
 
 func (s *store) fetchConfigSpecsFromAdapter() {
@@ -341,6 +363,7 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
 		s.experimentToLayer = newExperimentToLayer
+		s.sdkKeysToAppID = specs.SDKKeysToAppID
 		s.lastSyncTime = specs.Time
 		s.mu.Unlock()
 		return true
