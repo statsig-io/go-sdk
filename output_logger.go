@@ -34,13 +34,14 @@ func (o *OutputLogger) Log(msg string, err error) {
 }
 
 func (o *OutputLogger) LogStep(process StatsigProcess, msg string) {
-	if o.isInitialized() {
-		if o.options.DisableInitDiagnostics && process == StatsigProcessInitialize {
-			return
-		}
-		if o.options.DisableSyncDiagnostics && process == StatsigProcessSync {
-			return
-		}
+	if !o.isInitialized() || !o.options.EnableDebug {
+		return
+	}
+	if o.options.DisableInitDiagnostics && process == StatsigProcessInitialize {
+		return
+	}
+	if o.options.DisableSyncDiagnostics && process == StatsigProcessSync {
+		return
 	}
 	timestamp := time.Now().Format(time.RFC3339)
 	o.Log(fmt.Sprintf("[%s][Statsig] %s: %s\n", timestamp, process, msg), nil)

@@ -41,6 +41,7 @@ type Options struct {
 
 type OutputLoggerOptions struct {
 	LogCallback            func(message string, err error)
+	EnableDebug            bool
 	DisableInitDiagnostics bool
 	DisableSyncDiagnostics bool
 }
