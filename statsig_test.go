@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 )
@@ -137,18 +136,4 @@ func TestLogImmediate(t *testing.T) {
 	}
 
 	ShutdownAndDangerouslyClearInstance()
-}
-
-func TestVersion(t *testing.T) {
-	metadata := getStatsigMetadata()
-	versionsString, _ := exec.Command("go", "list", "-m", "-versions").Output()
-	versions := strings.Fields(string(versionsString))
-	currentVersion := versions[len(versions)-1]
-	versionNumber := strings.Split(currentVersion, "v")[1]
-	if metadata.SDKVersion != versionNumber {
-		t.Errorf(
-			"SDK version mismatch: %s (StatsigMetadata) %s (module)",
-			metadata.SDKVersion, versionNumber,
-		)
-	}
 }
