@@ -55,7 +55,7 @@ func newEvaluator(
 	defer func() {
 		if err := recover(); err != nil {
 			errorBoundary.logException(toError(err))
-			global.Logger().LogError(err)
+			Logger().LogError(err)
 		}
 	}()
 

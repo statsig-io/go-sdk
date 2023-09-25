@@ -21,8 +21,9 @@ type errorBoundary struct {
 }
 
 type logExceptionRequestBody struct {
-	Exception string `json:"exception"`
-	Info      string `json:"info"`
+	Exception       string          `json:"exception"`
+	Info            string          `json:"info"`
+	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
 type logExceptionResponse struct {
@@ -106,7 +107,7 @@ func (e *errorBoundary) captureVoid(task func()) {
 func (e *errorBoundary) ebRecover(recoverCallback func()) {
 	if err := recover(); err != nil {
 		e.logException(toError(err))
-		global.Logger().LogError(err)
+		Logger().LogError(err)
 		recoverCallback()
 	}
 }
@@ -123,15 +124,16 @@ func (e *errorBoundary) logException(exception error) {
 	}
 	stack := make([]byte, 1024)
 	runtime.Stack(stack, false)
+	metadata := getStatsigMetadata()
 	body := &logExceptionRequestBody{
-		Exception: exceptionString,
-		Info:      string(stack),
+		Exception:       exceptionString,
+		Info:            string(stack),
+		StatsigMetadata: metadata,
 	}
 	bodyString, err := json.Marshal(body)
 	if err != nil {
 		return
 	}
-	metadata := getStatsigMetadata()
 
 	req, err := http.NewRequest("POST", e.api+e.endpoint, bytes.NewBuffer(bodyString))
 	if err != nil {
@@ -142,6 +144,7 @@ func (e *errorBoundary) logException(exception error) {
 	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(getUnixMilli(), 10))
 	req.Header.Add("STATSIG-SDK-TYPE", metadata.SDKType)
 	req.Header.Add("STATSIG-SDK-VERSION", metadata.SDKVersion)
+	req.Header.Add("STATSIG-SERVER-SESSION-ID", metadata.SessionID)
 
 	_, _ = e.client.Do(req)
 }

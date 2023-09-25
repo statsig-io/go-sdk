@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 const (
@@ -18,16 +16,11 @@ const (
 )
 
 type transport struct {
-	api       string
-	sdkKey    string
-	metadata  statsigMetadata // Safe to read from but not thread safe to write into. If value needs to change, please ensure thread safety.
-	client    *http.Client
-	options   *Options
-	sessionID string
-}
-
-func getSessionID() string {
-	return uuid.NewString()
+	api      string
+	sdkKey   string
+	metadata statsigMetadata // Safe to read from but not thread safe to write into. If value needs to change, please ensure thread safety.
+	client   *http.Client
+	options  *Options
 }
 
 func newTransport(secret string, options *Options) *transport {
@@ -35,18 +28,16 @@ func newTransport(secret string, options *Options) *transport {
 	api = strings.TrimSuffix(api, "/")
 	defer func() {
 		if err := recover(); err != nil {
-			global.Logger().LogError(err)
+			Logger().LogError(err)
 		}
 	}()
-	sid := getSessionID()
 
 	return &transport{
-		api:       api,
-		metadata:  getStatsigMetadata(),
-		sdkKey:    secret,
-		client:    &http.Client{Timeout: time.Second * 3},
-		options:   options,
-		sessionID: sid,
+		api:      api,
+		metadata: getStatsigMetadata(),
+		sdkKey:   secret,
+		client:   &http.Client{Timeout: time.Second * 3},
+		options:  options,
 	}
 }
 
@@ -106,7 +97,7 @@ func (transport *transport) doRequest(endpoint string, body []byte) (*http.Respo
 	req.Header.Add("STATSIG-API-KEY", transport.sdkKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(getUnixMilli(), 10))
-	req.Header.Add("STATSIG-SERVER-SESSION-ID", transport.sessionID)
+	req.Header.Add("STATSIG-SERVER-SESSION-ID", transport.metadata.SessionID)
 	req.Header.Add("STATSIG-SDK-TYPE", transport.metadata.SDKType)
 	req.Header.Add("STATSIG-SDK-VERSION", transport.metadata.SDKVersion)
 

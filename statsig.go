@@ -14,8 +14,9 @@ var instance *Client
 // Initializes the global Statsig instance with the given sdkKey
 func Initialize(sdkKey string) {
 	InitializeGlobalOutputLogger(OutputLoggerOptions{})
+	InitializeGlobalSessionID()
 	if IsInitialized() {
-		global.Logger().Log("Statsig is already initialized.", nil)
+		Logger().Log("Statsig is already initialized.", nil)
 		return
 	}
 
@@ -66,8 +67,9 @@ func IsInitialized() bool {
 // Initializes the global Statsig instance with the given sdkKey and options
 func InitializeWithOptions(sdkKey string, options *Options) {
 	InitializeGlobalOutputLogger(options.OutputLoggerOptions)
+	InitializeGlobalSessionID()
 	if IsInitialized() {
-		global.Logger().Log("Statsig is already initialized.", nil)
+		Logger().Log("Statsig is already initialized.", nil)
 		return
 	}
 
@@ -82,7 +84,7 @@ func InitializeWithOptions(sdkKey string, options *Options) {
 		case res := <-channel:
 			instance = res
 		case <-time.After(options.InitTimeout):
-			global.Logger().LogStep(StatsigProcessInitialize, "Timed out")
+			Logger().LogStep(StatsigProcessInitialize, "Timed out")
 			return
 		}
 	} else {

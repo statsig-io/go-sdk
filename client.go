@@ -209,7 +209,7 @@ func (c *Client) GetClientInitializeResponse(user User, clientKey string) Client
 func (c *Client) verifyUser(user User) bool {
 	if user.UserID == "" && len(user.CustomIDs) == 0 {
 		err := errors.New(EmptyUserError)
-		global.Logger().LogError(err)
+		Logger().LogError(err)
 		return false
 	}
 	return true

@@ -1,17 +1,22 @@
 package statsig
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/google/uuid"
+)
 
 // Using global state variables directly will lead to race conditions
 // Instead, define an accessor below using the Mutex lock
 type GlobalState struct {
-	logger *OutputLogger
-	mu     sync.RWMutex
+	logger    *OutputLogger
+	sessionID string
+	mu        sync.RWMutex
 }
 
 var global GlobalState
 
-func (g *GlobalState) Logger() *OutputLogger {
+func Logger() *OutputLogger {
 	global.mu.RLock()
 	defer global.mu.RUnlock()
 	return global.logger
@@ -23,4 +28,16 @@ func InitializeGlobalOutputLogger(options OutputLoggerOptions) {
 	global.logger = &OutputLogger{
 		options: options,
 	}
+}
+
+func SessionID() string {
+	global.mu.RLock()
+	defer global.mu.RUnlock()
+	return global.sessionID
+}
+
+func InitializeGlobalSessionID() {
+	global.mu.Lock()
+	defer global.mu.Unlock()
+	global.sessionID = uuid.NewString()
 }

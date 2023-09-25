@@ -99,7 +99,7 @@ func (d *diagnosticsBase) logProcess(msg string) {
 	case ConfigSyncContext:
 		process = StatsigProcessSync
 	}
-	global.Logger().LogStep(process, msg)
+	Logger().LogStep(process, msg)
 }
 
 func (d *diagnosticsBase) serializeWithSampling() map[string]interface{} {
