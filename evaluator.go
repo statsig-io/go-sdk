@@ -71,7 +71,7 @@ func newEvaluator(
 
 func (e *evaluator) shutdown() {
 	if e.store.dataAdapter != nil {
-		e.store.dataAdapter.shutdown()
+		e.store.dataAdapter.Shutdown()
 	}
 	e.store.stopPolling()
 }

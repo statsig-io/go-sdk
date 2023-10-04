@@ -169,7 +169,7 @@ func newStoreInternal(
 	firstAttempt := true
 	if dataAdapter != nil {
 		firstAttempt = false
-		dataAdapter.initialize()
+		dataAdapter.Initialize()
 		store.fetchConfigSpecsFromAdapter()
 	} else if bootstrapValues != "" {
 		firstAttempt = false
@@ -239,7 +239,7 @@ func (s *store) fetchConfigSpecsFromAdapter() {
 			fmt.Fprintf(os.Stderr, "Error calling data adapter get: %s\n", toError(err).Error())
 		}
 	}()
-	specString := s.dataAdapter.get(CONFIG_SPECS_KEY)
+	specString := s.dataAdapter.Get(CONFIG_SPECS_KEY)
 	s.addDiagnostics().dataStoreConfigSpecs().fetch().end().success(true).mark()
 	if s.processConfigSpecs(specString, s.addDiagnostics().dataStoreConfigSpecs()) {
 		s.mu.Lock()
@@ -256,7 +256,7 @@ func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
 		}
 	}()
 	if err == nil {
-		s.dataAdapter.set(CONFIG_SPECS_KEY, string(specString))
+		s.dataAdapter.Set(CONFIG_SPECS_KEY, string(specString))
 	}
 }
 
@@ -532,7 +532,7 @@ func (s *store) pollForRulesetChanges() {
 		if stop {
 			break
 		}
-		if s.dataAdapter != nil && s.dataAdapter.shouldBeUsedForQueryingUpdates(CONFIG_SPECS_KEY) {
+		if s.dataAdapter != nil && s.dataAdapter.ShouldBeUsedForQueryingUpdates(CONFIG_SPECS_KEY) {
 			s.fetchConfigSpecsFromAdapter()
 		} else {
 			s.fetchConfigSpecsFromServer(false)

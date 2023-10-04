@@ -32,9 +32,9 @@ func TestBootstrapWithAdapter(t *testing.T) {
 		}
 	}))
 	dataAdapter := dataAdapterExample{store: make(map[string]string)}
-	dataAdapter.initialize()
-	defer dataAdapter.shutdown()
-	dataAdapter.set(CONFIG_SPECS_KEY, string(dcs_bytes))
+	dataAdapter.Initialize()
+	defer dataAdapter.Shutdown()
+	dataAdapter.Set(CONFIG_SPECS_KEY, string(dcs_bytes))
 	options := &Options{
 		DataAdapter:          dataAdapter,
 		API:                  testServer.URL,
@@ -92,7 +92,7 @@ func TestSaveToAdapter(t *testing.T) {
 	defer ShutdownAndDangerouslyClearInstance()
 
 	t.Run("updates adapter with newer values from network", func(t *testing.T) {
-		specString := dataAdapter.get(CONFIG_SPECS_KEY)
+		specString := dataAdapter.Get(CONFIG_SPECS_KEY)
 		specs := downloadConfigSpecResponse{}
 		err := json.Unmarshal([]byte(specString), &specs)
 		if err != nil {
