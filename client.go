@@ -104,7 +104,7 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 // Gets the DynamicConfig value of an Experiment for the given user
 func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 	if !c.verifyUser(user) {
-		return *NewConfig(experiment, nil, "")
+		return *NewConfig(experiment, nil, "", "")
 	}
 	return c.GetConfig(user, experiment)
 }
@@ -112,7 +112,7 @@ func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 // Gets the DynamicConfig value of an Experiment for the given user without logging an exposure event
 func (c *Client) GetExperimentWithExposureLoggingDisabled(user User, experiment string) DynamicConfig {
 	if !c.verifyUser(user) {
-		return *NewConfig(experiment, nil, "")
+		return *NewConfig(experiment, nil, "", "")
 	}
 	return c.GetConfigWithExposureLoggingDisabled(user, experiment)
 }
@@ -142,7 +142,7 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 		}
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.getLayer(user, layer)
-		config := NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, nil).configBase
+		config := NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, res.ConfigValue.GroupName, nil).configBase
 		context := &logContext{isManualExposure: true}
 		c.logger.logLayerExposure(user, config, parameter, *res, res.EvaluationDetails, context)
 	})
@@ -283,7 +283,7 @@ func (c *Client) checkGateImpl(user User, gate string, options checkGateOptions)
 func (c *Client) getConfigImpl(user User, config string, options getConfigOptions) DynamicConfig {
 	return c.errorBoundary.captureGetConfig(func() DynamicConfig {
 		if !c.verifyUser(user) {
-			return *NewConfig(config, nil, "")
+			return *NewConfig(config, nil, "", "")
 		}
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.getConfig(user, config)
@@ -302,7 +302,7 @@ func (c *Client) getConfigImpl(user User, config string, options getConfigOption
 func (c *Client) getLayerImpl(user User, layer string, options getLayerOptions) Layer {
 	return c.errorBoundary.captureGetLayer(func() Layer {
 		if !c.verifyUser(user) {
-			return *NewLayer(layer, nil, "", nil)
+			return *NewLayer(layer, nil, "", "", nil)
 		}
 
 		user = normalizeUser(user, *c.options)
@@ -319,7 +319,7 @@ func (c *Client) getLayerImpl(user User, layer string, options getLayerOptions) 
 			}
 		}
 
-		return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, &logFunc)
+		return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, res.ConfigValue.GroupName, &logFunc)
 	})
 }
 
@@ -377,7 +377,7 @@ func normalizeUser(user User, options Options) User {
 func (c *Client) fetchConfigFromServer(user User, configName string) *evalResult {
 	serverRes := fetchConfig(user, configName, c.transport)
 	return &evalResult{
-		ConfigValue: *NewConfig(configName, serverRes.Value, serverRes.RuleID),
+		ConfigValue: *NewConfig(configName, serverRes.Value, serverRes.RuleID, ""),
 		Id:          serverRes.RuleID,
 	}
 }

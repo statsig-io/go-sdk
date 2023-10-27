@@ -13,6 +13,9 @@ func doValidation(t *testing.T, c *configBase) {
 	if c.RuleID != "rule_id" {
 		t.Errorf("Failed to set rule_id")
 	}
+	if c.GroupName != "group_name" {
+		t.Errorf("Failed to set group_name")
+	}
 
 	if c.GetString("String", "abc") != "str" {
 		t.Errorf("Failed to get string")
@@ -67,10 +70,11 @@ func TestBasic(t *testing.T) {
 		"test",
 		jsonMap,
 		"rule_id",
+		"group_name",
 	)
 	doValidation(t, &c.configBase)
 
-	l := NewLayer("test", jsonMap, "rule_id", nil)
+	l := NewLayer("test", jsonMap, "rule_id", "group_name", nil)
 	doValidation(t, &l.configBase)
 
 	fallbackValues := make([]interface{}, 0)

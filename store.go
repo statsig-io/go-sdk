@@ -42,6 +42,7 @@ func (c configSpec) hasTargetAppID(appId string) bool {
 type configRule struct {
 	Name              string            `json:"name"`
 	ID                string            `json:"id"`
+	GroupName         string            `json:"groupName,omitempty"`
 	Salt              string            `json:"salt"`
 	PassPercentage    float64           `json:"passPercentage"`
 	Conditions        []configCondition `json:"conditions"`

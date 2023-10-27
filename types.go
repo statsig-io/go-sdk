@@ -32,6 +32,7 @@ type configBase struct {
 	Name        string                 `json:"name"`
 	Value       map[string]interface{} `json:"value"`
 	RuleID      string                 `json:"rule_id"`
+	GroupName   string                 `json:"group_name"`
 	LogExposure *func(configBase, string)
 }
 
@@ -44,20 +45,21 @@ type Layer struct {
 	configBase
 }
 
-func NewConfig(name string, value map[string]interface{}, ruleID string) *DynamicConfig {
+func NewConfig(name string, value map[string]interface{}, ruleID string, groupName string) *DynamicConfig {
 	if value == nil {
 		value = make(map[string]interface{})
 	}
 	return &DynamicConfig{
 		configBase{
-			Name:   name,
-			Value:  value,
-			RuleID: ruleID,
+			Name:      name,
+			Value:     value,
+			RuleID:    ruleID,
+			GroupName: groupName,
 		},
 	}
 }
 
-func NewLayer(name string, value map[string]interface{}, ruleID string, logExposure *func(configBase, string)) *Layer {
+func NewLayer(name string, value map[string]interface{}, ruleID string, groupName string, logExposure *func(configBase, string)) *Layer {
 	if value == nil {
 		value = make(map[string]interface{})
 	}
@@ -66,6 +68,7 @@ func NewLayer(name string, value map[string]interface{}, ruleID string, logExpos
 			Name:        name,
 			Value:       value,
 			RuleID:      ruleID,
+			GroupName:   groupName,
 			LogExposure: logExposure,
 		},
 	}

@@ -32,6 +32,7 @@ type configTestData struct {
 	Name               string                 `json:"name"`
 	Value              map[string]interface{} `json:"value"`
 	RuleID             string                 `json:"rule_id"`
+	GroupName          string                 `json:"group_name"`
 	SecondaryExposures []map[string]string    `json:"secondary_exposures"`
 }
 
@@ -39,6 +40,7 @@ type layerTestData struct {
 	Name                          string                 `json:"name"`
 	Value                         map[string]interface{} `json:"value"`
 	RuleID                        string                 `json:"rule_id"`
+	GroupName                     string                 `json:"group_name"`
 	SecondaryExposures            []map[string]string    `json:"secondary_exposures"`
 	UndelegatedSecondaryExposures []map[string]string    `json:"undelegated_secondary_exposures"`
 }
@@ -154,6 +156,11 @@ func test_helper(apiOverride string, t *testing.T) {
 					config, sdkResult.Id, serverResult.RuleID)
 			}
 
+			if sdkResult.ConfigValue.GroupName != serverResult.GroupName {
+				t.Errorf("Group Names are different for config %s. SDK got %s but server is %s. User is %+v",
+					config, sdkResult.ConfigValue.GroupName, serverResult.GroupName, u)
+			}
+
 			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
 				t.Errorf("Secondary exposures are different for config %s. SDK got %s but server is %s",
 					config, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
@@ -171,6 +178,11 @@ func test_helper(apiOverride string, t *testing.T) {
 			if sdkResult.Id != serverResult.RuleID {
 				t.Errorf("Rule IDs are different for layer %s. SDK got %s but server is %s",
 					layer, sdkResult.Id, serverResult.RuleID)
+			}
+
+			if sdkResult.ConfigValue.GroupName != serverResult.GroupName {
+				t.Errorf("Group Names are different for layer %s. SDK got %s but server is %s. User is %+v",
+					layer, sdkResult.ConfigValue.GroupName, serverResult.GroupName, u)
 			}
 
 			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {

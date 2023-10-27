@@ -114,7 +114,7 @@ func (e *evaluator) evalConfig(user User, configName string, depth int) *evalRes
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
 			Pass:               true,
-			ConfigValue:        *NewConfig(configName, configOverride, "override"),
+			ConfigValue:        *NewConfig(configName, configOverride, "override", ""),
 			Id:                 "override",
 			EvaluationDetails:  evalDetails,
 			SecondaryExposures: make([]map[string]string, 0),
@@ -138,7 +138,7 @@ func (e *evaluator) evalLayer(user User, name string, depth int) *evalResult {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
 			Pass:               true,
-			ConfigValue:        *NewConfig(name, layerOverride, "override"),
+			ConfigValue:        *NewConfig(name, layerOverride, "override", ""),
 			Id:                 "override",
 			EvaluationDetails:  evalDetails,
 			SecondaryExposures: make([]map[string]string, 0),
@@ -246,7 +246,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 					}
 					result := &evalResult{
 						Pass:                          pass,
-						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID),
+						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID, rule.GroupName),
 						Id:                            rule.ID,
 						SecondaryExposures:            exposures,
 						UndelegatedSecondaryExposures: exposures,
@@ -273,7 +273,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 	if isDynamicConfig {
 		return &evalResult{
 			Pass:                          false,
-			ConfigValue:                   *NewConfig(spec.Name, configValue, defaultRuleID),
+			ConfigValue:                   *NewConfig(spec.Name, configValue, defaultRuleID, ""),
 			Id:                            defaultRuleID,
 			SecondaryExposures:            exposures,
 			UndelegatedSecondaryExposures: exposures,
