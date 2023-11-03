@@ -71,6 +71,7 @@ type downloadConfigSpecResponse struct {
 	IDLists                map[string]bool     `json:"id_lists"`
 	DiagnosticsSampleRates map[string]int      `json:"diagnostics"`
 	SDKKeysToAppID         map[string]string   `json:"sdk_keys_to_app_ids,omitempty"`
+	HashedSDKKeysToAppID   map[string]string   `json:"hashed_sdk_keys_to_app_ids,omitempty"`
 }
 
 type downloadConfigsInput struct {
@@ -97,6 +98,7 @@ type store struct {
 	layerConfigs         map[string]configSpec
 	experimentToLayer    map[string]string
 	sdkKeysToAppID       map[string]string
+	hashedSDKKeysToAppID map[string]string
 	idLists              map[string]*idList
 	lastSyncTime         int64
 	initialSyncTime      int64
@@ -229,6 +231,9 @@ func (s *store) getExperimentLayer(experimentName string) (string, bool) {
 func (s *store) getAppIDForSDKKey(clientKey string) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	if appId, ok := s.hashedSDKKeysToAppID[getDJB2Hash(clientKey)]; ok {
+		return appId, ok
+	}
 	appId, ok := s.sdkKeysToAppID[clientKey]
 	return appId, ok
 }
@@ -365,6 +370,7 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.layerConfigs = newLayers
 		s.experimentToLayer = newExperimentToLayer
 		s.sdkKeysToAppID = specs.SDKKeysToAppID
+		s.hashedSDKKeysToAppID = specs.HashedSDKKeysToAppID
 		s.lastSyncTime = specs.Time
 		s.mu.Unlock()
 		return true

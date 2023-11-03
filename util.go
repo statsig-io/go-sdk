@@ -25,6 +25,16 @@ func getHash(key string) []byte {
 	return hasher.Sum(nil)
 }
 
+func getDJB2Hash(key string) string {
+	hash := uint64(0)
+	bytes := []byte(key)
+	for _, b := range bytes {
+		hash = ((hash << 5) - hash) + uint64(b)
+		hash = hash & ((1<<32) - 1);
+	}
+	return strconv.FormatUint(hash, 10)
+}
+
 func getHashUint64Encoding(key string) uint64 {
 	hash := getHash(key)
 	return binary.BigEndian.Uint64(hash)
