@@ -55,12 +55,12 @@ func TestLog(t *testing.T) {
 	// Test gate exposures
 	exposures := []map[string]string{{"gate": "another_gate", "gateValue": "true", "ruleID": "default"}}
 	logger.logGateExposure(user, "test_gate", true, "rule_id", exposures, nil, nil)
-	evt2, ok := logger.events[1].(exposureEvent)
+	evt2, ok := logger.events[1].(ExposureEvent)
 	if !ok {
 		t.Errorf("Gate exposure event type incorrect.")
 	}
 
-	gateExposureEvent := exposureEvent{EventName: gateExposureEventName, User: privateUser, Metadata: map[string]string{
+	gateExposureEvent := ExposureEvent{EventName: GateExposureEventName, User: privateUser, Metadata: map[string]string{
 		"gate":      "test_gate",
 		"gateValue": strconv.FormatBool(true),
 		"ruleID":    "rule_id",
@@ -76,12 +76,12 @@ func TestLog(t *testing.T) {
 	// Test config exposures
 	exposures = append(exposures, map[string]string{"gate": "yet_another_gate", "gateValue": "false", "ruleID": ""})
 	logger.logConfigExposure(user, "test_config", "rule_id_config", exposures, nil, nil)
-	evt3, ok := logger.events[2].(exposureEvent)
+	evt3, ok := logger.events[2].(ExposureEvent)
 	if !ok {
 		t.Errorf("Config exposure event type incorrect.")
 	}
 
-	configExposureEvent := exposureEvent{EventName: configExposureEventName, User: privateUser, Metadata: map[string]string{
+	configExposureEvent := ExposureEvent{EventName: ConfigExposureEventName, User: privateUser, Metadata: map[string]string{
 		"config": "test_config",
 		"ruleID": "rule_id_config",
 	}, SecondaryExposures: exposures, Time: evt3.Time}

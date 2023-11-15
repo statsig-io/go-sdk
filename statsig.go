@@ -38,6 +38,14 @@ type Options struct {
 	DataAdapter          IDataAdapter
 	OutputLoggerOptions  OutputLoggerOptions
 	StatsigLoggerOptions StatsigLoggerOptions
+	EvaluationCallbacks  EvaluationCallbacks
+}
+
+type EvaluationCallbacks struct {
+	GateEvaluationCallback       func(name string, result bool, exposure *ExposureEvent)
+	ConfigEvaluationCallback     func(name string, result DynamicConfig, exposure *ExposureEvent)
+	ExperimentEvaluationCallback func(name string, result DynamicConfig, exposure *ExposureEvent)
+	LayerEvaluationCallback      func(name string, param string, result DynamicConfig, exposure *ExposureEvent)
 }
 
 type OutputLoggerOptions struct {

@@ -7,21 +7,24 @@ import (
 	"time"
 )
 
+type ExposureEventName string
+
 const (
-	gateExposureEventName   = "statsig::gate_exposure"
-	configExposureEventName = "statsig::config_exposure"
-	layerExposureEventName  = "statsig::layer_exposure"
-	diagnosticsEventName    = "statsig::diagnostics"
+	GateExposureEventName   ExposureEventName = "statsig::gate_exposure"
+	ConfigExposureEventName ExposureEventName = "statsig::config_exposure"
+	LayerExposureEventName  ExposureEventName = "statsig::layer_exposure"
 )
 
-type exposureEvent struct {
-	EventName          string              `json:"eventName"`
+type ExposureEvent struct {
+	EventName          ExposureEventName   `json:"eventName"`
 	User               User                `json:"user"`
 	Value              string              `json:"value"`
 	Metadata           map[string]string   `json:"metadata"`
 	SecondaryExposures []map[string]string `json:"secondaryExposures"`
 	Time               int64               `json:"time"`
 }
+
+const diagnosticsEventName = "statsig::diagnostics"
 
 type diagnosticsEvent struct {
 	EventName string                 `json:"eventName"`
@@ -88,7 +91,7 @@ func (l *logger) logCustom(evt Event) {
 }
 
 func (l *logger) logExposureWithEvaluationDetails(
-	evt *exposureEvent,
+	evt *ExposureEvent,
 	evalDetails *evaluationDetails,
 ) {
 	if evalDetails != nil {
@@ -98,9 +101,10 @@ func (l *logger) logExposureWithEvaluationDetails(
 		evt.Metadata["serverTime"] = fmt.Sprint(evalDetails.serverTime)
 	}
 	l.logExposure(*evt)
+
 }
 
-func (l *logger) logExposure(evt exposureEvent) {
+func (l *logger) logExposure(evt ExposureEvent) {
 	evt.User.PrivateAttributes = nil
 	if evt.Time == 0 {
 		evt.Time = getUnixMilli()
@@ -126,7 +130,7 @@ func (l *logger) logGateExposure(
 	exposures []map[string]string,
 	evalDetails *evaluationDetails,
 	context *logContext,
-) {
+) *ExposureEvent {
 	metadata := map[string]string{
 		"gate":      gateName,
 		"gateValue": strconv.FormatBool(value),
@@ -135,13 +139,14 @@ func (l *logger) logGateExposure(
 	if context != nil && context.isManualExposure {
 		metadata["isManualExposure"] = "true"
 	}
-	evt := &exposureEvent{
+	evt := &ExposureEvent{
 		User:               user,
-		EventName:          gateExposureEventName,
+		EventName:          GateExposureEventName,
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
 	l.logExposureWithEvaluationDetails(evt, evalDetails)
+	return evt
 }
 
 func (l *logger) logConfigExposure(
@@ -151,7 +156,7 @@ func (l *logger) logConfigExposure(
 	exposures []map[string]string,
 	evalDetails *evaluationDetails,
 	context *logContext,
-) {
+) *ExposureEvent {
 	metadata := map[string]string{
 		"config": configName,
 		"ruleID": ruleID,
@@ -159,13 +164,14 @@ func (l *logger) logConfigExposure(
 	if context != nil && context.isManualExposure {
 		metadata["isManualExposure"] = "true"
 	}
-	evt := &exposureEvent{
+	evt := &ExposureEvent{
 		User:               user,
-		EventName:          configExposureEventName,
+		EventName:          ConfigExposureEventName,
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
 	l.logExposureWithEvaluationDetails(evt, evalDetails)
+	return evt
 }
 
 func (l *logger) logLayerExposure(
@@ -175,7 +181,7 @@ func (l *logger) logLayerExposure(
 	evalResult evalResult,
 	evalDetails *evaluationDetails,
 	context *logContext,
-) {
+) *ExposureEvent {
 	allocatedExperiment := ""
 	exposures := evalResult.UndelegatedSecondaryExposures
 	isExplicit := evalResult.ExplicitParameters[parameterName]
@@ -195,13 +201,14 @@ func (l *logger) logLayerExposure(
 		metadata["isManualExposure"] = "true"
 	}
 
-	evt := &exposureEvent{
+	evt := &ExposureEvent{
 		User:               user,
-		EventName:          layerExposureEventName,
+		EventName:          LayerExposureEventName,
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
 	l.logExposureWithEvaluationDetails(evt, evalDetails)
+	return evt
 }
 
 func (l *logger) flush(closing bool) {

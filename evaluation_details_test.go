@@ -1,7 +1,6 @@
 package statsig
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +12,10 @@ import (
 const configSyncTime = 1631638014811
 
 func TestEvaluationDetails(t *testing.T) {
-	events := []Event{}
+	gateExposures := make(map[string]ExposureEvent)
+	configExposures := make(map[string]ExposureEvent)
+	experimentExposures := make(map[string]ExposureEvent)
+	layerExposures := make(map[string]map[string]ExposureEvent)
 
 	getTestServer := func(dcsOnline bool) *httptest.Server {
 		return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -27,20 +29,26 @@ func TestEvaluationDetails(t *testing.T) {
 					res.WriteHeader(http.StatusOK)
 					_, _ = res.Write(bytes)
 				}
-			} else if strings.Contains(req.URL.Path, "log_event") {
-				type requestInput struct {
-					Events          []Event         `json:"events"`
-					StatsigMetadata statsigMetadata `json:"statsigMetadata"`
-				}
-				input := &requestInput{}
-				defer req.Body.Close()
-				buf := new(bytes.Buffer)
-				_, _ = buf.ReadFrom(req.Body)
-
-				_ = json.Unmarshal(buf.Bytes(), &input)
-				events = input.Events
 			}
 		}))
+	}
+
+	evaluationCallbacks := EvaluationCallbacks{
+		GateEvaluationCallback: func(name string, result bool, exposure *ExposureEvent) {
+			gateExposures[name] = *exposure
+		},
+		ConfigEvaluationCallback: func(name string, result DynamicConfig, exposure *ExposureEvent) {
+			configExposures[name] = *exposure
+		},
+		ExperimentEvaluationCallback: func(name string, result DynamicConfig, exposure *ExposureEvent) {
+			experimentExposures[name] = *exposure
+		},
+		LayerEvaluationCallback: func(name, param string, result DynamicConfig, exposure *ExposureEvent) {
+			if layerExposures[name] == nil {
+				layerExposures[name] = map[string]ExposureEvent{}
+			}
+			layerExposures[name][param] = *exposure
+		},
 	}
 
 	var opt *Options
@@ -51,9 +59,13 @@ func TestEvaluationDetails(t *testing.T) {
 			Environment:          Environment{Tier: "test"},
 			OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
 			StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+			EvaluationCallbacks:  evaluationCallbacks,
 		}
 		user = User{UserID: "some_user_id"}
-		events = []Event{}
+		gateExposures = make(map[string]ExposureEvent)
+		configExposures = make(map[string]ExposureEvent)
+		experimentExposures = make(map[string]ExposureEvent)
+		layerExposures = make(map[string]map[string]ExposureEvent)
 	}
 
 	start := func() {
@@ -80,31 +92,39 @@ func TestEvaluationDetails(t *testing.T) {
 		_ = CheckGate(user, "always_on_gate")
 		_ = GetConfig(user, "test_config")
 		_ = GetExperiment(user, "sample_experiment")
-		layer := GetLayer(user, "unallocated_layer")
-		layer.GetNumber("an_int", 0)
+		layer := GetLayer(user, "a_layer")
+		layer.GetBool("layer_param", false)
 		ShutdownAndDangerouslyClearInstance()
 
-		if len(events) != 3 {
-			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
+		numEvents := len(gateExposures) + len(configExposures) + len(experimentExposures) + len(layerExposures)
+		if numEvents != 4 {
+			t.Errorf("Should receive exactly 4 log_event. Got %d", numEvents)
 		}
 
-		compareMetadata(t, events[0].Metadata, map[string]string{
+		compareMetadata(t, gateExposures["always_on_gate"].Metadata, map[string]string{
 			"gate":      "always_on_gate",
 			"gateValue": "true",
 			"ruleID":    "6N6Z8ODekNYZ7F8gFdoLP5",
 			"reason":    "Network",
 		}, configSyncTime)
 
-		compareMetadata(t, events[1].Metadata, map[string]string{
+		compareMetadata(t, configExposures["test_config"].Metadata, map[string]string{
 			"config": "test_config",
 			"ruleID": "default",
 			"reason": "Network",
 		}, configSyncTime)
 
-		compareMetadata(t, events[2].Metadata, map[string]string{
+		compareMetadata(t, experimentExposures["sample_experiment"].Metadata, map[string]string{
 			"config": "sample_experiment",
 			"ruleID": "2RamGsERWbWMIMnSfOlQuX",
 			"reason": "Network",
+		}, configSyncTime)
+
+		compareMetadata(t, layerExposures["a_layer"]["layer_param"].Metadata, map[string]string{
+			"config":        "a_layer",
+			"ruleID":        "2RamGsERWbWMIMnSfOlQuX",
+			"parameterName": "layer_param",
+			"reason":        "Network",
 		}, configSyncTime)
 	})
 
@@ -117,24 +137,25 @@ func TestEvaluationDetails(t *testing.T) {
 		layer.GetNumber("an_int", 0)
 		ShutdownAndDangerouslyClearInstance()
 
-		if len(events) != 3 {
-			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
+		numEvents := len(gateExposures) + len(configExposures) + len(experimentExposures)
+		if numEvents != 3 {
+			t.Errorf("Should receive exactly 3 log_event. Got %d", numEvents)
 		}
 
-		compareMetadata(t, events[0].Metadata, map[string]string{
+		compareMetadata(t, gateExposures["always_on_gate"].Metadata, map[string]string{
 			"gate":      "always_on_gate",
 			"gateValue": "true",
 			"ruleID":    "6N6Z8ODekNYZ7F8gFdoLP5",
 			"reason":    "Bootstrap",
 		}, configSyncTime)
 
-		compareMetadata(t, events[1].Metadata, map[string]string{
+		compareMetadata(t, configExposures["test_config"].Metadata, map[string]string{
 			"config": "test_config",
 			"ruleID": "default",
 			"reason": "Bootstrap",
 		}, configSyncTime)
 
-		compareMetadata(t, events[2].Metadata, map[string]string{
+		compareMetadata(t, experimentExposures["sample_experiment"].Metadata, map[string]string{
 			"config": "sample_experiment",
 			"ruleID": "2RamGsERWbWMIMnSfOlQuX",
 			"reason": "Bootstrap",
@@ -150,24 +171,25 @@ func TestEvaluationDetails(t *testing.T) {
 		layer.GetNumber("an_int", 0)
 		ShutdownAndDangerouslyClearInstance()
 
-		if len(events) != 3 {
-			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
+		numEvents := len(gateExposures) + len(configExposures) + len(experimentExposures)
+		if numEvents != 3 {
+			t.Errorf("Should receive exactly 3 log_event. Got %d", numEvents)
 		}
 
-		compareMetadata(t, events[0].Metadata, map[string]string{
+		compareMetadata(t, gateExposures["always_on_gate"].Metadata, map[string]string{
 			"gate":      "always_on_gate",
 			"gateValue": "false",
 			"ruleID":    "",
 			"reason":    "Unrecognized",
 		}, 0)
 
-		compareMetadata(t, events[1].Metadata, map[string]string{
+		compareMetadata(t, configExposures["test_config"].Metadata, map[string]string{
 			"config": "test_config",
 			"ruleID": "",
 			"reason": "Unrecognized",
 		}, 0)
 
-		compareMetadata(t, events[2].Metadata, map[string]string{
+		compareMetadata(t, experimentExposures["sample_experiment"].Metadata, map[string]string{
 			"config": "sample_experiment",
 			"ruleID": "",
 			"reason": "Unrecognized",
@@ -182,18 +204,19 @@ func TestEvaluationDetails(t *testing.T) {
 		_ = GetConfig(user, "test_config")
 		ShutdownAndDangerouslyClearInstance()
 
-		if len(events) != 2 {
-			t.Errorf("Should receive exactly 2 log_event. Got %d", len(events))
+		numEvents := len(gateExposures) + len(configExposures) + len(experimentExposures)
+		if numEvents != 2 {
+			t.Errorf("Should receive exactly 2 log_event. Got %d", numEvents)
 		}
 
-		compareMetadata(t, events[0].Metadata, map[string]string{
+		compareMetadata(t, gateExposures["always_on_gate"].Metadata, map[string]string{
 			"gate":      "always_on_gate",
 			"gateValue": "false",
 			"ruleID":    "override",
 			"reason":    "LocalOverride",
 		}, configSyncTime)
 
-		compareMetadata(t, events[1].Metadata, map[string]string{
+		compareMetadata(t, configExposures["test_config"].Metadata, map[string]string{
 			"config": "test_config",
 			"ruleID": "override",
 			"reason": "LocalOverride",

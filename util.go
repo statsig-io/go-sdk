@@ -30,7 +30,7 @@ func getDJB2Hash(key string) string {
 	bytes := []byte(key)
 	for _, b := range bytes {
 		hash = ((hash << 5) - hash) + uint64(b)
-		hash = hash & ((1<<32) - 1);
+		hash = hash & ((1 << 32) - 1)
 	}
 	return strconv.FormatUint(hash, 10)
 }
@@ -60,7 +60,7 @@ func compareMetadata(t *testing.T, metadata map[string]string, expected map[stri
 	for key, value1 := range expected {
 		if value2, exists := metadata[key]; exists {
 			if value1 != value2 {
-				t.Errorf("Values for key '%s' do not match", key)
+				t.Errorf("Values for key '%s' do not match. Expected: %+v. Received: %+v", key, value1, value2)
 			}
 		} else {
 			t.Errorf("Key '%s' does not exist in metadata", key)
