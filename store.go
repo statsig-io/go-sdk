@@ -74,11 +74,6 @@ type downloadConfigSpecResponse struct {
 	HashedSDKKeysToAppID   map[string]string   `json:"hashed_sdk_keys_to_app_ids,omitempty"`
 }
 
-type downloadConfigsInput struct {
-	SinceTime       int64           `json:"sinceTime"`
-	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
-}
-
 type idList struct {
 	Name         string `json:"name"`
 	Size         int64  `json:"size"`
@@ -86,10 +81,6 @@ type idList struct {
 	URL          string `json:"url"`
 	FileID       string `json:"fileID"`
 	ids          *sync.Map
-}
-
-type getIDListsInput struct {
-	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
 type store struct {
@@ -284,14 +275,8 @@ func (s *store) handleSyncError(err error, isColdStart bool) {
 
 func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 	s.addDiagnostics().downloadConfigSpecs().networkRequest().start().mark()
-	s.mu.RLock()
-	input := &downloadConfigsInput{
-		SinceTime:       s.lastSyncTime,
-		StatsigMetadata: s.transport.metadata,
-	}
-	s.mu.RUnlock()
 	var specs downloadConfigSpecResponse
-	res, err := s.transport.postRequest("/download_config_specs", input, &specs)
+	res, err := s.transport.download_config_specs(s.lastSyncTime, &specs)
 	if res == nil || err != nil {
 		marker := s.addDiagnostics().downloadConfigSpecs().networkRequest().end().success(false)
 		if res != nil {
@@ -403,7 +388,7 @@ func (s *store) setIDList(name string, list *idList) {
 func (s *store) syncIDLists() {
 	var serverLists map[string]idList
 	s.addDiagnostics().getIdListSources().networkRequest().start().mark()
-	res, err := s.transport.postRequest("/get_id_lists", getIDListsInput{StatsigMetadata: s.transport.metadata}, &serverLists)
+	res, err := s.transport.get_id_lists(&serverLists)
 	if res == nil || err != nil {
 		marker := s.addDiagnostics().getIdListSources().networkRequest().end().success(false)
 		if res != nil {
@@ -451,7 +436,7 @@ func (s *store) syncIDLists() {
 		go func(name string, l *idList) {
 			defer wg.Done()
 			s.addDiagnostics().getIdList().networkRequest().start().url(l.URL).mark()
-			res, err := s.transport.get(l.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", l.Size)})
+			res, err := s.transport.get_id_list(l.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", l.Size)})
 			if err != nil || res == nil {
 				marker := s.addDiagnostics().getIdList().networkRequest().end().url(l.URL).success(false)
 				if res != nil {

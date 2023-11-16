@@ -28,7 +28,7 @@ func TestNonRetryable(t *testing.T) {
 		API: testServer.URL,
 	}
 	n := newTransport("secret-123", opt)
-	_, err := n.retryablePostRequest("/123", in, &out, 2)
+	_, err := n.post("/123", in, &out, RequestOptions{retries: 2})
 	if err == nil {
 		t.Errorf("Expected error for network request but got nil")
 	}
@@ -48,7 +48,7 @@ func TestLocalMode(t *testing.T) {
 		LocalMode: true,
 	}
 	n := newTransport("secret-123", opt)
-	_, err := n.retryablePostRequest("/123", in, &out, 2)
+	_, err := n.post("/123", in, &out, RequestOptions{retries: 2})
 	if err != nil {
 		t.Errorf("Expected no error for network request")
 	}
@@ -80,7 +80,7 @@ func TestRetries(t *testing.T) {
 		API: testServer.URL,
 	}
 	n := newTransport("secret-123", opt)
-	_, err := n.retryablePostRequest("/123", in, out, 2)
+	_, err := n.post("/123", in, out, RequestOptions{retries: 2})
 	if err != nil {
 		t.Errorf("Expected successful request but got error")
 	}

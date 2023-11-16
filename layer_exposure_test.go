@@ -16,9 +16,7 @@ func TestLayerExposure(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			var in *downloadConfigsInput
 			bytes, _ := os.ReadFile("layer_exposure_download_config_specs.json")
-			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		} else if strings.Contains(req.URL.Path, "log_event") {
 			type requestInput struct {

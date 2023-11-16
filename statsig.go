@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-const DefaultEndpoint = "https://statsigapi.net/v1"
-
 var instance *Client
 
 // Initializes the global Statsig instance with the given sdkKey

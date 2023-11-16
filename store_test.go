@@ -25,9 +25,7 @@ func TestStoreSync(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			var in *downloadConfigsInput
 			var r *downloadConfigSpecResponse
-			_ = json.NewDecoder(req.Body).Decode(&in)
 			if counter.configsCount == 0 {
 				r = &downloadConfigSpecResponse{
 					HasUpdates:     true,

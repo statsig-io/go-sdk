@@ -1,7 +1,6 @@
 package statsig
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -21,7 +20,7 @@ type Client struct {
 
 // Initializes a Statsig Client with the given sdkKey
 func NewClient(sdkKey string) *Client {
-	return NewClientWithOptions(sdkKey, &Options{API: DefaultEndpoint})
+	return NewClientWithOptions(sdkKey, &Options{})
 }
 
 // Initializes a Statsig Client with the given sdkKey and options
@@ -190,16 +189,11 @@ func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 		event.User = normalizeUser(event.User, *c.options)
 		events_processed = append(events_processed, event)
 	}
-	input := &logEventInput{
+	input := logEventInput{
 		Events:          events_processed,
 		StatsigMetadata: c.transport.metadata,
 	}
-	body, err := json.Marshal(input)
-
-	if err != nil {
-		return nil, err
-	}
-	return c.transport.doRequest("/log_event", body)
+	return c.transport.post("/log_event", input, nil, RequestOptions{})
 }
 
 func (c *Client) GetClientInitializeResponse(user User, clientKey string) ClientInitializeResponse {
@@ -366,7 +360,7 @@ func fetchGate(user User, gateName string, t *transport) gateResponse {
 		StatsigMetadata: t.metadata,
 	}
 	var res gateResponse
-	_, err := t.postRequest("/check_gate", input, &res)
+	_, err := t.post("/check_gate", input, &res, RequestOptions{})
 	if err != nil {
 		return gateResponse{
 			Name:   gateName,
@@ -384,7 +378,7 @@ func fetchConfig(user User, configName string, t *transport) configResponse {
 		StatsigMetadata: t.metadata,
 	}
 	var res configResponse
-	_, err := t.postRequest("/get_config", input, &res)
+	_, err := t.post("/get_config", input, &res, RequestOptions{})
 	if err != nil {
 		return configResponse{
 			Name:   configName,

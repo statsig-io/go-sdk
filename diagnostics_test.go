@@ -343,13 +343,11 @@ func getTestServer(dcsOnline bool, onLog func(events Events), withSampling bool)
 			if !dcsOnline {
 				res.WriteHeader(http.StatusInternalServerError)
 			} else {
-				var in *downloadConfigsInput
 				dcsFile := "download_config_specs.json"
 				if withSampling {
 					dcsFile = "download_config_specs_with_diagnostics_sampling.json"
 				}
 				bytes, _ := os.ReadFile(dcsFile)
-				_ = json.NewDecoder(req.Body).Decode(&in)
 				res.WriteHeader(http.StatusOK)
 				_, _ = res.Write(bytes)
 			}

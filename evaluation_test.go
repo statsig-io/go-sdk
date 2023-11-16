@@ -111,7 +111,7 @@ func test_helper(apiOverride string, t *testing.T) {
 	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
 	c := NewClientWithOptions(secret, &Options{API: apiOverride})
 	var d data
-	_, err := c.transport.postRequest("/rulesets_e2e_test", nil, &d)
+	_, err := c.transport.post("/rulesets_e2e_test", nil, &d, RequestOptions{})
 
 	if err != nil || len(d.Entries) == 0 {
 		t.Errorf("Could not download test data")

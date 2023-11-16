@@ -1,7 +1,6 @@
 package statsig
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,9 +22,7 @@ func TestEvaluationDetails(t *testing.T) {
 				if !dcsOnline {
 					res.WriteHeader(http.StatusInternalServerError)
 				} else {
-					var in *downloadConfigsInput
 					bytes, _ := os.ReadFile("download_config_specs.json")
-					_ = json.NewDecoder(req.Body).Decode(&in)
 					res.WriteHeader(http.StatusOK)
 					_, _ = res.Write(bytes)
 				}

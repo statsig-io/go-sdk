@@ -46,8 +46,6 @@ func TestRulesUpdatedCallback(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			var in *downloadConfigsInput
-			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		}
 	}))
@@ -96,10 +94,10 @@ func TestRulesUpdatedCallback(t *testing.T) {
 func TestLogImmediate(t *testing.T) {
 	env := ""
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		if req.Method != "POST" {
-			t.Errorf("Expected ‘POST’ request, got '%s'", req.Method)
-		}
 		if strings.Contains(req.URL.Path, "log_event") {
+			if req.Method != "POST" {
+				t.Errorf("Expected ‘POST’ request, got '%s'", req.Method)
+			}
 			type requestInput struct {
 				Events          []Event         `json:"events"`
 				StatsigMetadata statsigMetadata `json:"statsigMetadata"`

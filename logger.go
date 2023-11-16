@@ -242,7 +242,7 @@ func (l *logger) sendEvents(events []interface{}) {
 		StatsigMetadata: l.transport.metadata,
 	}
 	var res logEventResponse
-	_, _ = l.transport.retryablePostRequest("/log_event", input, &res, maxRetries)
+	_, _ = l.transport.post("/log_event", input, &res, RequestOptions{retries: maxRetries})
 }
 
 func (l *logger) logDiagnosticsEvents(d *diagnostics) {

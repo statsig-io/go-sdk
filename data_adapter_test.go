@@ -75,8 +75,6 @@ func TestSaveToAdapter(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			var in *downloadConfigsInput
-			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		}
 	}))
@@ -115,8 +113,6 @@ func TestAdapterWithPolling(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			var in *downloadConfigsInput
-			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		}
 	}))
@@ -151,9 +147,7 @@ func TestIncorrectlyImplementedAdapter(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			var in *downloadConfigsInput
 			bytes, _ := os.ReadFile("download_config_specs.json")
-			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		} else if strings.Contains(req.URL.Path, "log_event") {
 			type requestInput struct {

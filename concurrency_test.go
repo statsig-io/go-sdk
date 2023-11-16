@@ -139,9 +139,7 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			configSyncCount++
-			var in *downloadConfigsInput
 			bytes, _ := os.ReadFile("download_config_specs.json")
-			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			idlistSyncCount++
@@ -218,9 +216,7 @@ func TestOverrideAPIsConcurrency(t *testing.T) {
 		defer req.Body.Close()
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			var in *downloadConfigsInput
 			bytes, _ := os.ReadFile("download_config_specs.json")
-			_ = json.NewDecoder(req.Body).Decode(&in)
 			_, _ = res.Write(bytes)
 		}
 	}))
