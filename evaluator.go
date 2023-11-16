@@ -407,17 +407,17 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int) *e
 	case "lte":
 		pass = compareNumbers(value, cond.TargetValue, func(x, y float64) bool { return x <= y })
 	case "version_gt":
-		pass = compareVersions(value, cond.TargetValue, func(x, y string) bool { return compareVersionsHelper(x, y) > 0 })
+		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) > 0 })
 	case "version_gte":
-		pass = compareVersions(value, cond.TargetValue, func(x, y string) bool { return compareVersionsHelper(x, y) >= 0 })
+		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) >= 0 })
 	case "version_lt":
-		pass = compareVersions(value, cond.TargetValue, func(x, y string) bool { return compareVersionsHelper(x, y) < 0 })
+		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) < 0 })
 	case "version_lte":
-		pass = compareVersions(value, cond.TargetValue, func(x, y string) bool { return compareVersionsHelper(x, y) <= 0 })
+		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) <= 0 })
 	case "version_eq":
-		pass = compareVersions(value, cond.TargetValue, func(x, y string) bool { return compareVersionsHelper(x, y) == 0 })
+		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) == 0 })
 	case "version_neq":
-		pass = compareVersions(value, cond.TargetValue, func(x, y string) bool { return compareVersionsHelper(x, y) != 0 })
+		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) != 0 })
 
 	// array operations
 	case "any":
@@ -663,28 +663,37 @@ func compareStrings(s1 interface{}, s2 interface{}, ignoreCase bool, fun func(x,
 	return fun(str1, str2)
 }
 
-func compareVersionsHelper(v1 string, v2 string) int {
-	i := 0
-	v1Parts := strings.Split(v1, ".")
-	v1len := len(v1Parts)
-	v2Parts := strings.Split(v2, ".")
-	v2len := len(v2Parts)
-	for i < maxInt(v1len, v2len) {
-		var p1 string
-		if i >= v1len {
-			p1 = "0"
-		} else {
-			p1 = v1Parts[i]
+func convertVersionStringToParts(version string) ([]int64, error) {
+	stringParts := strings.Split(version, ".")
+	numParts := make([]int64, len(stringParts))
+	for i := range stringParts {
+		n1, e := strconv.ParseInt(stringParts[i], 10, 64)
+		if e != nil {
+			return numParts, e
 		}
-		var p2 string
-		if i >= v2len {
-			p2 = "0"
+		numParts[i] = n1
+	}
+	return numParts, nil
+}
+
+func compareVersionsHelper(v1 []int64, v2 []int64) int {
+	i := 0
+	v1len := len(v1)
+	v2len := len(v2)
+	for i < maxInt(v1len, v2len) {
+		var n1 int64
+		if i >= v1len {
+			n1 = 0
 		} else {
-			p2 = v2Parts[i]
+			n1 = v1[i]
+		}
+		var n2 int64
+		if i >= v2len {
+			n2 = 0
+		} else {
+			n2 = v2[i]
 		}
 
-		n1, _ := strconv.ParseInt(p1, 10, 64)
-		n2, _ := strconv.ParseInt(p2, 10, 64)
 		if n1 < n2 {
 			return -1
 		}
@@ -696,7 +705,7 @@ func compareVersionsHelper(v1 string, v2 string) int {
 	return 0
 }
 
-func compareVersions(a, b interface{}, fun func(x, y string) bool) bool {
+func compareVersions(a, b interface{}, fun func(x, y []int64) bool) bool {
 	strA, okA := a.(string)
 	strB, okB := b.(string)
 	if !okA || !okB {
@@ -707,7 +716,13 @@ func compareVersions(a, b interface{}, fun func(x, y string) bool) bool {
 	if len(v1) == 0 || len(v2) == 0 {
 		return false
 	}
-	return fun(v1, v2)
+
+	v1Parts, e1 := convertVersionStringToParts(v1)
+	v2Parts, e2 := convertVersionStringToParts(v2)
+	if e1 != nil || e2 != nil {
+		return false
+	}
+	return fun(v1Parts, v2Parts)
 }
 
 func maxInt(x, y int) int {
