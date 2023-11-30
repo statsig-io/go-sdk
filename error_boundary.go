@@ -64,7 +64,7 @@ func (e *errorBoundary) checkSeen(exceptionString string) bool {
 	return false
 }
 
-func (e *errorBoundary) captureCheckGate(task func() bool) bool {
+func (e *errorBoundary) captureCheckGate(task func() FeatureGate) FeatureGate {
 	defer e.ebRecover(func() {
 		e.diagnostics.api().checkGate().end().success(false).mark()
 	})

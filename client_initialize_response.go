@@ -80,7 +80,7 @@ func getClientInitializeResponse(
 		hashedName := getHashBase64StringEncoding(name)
 		result := baseSpecInitializeResponse{
 			Name:               hashedName,
-			RuleID:             eval.Id,
+			RuleID:             eval.RuleID,
 			SecondaryExposures: cleanExposures(eval.SecondaryExposures),
 		}
 		return hashedName, result
@@ -100,7 +100,7 @@ func getClientInitializeResponse(
 		result := ConfigInitializeResponse{
 			baseSpecInitializeResponse: base,
 			Value:                      evalResult.ConfigValue.Value,
-			Group:                      evalResult.Id,
+			Group:                      evalResult.RuleID,
 			IsDeviceBased:              strings.ToLower(spec.IDType) == "stableid",
 		}
 		entityType := strings.ToLower(spec.Entity)
@@ -135,7 +135,7 @@ func getClientInitializeResponse(
 		result := LayerInitializeResponse{
 			baseSpecInitializeResponse:    base,
 			Value:                         evalResult.ConfigValue.Value,
-			Group:                         evalResult.Id,
+			Group:                         evalResult.RuleID,
 			IsDeviceBased:                 strings.ToLower(spec.IDType) == "stableid",
 			UndelegatedSecondaryExposures: cleanExposures(evalResult.UndelegatedSecondaryExposures),
 		}

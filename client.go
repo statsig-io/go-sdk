@@ -53,11 +53,23 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 // Checks the value of a Feature Gate for the given user
 func (c *Client) CheckGate(user User, gate string) bool {
 	options := checkGateOptions{disableLogExposures: false}
-	return c.checkGateImpl(user, gate, options)
+	return c.checkGateImpl(user, gate, options).Value
 }
 
 // Checks the value of a Feature Gate for the given user without logging an exposure event
 func (c *Client) CheckGateWithExposureLoggingDisabled(user User, gate string) bool {
+	options := checkGateOptions{disableLogExposures: true}
+	return c.checkGateImpl(user, gate, options).Value
+}
+
+// Get the Feature Gate for the given user
+func (c *Client) GetGate(user User, gate string) FeatureGate {
+	options := checkGateOptions{disableLogExposures: false}
+	return c.checkGateImpl(user, gate, options)
+}
+
+// Checks the value of a Feature Gate for the given user without logging an exposure event
+func (c *Client) GetGateWithExposureLoggingDisabled(user User, gate string) FeatureGate {
 	options := checkGateOptions{disableLogExposures: true}
 	return c.checkGateImpl(user, gate, options)
 }
@@ -71,7 +83,7 @@ func (c *Client) ManuallyLogGateExposure(user User, gate string) {
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.checkGate(user, gate)
 		context := &logContext{isManualExposure: true}
-		c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+		c.logger.logGateExposure(user, gate, res.Pass, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 	})
 }
 
@@ -98,7 +110,7 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.getConfig(user, config)
 		context := &logContext{isManualExposure: true}
-		c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+		c.logger.logConfigExposure(user, config, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 	})
 }
 
@@ -264,27 +276,27 @@ type getConfigInput struct {
 	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
-func (c *Client) checkGateImpl(user User, gate string, options checkGateOptions) bool {
-	return c.errorBoundary.captureCheckGate(func() bool {
+func (c *Client) checkGateImpl(user User, gate string, options checkGateOptions) FeatureGate {
+	return c.errorBoundary.captureCheckGate(func() FeatureGate {
 		if !c.verifyUser(user) {
-			return false
+			return *NewGate(gate, false, "", "")
 		}
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.checkGate(user, gate)
 		if res.FetchFromServer {
 			serverRes := fetchGate(user, gate, c.transport)
-			res = &evalResult{Pass: serverRes.Value, Id: serverRes.RuleID}
+			res = &evalResult{Pass: serverRes.Value, RuleID: serverRes.RuleID}
 		} else {
 			var exposure *ExposureEvent = nil
 			if !options.disableLogExposures {
 				context := &logContext{isManualExposure: false}
-				exposure = c.logger.logGateExposure(user, gate, res.Pass, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+				exposure = c.logger.logGateExposure(user, gate, res.Pass, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 			}
 			if c.options.EvaluationCallbacks.GateEvaluationCallback != nil {
 				c.options.EvaluationCallbacks.GateEvaluationCallback(gate, res.Pass, exposure)
 			}
 		}
-		return res.Pass
+		return *NewGate(gate, res.Pass, res.RuleID, res.GroupName)
 	})
 }
 
@@ -313,7 +325,7 @@ func (c *Client) getConfigImpl(user User, config string, context getConfigImplCo
 			}
 			if logExposure {
 				context := &logContext{isManualExposure: false}
-				exposure = c.logger.logConfigExposure(user, config, res.Id, res.SecondaryExposures, res.EvaluationDetails, context)
+				exposure = c.logger.logConfigExposure(user, config, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 			}
 			if isExperiment && c.options.EvaluationCallbacks.ExperimentEvaluationCallback != nil {
 				c.options.EvaluationCallbacks.ExperimentEvaluationCallback(config, res.ConfigValue, exposure)
@@ -408,6 +420,6 @@ func (c *Client) fetchConfigFromServer(user User, configName string) *evalResult
 	serverRes := fetchConfig(user, configName, c.transport)
 	return &evalResult{
 		ConfigValue: *NewConfig(configName, serverRes.Value, serverRes.RuleID, ""),
-		Id:          serverRes.RuleID,
+		RuleID:      serverRes.RuleID,
 	}
 }

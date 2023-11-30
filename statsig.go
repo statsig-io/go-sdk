@@ -114,6 +114,22 @@ func CheckGateWithExposureLoggingDisabled(user User, gate string) bool {
 	return instance.CheckGateWithExposureLoggingDisabled(user, gate)
 }
 
+// Get the Feature Gate for the given user
+func GetGate(user User, gate string) FeatureGate {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetGate"))
+	}
+	return instance.GetGate(user, gate)
+}
+
+// Get the Feature Gate for the given user without logging an exposure event
+func GetGateWithExposureLoggingDisabled(user User, gate string) FeatureGate {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetGateWithExposureLoggingDisabled"))
+	}
+	return instance.GetGateWithExposureLoggingDisabled(user, gate)
+}
+
 // Logs an exposure event for the gate
 func ManuallyLogGateExposure(user User, config string) {
 	if !IsInitialized() {

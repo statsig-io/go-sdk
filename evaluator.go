@@ -31,7 +31,8 @@ type evalResult struct {
 	Pass                          bool
 	ConfigValue                   DynamicConfig
 	FetchFromServer               bool
-	Id                            string
+	RuleID                        string
+	GroupName                     string
 	SecondaryExposures            []map[string]string
 	UndelegatedSecondaryExposures []map[string]string
 	ConfigDelegate                string
@@ -91,7 +92,7 @@ func (e *evaluator) evalGate(user User, gateName string, depth int) *evalResult 
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
 			Pass:               gateOverride,
-			Id:                 "override",
+			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
 			SecondaryExposures: make([]map[string]string, 0),
 		}
@@ -115,7 +116,7 @@ func (e *evaluator) evalConfig(user User, configName string, depth int) *evalRes
 		return &evalResult{
 			Pass:               true,
 			ConfigValue:        *NewConfig(configName, configOverride, "override", ""),
-			Id:                 "override",
+			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
 			SecondaryExposures: make([]map[string]string, 0),
 		}
@@ -139,7 +140,7 @@ func (e *evaluator) evalLayer(user User, name string, depth int) *evalResult {
 		return &evalResult{
 			Pass:               true,
 			ConfigValue:        *NewConfig(name, layerOverride, "override", ""),
-			Id:                 "override",
+			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
 			SecondaryExposures: make([]map[string]string, 0),
 		}
@@ -247,7 +248,8 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 					result := &evalResult{
 						Pass:                          pass,
 						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID, rule.GroupName),
-						Id:                            rule.ID,
+						RuleID:                        rule.ID,
+						GroupName:                     rule.GroupName,
 						SecondaryExposures:            exposures,
 						UndelegatedSecondaryExposures: exposures,
 						EvaluationDetails:             evalDetails,
@@ -259,7 +261,8 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 				} else {
 					return &evalResult{
 						Pass:               pass,
-						Id:                 rule.ID,
+						RuleID:             rule.ID,
+						GroupName:          rule.GroupName,
 						SecondaryExposures: exposures,
 						EvaluationDetails:  evalDetails,
 					}
@@ -274,13 +277,13 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 		return &evalResult{
 			Pass:                          false,
 			ConfigValue:                   *NewConfig(spec.Name, configValue, defaultRuleID, ""),
-			Id:                            defaultRuleID,
+			RuleID:                        defaultRuleID,
 			SecondaryExposures:            exposures,
 			UndelegatedSecondaryExposures: exposures,
 			EvaluationDetails:             evalDetails,
 		}
 	}
-	return &evalResult{Pass: false, Id: defaultRuleID, SecondaryExposures: exposures}
+	return &evalResult{Pass: false, RuleID: defaultRuleID, SecondaryExposures: exposures}
 }
 
 func (e *evaluator) evalDelegate(user User, rule configRule, exposures []map[string]string, depth int) *evalResult {
@@ -361,7 +364,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int) *e
 		newExposure := map[string]string{
 			"gate":      dependentGateName,
 			"gateValue": strconv.FormatBool(result.Pass),
-			"ruleID":    result.Id,
+			"ruleID":    result.RuleID,
 		}
 		allExposures := append(result.SecondaryExposures, newExposure)
 		if condType == "pass_gate" {

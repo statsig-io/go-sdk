@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestManualExposure(t *testing.T) {
+func TestExposureLogging(t *testing.T) {
 	events := []Event{}
 
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -40,18 +40,50 @@ func TestManualExposure(t *testing.T) {
 		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 
-	user := User{UserID: "some_user_id"}
+	user := User{UserID: "some_user_id", Email: "someuser@statsig.com"}
 
 	start := func() {
 		events = []Event{}
 		InitializeWithOptions("secret-key", opt)
 	}
 
+	t.Run("logs exposures for all API", func(t *testing.T) {
+		start()
+		gateValue := CheckGate(user, "always_on_gate")
+		gate := GetGate(user, "always_on_gate")
+		config := GetConfig(user, "test_config")
+		experiment := GetExperiment(user, "sample_experiment")
+		layer := GetLayer(user, "a_layer")
+		layer.GetString("experiment_param", "")
+		ShutdownAndDangerouslyClearInstance()
+
+		if len(events) != 5 {
+			t.Errorf("Should receive exactly 5 log_events")
+		}
+
+		if gateValue != gate.Value {
+			t.Errorf("CheckGate and GetGate returned different results: %+v vs %+v", gateValue, gate.Value)
+		}
+		if gate.GroupName != "everyone" {
+			t.Errorf("Gate expected group name %+v but received %+v", "everyone", gate.GroupName)
+		}
+		if config.GroupName != "statsig email" {
+			t.Errorf("Config expected group name %+v but received %+v", "statsig email", config.GroupName)
+		}
+		if experiment.GroupName != "Control" {
+			t.Errorf("Experiment expected group name %+v but received %+v", "Control", experiment.GroupName)
+		}
+		if layer.GroupName != "Control" {
+			t.Errorf("Layer expected group name %+v but received %+v", "Control", layer.GroupName)
+		}
+	})
+
 	//
 
 	t.Run("does not log for exposure logging disabled API", func(t *testing.T) {
 		start()
 		CheckGateWithExposureLoggingDisabled(user, "always_on_gate")
+		GetGateWithExposureLoggingDisabled(user, "always_on_gate")
 		GetConfigWithExposureLoggingDisabled(user, "test_config")
 		GetExperimentWithExposureLoggingDisabled(user, "sample_experiment")
 		layer := GetLayerWithExposureLoggingDisabled(user, "a_layer")

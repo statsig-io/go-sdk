@@ -132,9 +132,9 @@ func test_helper(apiOverride string, t *testing.T) {
 					gate, sdkResult.Pass, serverResult.Value, u)
 			}
 
-			if sdkResult.Id != serverResult.RuleID {
+			if sdkResult.RuleID != serverResult.RuleID {
 				t.Errorf("Rule IDs are different for gate %s. SDK got %s but server is %s. User is %+v",
-					gate, sdkResult.Id, serverResult.RuleID, u)
+					gate, sdkResult.RuleID, serverResult.RuleID, u)
 			}
 
 			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
@@ -151,9 +151,9 @@ func test_helper(apiOverride string, t *testing.T) {
 					config, sdkResult.ConfigValue.Value, serverResult.Value, u)
 			}
 
-			if sdkResult.Id != serverResult.RuleID {
+			if sdkResult.RuleID != serverResult.RuleID {
 				t.Errorf("Rule IDs are different for config %s. SDK got %s but server is %s",
-					config, sdkResult.Id, serverResult.RuleID)
+					config, sdkResult.RuleID, serverResult.RuleID)
 			}
 
 			if sdkResult.ConfigValue.GroupName != serverResult.GroupName {
@@ -175,9 +175,9 @@ func test_helper(apiOverride string, t *testing.T) {
 					layer, sdkResult.ConfigValue.Value, serverResult.Value, u)
 			}
 
-			if sdkResult.Id != serverResult.RuleID {
+			if sdkResult.RuleID != serverResult.RuleID {
 				t.Errorf("Rule IDs are different for layer %s. SDK got %s but server is %s",
-					layer, sdkResult.Id, serverResult.RuleID)
+					layer, sdkResult.RuleID, serverResult.RuleID)
 			}
 
 			if sdkResult.ConfigValue.GroupName != serverResult.GroupName {

@@ -36,6 +36,14 @@ type configBase struct {
 	LogExposure *func(configBase, string)
 }
 
+type FeatureGate struct {
+	Name        string `json:"name"`
+	Value       bool   `json:"value"`
+	RuleID      string `json:"rule_id"`
+	GroupName   string `json:"group_name"`
+	LogExposure *func(configBase, string)
+}
+
 // A json blob configured in the Statsig Console
 type DynamicConfig struct {
 	configBase
@@ -43,6 +51,15 @@ type DynamicConfig struct {
 
 type Layer struct {
 	configBase
+}
+
+func NewGate(name string, value bool, ruleID string, groupName string) *FeatureGate {
+	return &FeatureGate{
+		Name:      name,
+		Value:     value,
+		RuleID:    ruleID,
+		GroupName: groupName,
+	}
 }
 
 func NewConfig(name string, value map[string]interface{}, ruleID string, groupName string) *DynamicConfig {
