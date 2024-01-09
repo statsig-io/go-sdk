@@ -72,6 +72,7 @@ type downloadConfigSpecResponse struct {
 	DiagnosticsSampleRates map[string]int      `json:"diagnostics"`
 	SDKKeysToAppID         map[string]string   `json:"sdk_keys_to_app_ids,omitempty"`
 	HashedSDKKeysToAppID   map[string]string   `json:"hashed_sdk_keys_to_app_ids,omitempty"`
+	HashedSDKKeyUsed       string              `json:"hashed_sdk_key_used,omitempty"`
 }
 
 type idList struct {
@@ -105,6 +106,7 @@ type store struct {
 	syncFailureCount     int
 	diagnostics          *diagnostics
 	mu                   sync.RWMutex
+	sdkKey               string
 }
 
 var syncOutdatedMax = 2 * time.Minute
@@ -114,6 +116,7 @@ func newStore(
 	errorBoundary *errorBoundary,
 	options *Options,
 	diagnostics *diagnostics,
+	sdkKey string,
 ) *store {
 	configSyncInterval := 10 * time.Second
 	idListSyncInterval := time.Minute
@@ -132,6 +135,7 @@ func newStore(
 		errorBoundary,
 		options.DataAdapter,
 		diagnostics,
+		sdkKey,
 	)
 }
 
@@ -144,6 +148,7 @@ func newStoreInternal(
 	errorBoundary *errorBoundary,
 	dataAdapter IDataAdapter,
 	diagnostics *diagnostics,
+	sdkKey string,
 ) *store {
 	store := &store{
 		featureGates:         make(map[string]configSpec),
@@ -159,6 +164,7 @@ func newStoreInternal(
 		dataAdapter:          dataAdapter,
 		syncFailureCount:     0,
 		diagnostics:          diagnostics,
+		sdkKey:               sdkKey,
 	}
 	firstAttempt := true
 	if dataAdapter != nil {
@@ -324,6 +330,11 @@ func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *m
 func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 	s.diagnostics.initDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
 	s.diagnostics.syncDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
+
+	if specs.HashedSDKKeyUsed != "" && specs.HashedSDKKeyUsed != getDJB2Hash(s.sdkKey) {
+		s.errorBoundary.logException(fmt.Errorf("SDK key mismatch. Key used to generate response does not match key provided. Expected %s, got %s", getDJB2Hash(s.sdkKey), specs.HashedSDKKeyUsed))
+		return false
+	}
 
 	if specs.HasUpdates {
 		// TODO: when adding eval details, differentiate REASON between bootstrap and network here

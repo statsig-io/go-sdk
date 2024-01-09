@@ -37,7 +37,7 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	}
 	transport := newTransport(sdkKey, options)
 	logger := newLogger(transport, options, diagnostics)
-	evaluator := newEvaluator(transport, errorBoundary, options, diagnostics)
+	evaluator := newEvaluator(transport, errorBoundary, options, diagnostics, sdkKey)
 	diagnostics.initialize().overall().end().success(true).mark()
 	return &Client{
 		sdkKey:        sdkKey,
