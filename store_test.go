@@ -111,7 +111,7 @@ func TestStoreSync(t *testing.T) {
 	}
 	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
 	n := newTransport("secret-123", opt)
-	d := newDiagnostics()
+	d := newDiagnostics(opt)
 	e := newErrorBoundary("client-key", opt, d)
 	s := newStoreInternal(n, time.Second, time.Second, "", nil, e, nil, d, "secret-123")
 

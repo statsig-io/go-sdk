@@ -252,13 +252,7 @@ func (l *logger) logDiagnosticsEvents(d *diagnostics) {
 }
 
 func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
-	if l.options.StatsigLoggerOptions.DisableInitDiagnostics && d.context == InitializeContext {
-		return
-	}
-	if l.options.StatsigLoggerOptions.DisableSyncDiagnostics && d.context == ConfigSyncContext {
-		return
-	}
-	if l.options.StatsigLoggerOptions.DisableApiDiagnostics && d.context == ApiCallContext {
+	if d.isDisabled() {
 		return
 	}
 	serialized := d.serializeWithSampling()
@@ -267,6 +261,7 @@ func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
 		return
 	}
 	markersTyped, ok := markers.([]marker)
+	d.clearMarkers()
 	if !ok || len(markersTyped) == 0 {
 		return
 	}
@@ -275,6 +270,5 @@ func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
 		Time:      getUnixMilli(),
 		Metadata:  serialized,
 	}
-	d.clearMarkers()
 	l.logInternal(event)
 }

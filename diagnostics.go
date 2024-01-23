@@ -44,11 +44,14 @@ const (
 	EndAction   DiagnosticsAction = "end"
 )
 
+const MaxMarkerSize = 50
+
 type diagnosticsBase struct {
 	context       DiagnosticsContext
 	markers       []marker
 	mu            sync.RWMutex
 	samplingRates map[string]int
+	options       *Options
 }
 
 type diagnostics struct {
@@ -74,19 +77,22 @@ type tags struct {
 	URL         *string `json:"url,omitempty"`
 }
 
-func newDiagnostics() *diagnostics {
+func newDiagnostics(options *Options) *diagnostics {
 	return &diagnostics{
 		initDiagnostics: &diagnosticsBase{
 			context: InitializeContext,
 			markers: make([]marker, 0),
+			options: options,
 		},
 		syncDiagnostics: &diagnosticsBase{
 			context: ConfigSyncContext,
 			markers: make([]marker, 0),
+			options: options,
 		},
 		apiDiagnostics: &diagnosticsBase{
 			context: ApiCallContext,
 			markers: make([]marker, 0),
+			options: options,
 		},
 	}
 }
@@ -143,6 +149,13 @@ func (d *diagnosticsBase) clearMarkers() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.markers = nil
+}
+
+func (d *diagnosticsBase) isDisabled() bool {
+	options := d.options.StatsigLoggerOptions
+	return (options.DisableInitDiagnostics && d.context == InitializeContext) ||
+	(options.DisableSyncDiagnostics && d.context == ConfigSyncContext) ||
+	(options.DisableApiDiagnostics && d.context == ApiCallContext)
 }
 
 /* Context */
@@ -281,6 +294,9 @@ func (m *marker) mark() {
 	m.Timestamp = time.Now().UnixNano() / 1000000.0
 	m.diagnostics.mu.Lock()
 	defer m.diagnostics.mu.Unlock()
+	if len(m.diagnostics.markers) >= MaxMarkerSize || m.diagnostics.isDisabled() {
+		return
+	}
 	m.diagnostics.markers = append(m.diagnostics.markers, *m)
 	m.logProcess()
 }

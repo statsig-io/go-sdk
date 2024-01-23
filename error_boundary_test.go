@@ -39,7 +39,7 @@ func TestLogException(t *testing.T) {
 	opt := &Options{
 		API: testServer.URL,
 	}
-	diagnostics := newDiagnostics()
+	diagnostics := newDiagnostics(opt)
 	errorBoundary := newErrorBoundary("client-key", opt, diagnostics)
 	errorBoundary.logException(err)
 	if !hit {
@@ -71,7 +71,7 @@ func TestRepeatedError(t *testing.T) {
 	opt := &Options{
 		API: testServer.URL,
 	}
-	diagnostics := newDiagnostics()
+	diagnostics := newDiagnostics(opt)
 	errorBoundary := newErrorBoundary("client-key", opt, diagnostics)
 	errorBoundary.logException(err)
 	if !hit {

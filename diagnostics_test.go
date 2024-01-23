@@ -326,6 +326,127 @@ func TestDiagnosticsSampling(t *testing.T) {
 	}
 }
 
+func TestDiagnosticsClearMarkers(t *testing.T) {
+	var events Events
+
+	testServer := getTestServer(true, func(newEvents Events) {
+		events = append(events, newEvents...)
+	}, true)
+	defer testServer.Close()
+
+	options := &Options{
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DisableInitDiagnostics: false,
+			DisableSyncDiagnostics: false,
+			DisableApiDiagnostics:  false,
+		},
+	}
+	InitializeWithOptions("secret-key", options)
+	defer ShutdownAndDangerouslyClearInstance()
+	for i := 1; i <= 10; i++ {
+		instance.evaluator.store.fetchConfigSpecsFromServer(false)
+		instance.logger.flush(false)
+	}
+	
+	initMarkersLen := len(instance.diagnostics.initDiagnostics.markers)
+	if (initMarkersLen > 0) {
+		t.Errorf("Expected no markers, received %d", initMarkersLen)
+	}
+	apiMarkersLen := len(instance.diagnostics.initDiagnostics.markers)
+	if (apiMarkersLen > 0) {
+		t.Errorf("Expected no markers, received %d", apiMarkersLen)
+	}
+	configSyncMarkersLen := len(instance.diagnostics.initDiagnostics.markers)
+	if (apiMarkersLen > 0) {
+		t.Errorf("Expected no markers, received %d", configSyncMarkersLen)
+	}
+}
+
+func TestDiagnosticsMaxMarkers(t *testing.T) {
+	var events Events
+	testServer := getTestServer(true, func(newEvents Events) {
+		events = newEvents
+	}, false)
+	defer testServer.Close()
+
+	options := &Options{
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DisableInitDiagnostics: true,
+			DisableSyncDiagnostics: true,
+			DisableApiDiagnostics:  false,
+		},
+	}
+	InitializeWithOptions("secret-key", options)
+	user := User{UserID: "123"}
+	for i := 0; i < 10; i++ {
+        CheckGate(user, "non_existent_gate")
+		GetConfig(user, "non_existent_config")
+		GetExperiment(user, "non_existent_experiment")
+		GetLayer(user, "non_existent_layer")
+    }
+	
+	ShutdownAndDangerouslyClearInstance()
+
+	markers := extractMarkers(events,30) // 30 exposure events, api diagnostics
+	lenMarkers := len(markers)
+
+	if lenMarkers > MaxMarkerSize || lenMarkers < 0 {
+		t.Errorf("Expected at most %d markers but got %d",MaxMarkerSize, len(markers))
+	}
+}
+
+func TestDisableDiagnostics(t *testing.T) {
+	var events Events
+
+	testServer := getTestServer(true, func(newEvents Events) {
+		events =newEvents
+	}, false)
+	defer testServer.Close()
+	user := User{UserID: "123"}
+	options := &Options{
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DisableInitDiagnostics: true,
+			DisableSyncDiagnostics: true,
+			DisableApiDiagnostics:  true,
+		},
+	}
+	InitializeWithOptions("secret-key", options)
+	CheckGate(user, "always_on_gate")
+	GetConfig(user, "non_existent_config")
+	GetExperiment(user, "non_existent_experiment")
+	GetLayer(user, "non_existent_layer")
+	instance.evaluator.store.fetchConfigSpecsFromServer(false)
+	instance.logger.flush(true)
+	defer ShutdownAndDangerouslyClearInstance()
+
+	logEventsLen := len(events)
+	if(logEventsLen != 3) { // 3 Exposure events
+		t.Errorf("Diagnostics logged to endpoints %d", logEventsLen)
+	}
+
+	initMarkersLen := len(instance.diagnostics.initDiagnostics.markers)
+	if (initMarkersLen > 0) {
+		t.Errorf("Expected no markers, received %d", initMarkersLen)
+	}
+	apiMarkersLen := len(instance.diagnostics.initDiagnostics.markers)
+	if (apiMarkersLen > 0) {
+		t.Errorf("Expected no markers, received %d", apiMarkersLen)
+	}
+	configSyncMarkersLen := len(instance.diagnostics.initDiagnostics.markers)
+	if (configSyncMarkersLen > 0) {
+		t.Errorf("Expected no markers, received %d", configSyncMarkersLen)
+	}
+}
+
 func getTestIDListServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		if strings.Contains(req.URL.Path, "my_id_list") {

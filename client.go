@@ -25,7 +25,7 @@ func NewClient(sdkKey string) *Client {
 
 // Initializes a Statsig Client with the given sdkKey and options
 func NewClientWithOptions(sdkKey string, options *Options) *Client {
-	diagnostics := newDiagnostics()
+	diagnostics := newDiagnostics(options)
 	diagnostics.initialize().overall().start().mark()
 	if len(options.API) == 0 {
 		options.API = "https://statsigapi.net/v1"
