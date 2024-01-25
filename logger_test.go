@@ -1,7 +1,6 @@
 package statsig
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -11,7 +10,6 @@ import (
 )
 
 func TestLog(t *testing.T) {
-	t.Log("starting test")
 	InitializeGlobalOutputLogger(OutputLoggerOptions{
 		LogCallback: func(message string, err error) {
 			t.Log(message)
@@ -20,8 +18,6 @@ func TestLog(t *testing.T) {
 		DisableInitDiagnostics: false,
 		DisableSyncDiagnostics: true,
 	})
-	t.Log("starting test")
-	fmt.Println("started")
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {}))
 	defer testServer.Close()
 	opt := &Options{
