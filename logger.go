@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"fmt"
+	"net/http/httputil"
 	"strconv"
 	"sync"
 	"time"
@@ -205,7 +206,6 @@ func (l *logger) logLayerExposure(
 }
 
 func (l *logger) flush(closing bool) {
-	l.logDiagnosticsEvents(l.diagnostics)
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -220,10 +220,13 @@ func (l *logger) flushInternal(closing bool) {
 		return
 	}
 
+	eventsCopy := make([]interface{}, len(l.events))
+	copy(eventsCopy, l.events)
+
 	if closing {
-		l.sendEvents(l.events)
+		l.sendEvents(eventsCopy)
 	} else {
-		go l.sendEvents(l.events)
+		go l.sendEvents(eventsCopy)
 	}
 
 	l.events = make([]interface{}, 0)
@@ -234,8 +237,20 @@ func (l *logger) sendEvents(events []interface{}) {
 		Events:          events,
 		StatsigMetadata: l.transport.metadata,
 	}
-	var res logEventResponse
-	_, _ = l.transport.retryablePostRequest("/log_event", input, &res, maxRetries)
+	var result logEventResponse
+	global.Logger().Log(fmt.Sprintf("logging %d events\n", len(events)), nil)
+	res, err := l.transport.retryablePostRequest("/log_event", input, &result, maxRetries)
+
+	if err != nil {
+		global.Logger().LogError(err)
+	}
+
+	respDump, err := httputil.DumpResponse(res, true)
+	if err != nil {
+		global.Logger().LogError(err)
+	}
+
+	global.Logger().Log(fmt.Sprintf("log_event response:\n%s", string(respDump)), nil)
 }
 
 func (l *logger) logDiagnosticsEvents(d *diagnostics) {
