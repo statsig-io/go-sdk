@@ -220,10 +220,13 @@ func (l *logger) flushInternal(closing bool) {
 		return
 	}
 
+	eventsCopy := make([]interface{}, len(l.events))
+	copy(eventsCopy, l.events)
+
 	if closing {
-		l.sendEvents(l.events)
+		l.sendEvents(eventsCopy)
 	} else {
-		go l.sendEvents(l.events)
+		go l.sendEvents(eventsCopy)
 	}
 
 	l.events = make([]interface{}, 0)
@@ -235,7 +238,10 @@ func (l *logger) sendEvents(events []interface{}) {
 		StatsigMetadata: l.transport.metadata,
 	}
 	var res logEventResponse
-	_, _ = l.transport.retryablePostRequest("/log_event", input, &res, maxRetries)
+	_, err := l.transport.retryablePostRequest("/log_event", input, &res, maxRetries)
+	if err != nil {
+		global.Logger().LogError(err)
+	}
 }
 
 func (l *logger) logDiagnosticsEvents(d *diagnostics) {
