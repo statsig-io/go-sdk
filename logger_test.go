@@ -1,6 +1,7 @@
 package statsig
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -10,6 +11,17 @@ import (
 )
 
 func TestLog(t *testing.T) {
+	t.Log("starting test")
+	InitializeGlobalOutputLogger(OutputLoggerOptions{
+		LogCallback: func(message string, err error) {
+			t.Log(message)
+			t.Log(err)
+		},
+		DisableInitDiagnostics: false,
+		DisableSyncDiagnostics: true,
+	})
+	t.Log("starting test")
+	fmt.Println("started")
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {}))
 	defer testServer.Close()
 	opt := &Options{
@@ -92,4 +104,6 @@ func TestLog(t *testing.T) {
 	if evt3.Time/1000 < nowSecond-2 || evt3.Time/1000 > nowSecond+2 {
 		t.Errorf("Config exposure event time not set correctly.")
 	}
+
+	logger.flush(true)
 }
