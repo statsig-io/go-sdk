@@ -116,6 +116,10 @@ func (l *logger) logInternal(evt interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	if l.options.DisableEventLogging {
+		return
+	}
+
 	l.events = append(l.events, evt)
 	if len(l.events) >= l.maxEvents {
 		l.flushInternal(false)

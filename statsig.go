@@ -37,6 +37,7 @@ type Options struct {
 	OutputLoggerOptions  OutputLoggerOptions
 	StatsigLoggerOptions StatsigLoggerOptions
 	EvaluationCallbacks  EvaluationCallbacks
+	DisableEventLogging  bool
 }
 
 type EvaluationCallbacks struct {
