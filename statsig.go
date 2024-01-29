@@ -37,7 +37,6 @@ type Options struct {
 	OutputLoggerOptions  OutputLoggerOptions
 	StatsigLoggerOptions StatsigLoggerOptions
 	EvaluationCallbacks  EvaluationCallbacks
-	DisableEventLogging  bool
 }
 
 type EvaluationCallbacks struct {
@@ -58,6 +57,7 @@ type StatsigLoggerOptions struct {
 	DisableInitDiagnostics bool
 	DisableSyncDiagnostics bool
 	DisableApiDiagnostics  bool
+	DisableAllLogging      bool
 }
 
 // See https://docs.statsig.com/guides/usingEnvironments

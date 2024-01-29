@@ -49,6 +49,7 @@ type logger struct {
 	tick        *time.Ticker
 	mu          sync.Mutex
 	maxEvents   int
+	disabled    bool
 	diagnostics *diagnostics
 	options     *Options
 }
@@ -62,11 +63,13 @@ func newLogger(transport *transport, options *Options, diagnostics *diagnostics)
 	if options.LoggingMaxBufferSize > 0 {
 		maxEvents = options.LoggingMaxBufferSize
 	}
+	disabled := options.StatsigLoggerOptions.DisableAllLogging
 	log := &logger{
 		events:      make([]interface{}, 0),
 		transport:   transport,
 		tick:        time.NewTicker(loggingInterval),
 		maxEvents:   maxEvents,
+		disabled:    disabled,
 		diagnostics: diagnostics,
 		options:     options,
 	}
@@ -116,7 +119,7 @@ func (l *logger) logInternal(evt interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if l.options.DisableEventLogging {
+	if l.disabled {
 		return
 	}
 

@@ -18,6 +18,7 @@ type errorBoundary struct {
 	seen        map[string]bool
 	seenLock    sync.RWMutex
 	diagnostics *diagnostics
+	options     *Options
 }
 
 type logExceptionRequestBody struct {
@@ -47,6 +48,7 @@ func newErrorBoundary(sdkKey string, options *Options, diagnostics *diagnostics)
 		client:      &http.Client{Timeout: time.Second * 3},
 		seen:        make(map[string]bool),
 		diagnostics: diagnostics,
+		options:     options,
 	}
 	if options.API != "" {
 		errorBoundary.api = options.API
@@ -113,6 +115,9 @@ func (e *errorBoundary) ebRecover(recoverCallback func()) {
 }
 
 func (e *errorBoundary) logException(exception error) {
+	if e.options.StatsigLoggerOptions.DisableAllLogging {
+		return
+	}
 	var exceptionString string
 	if exception == nil {
 		exceptionString = "Unknown"
