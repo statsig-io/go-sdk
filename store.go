@@ -173,7 +173,7 @@ func newStoreInternal(
 		store.fetchConfigSpecsFromAdapter()
 	} else if bootstrapValues != "" {
 		firstAttempt = false
-		if store.processConfigSpecs(bootstrapValues, store.addDiagnostics().bootstrap()) {
+		if _, updated := store.processConfigSpecs(bootstrapValues, store.addDiagnostics().bootstrap()); updated {
 			store.mu.Lock()
 			store.initReason = reasonBootstrap
 			store.mu.Unlock()
@@ -244,7 +244,7 @@ func (s *store) fetchConfigSpecsFromAdapter() {
 	}()
 	specString := s.dataAdapter.Get(CONFIG_SPECS_KEY)
 	s.addDiagnostics().dataStoreConfigSpecs().fetch().end().success(true).mark()
-	if s.processConfigSpecs(specString, s.addDiagnostics().dataStoreConfigSpecs()) {
+	if _, updated := s.processConfigSpecs(specString, s.addDiagnostics().dataStoreConfigSpecs()); updated {
 		s.mu.Lock()
 		s.initReason = reasonDataAdapter
 		s.mu.Unlock()
@@ -294,50 +294,55 @@ func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 	}
 	s.addDiagnostics().downloadConfigSpecs().networkRequest().end().
 		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
-	if s.processConfigSpecs(specs, s.addDiagnostics().downloadConfigSpecs()) {
+	parsed, updated := s.processConfigSpecs(specs, s.addDiagnostics().downloadConfigSpecs())
+	if parsed {
 		s.mu.Lock()
-		s.initReason = reasonNetwork
-		s.mu.Unlock()
-		if s.rulesUpdatedCallback != nil {
-			v, _ := json.Marshal(specs)
-			s.rulesUpdatedCallback(string(v[:]), specs.Time)
-		}
-		if s.dataAdapter != nil {
-			s.saveConfigSpecsToAdapter(specs)
+		defer s.mu.Unlock()
+		if updated {
+			s.initReason = reasonNetwork
+			if s.rulesUpdatedCallback != nil {
+				v, _ := json.Marshal(specs)
+				s.rulesUpdatedCallback(string(v[:]), specs.Time)
+			}
+			if s.dataAdapter != nil {
+				s.saveConfigSpecsToAdapter(specs)
+			}
+		} else {
+			s.initReason = reasonNetworkNotModified
 		}
 	}
 }
 
-func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *marker) bool {
+func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *marker) (bool, bool) {
 	diagnosticsMarker.process().start().mark()
 	specs := downloadConfigSpecResponse{}
-	success := false
+	parsed, updated := false, false
 	switch specsTyped := configSpecs.(type) {
 	case string:
 		err := json.Unmarshal([]byte(specsTyped), &specs)
 		if err == nil {
-			success = s.setConfigSpecs(specs)
+			parsed, updated = s.setConfigSpecs(specs)
 		}
 	case downloadConfigSpecResponse:
-		success = s.setConfigSpecs(specsTyped)
+		parsed, updated = s.setConfigSpecs(specsTyped)
 	default:
-		success = false
+		parsed, updated = false, false
 	}
-	diagnosticsMarker.process().end().success(success).mark()
-	return success
+	diagnosticsMarker.process().end().success(updated).mark()
+	return parsed, updated
 }
 
-func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
+// Returns a tuple of booleans indicating 1. parsed, 2. updated
+func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 	s.diagnostics.initDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
 	s.diagnostics.syncDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
 
 	if specs.HashedSDKKeyUsed != "" && specs.HashedSDKKeyUsed != getDJB2Hash(s.sdkKey) {
 		s.errorBoundary.logException(fmt.Errorf("SDK key mismatch. Key used to generate response does not match key provided. Expected %s, got %s", getDJB2Hash(s.sdkKey), specs.HashedSDKKeyUsed))
-		return false
+		return false, false
 	}
 
 	if specs.HasUpdates {
-		// TODO: when adding eval details, differentiate REASON between bootstrap and network here
 		newGates := make(map[string]configSpec)
 		for _, gate := range specs.FeatureGates {
 			newGates[gate.Name] = gate
@@ -369,9 +374,9 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) bool {
 		s.hashedSDKKeysToAppID = specs.HashedSDKKeysToAppID
 		s.lastSyncTime = specs.Time
 		s.mu.Unlock()
-		return true
+		return true, true
 	}
-	return false
+	return true, false
 }
 
 func (s *store) getIDList(name string) *idList {

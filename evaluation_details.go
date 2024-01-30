@@ -3,12 +3,13 @@ package statsig
 type evaluationReason string
 
 const (
-	reasonNetwork       evaluationReason = "Network"
-	reasonBootstrap     evaluationReason = "Bootstrap"
-	reasonLocalOverride evaluationReason = "LocalOverride"
-	reasonUnrecognized  evaluationReason = "Unrecognized"
-	reasonUninitialized evaluationReason = "Uninitialized"
-	reasonDataAdapter   evaluationReason = "DataAdapter"
+	reasonNetwork            evaluationReason = "Network"
+	reasonBootstrap          evaluationReason = "Bootstrap"
+	reasonLocalOverride      evaluationReason = "LocalOverride"
+	reasonUnrecognized       evaluationReason = "Unrecognized"
+	reasonUninitialized      evaluationReason = "Uninitialized"
+	reasonDataAdapter        evaluationReason = "DataAdapter"
+	reasonNetworkNotModified evaluationReason = "NetworkNotModified"
 )
 
 type evaluationDetails struct {
