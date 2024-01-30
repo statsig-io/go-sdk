@@ -66,6 +66,7 @@ func getOutputLoggerOptionsForTest(t *testing.T) OutputLoggerOptions {
 			defer f.Close()
 			mu.Lock()
 			_, e = f.WriteString(fmt.Sprintf("(%s) %s", t.Name(), message))
+			fmt.Fprint(os.Stderr, err)
 			mu.Unlock()
 			if e != nil {
 				fmt.Println(e.Error())

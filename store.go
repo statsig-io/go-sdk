@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -239,7 +238,7 @@ func (s *store) fetchConfigSpecsFromAdapter() {
 	s.addDiagnostics().dataStoreConfigSpecs().fetch().start().mark()
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error calling data adapter get: %s\n", toError(err).Error())
+			Logger().LogError(fmt.Sprintf("Error calling data adapter get: %s\n", toError(err).Error()))
 		}
 	}()
 	specString := s.dataAdapter.Get(CONFIG_SPECS_KEY)
@@ -255,7 +254,7 @@ func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
 	specString, err := json.Marshal(specs)
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error calling data adapter set: %s\n", toError(err).Error())
+			Logger().LogError(fmt.Sprintf("Error calling data adapter set: %s\n", toError(err).Error()))
 		}
 	}()
 	if err == nil {
@@ -267,13 +266,13 @@ func (s *store) handleSyncError(err error, isColdStart bool) {
 	s.syncFailureCount += 1
 	failDuration := time.Duration(s.syncFailureCount) * s.configSyncInterval
 	if isColdStart {
-		fmt.Fprintf(os.Stderr, "Failed to initialize from the network. "+
-			"See https://docs.statsig.com/messages/serverSDKConnection for more information\n")
+		Logger().LogError(fmt.Sprintf("Failed to initialize from the network. " +
+			"See https://docs.statsig.com/messages/serverSDKConnection for more information\n"))
 		s.errorBoundary.logException(err)
 	} else if failDuration > syncOutdatedMax {
-		fmt.Fprintf(os.Stderr, "Syncing the server SDK with Statsig network has failed for %dms. "+
+		Logger().LogError(fmt.Sprintf("Syncing the server SDK with Statsig network has failed for %dms. "+
 			"Your sdk will continue to serve gate/config/experiment definitions as of the last successful sync. "+
-			"See https://docs.statsig.com/messages/serverSDKConnection for more information\n", int64(failDuration/time.Millisecond))
+			"See https://docs.statsig.com/messages/serverSDKConnection for more information\n", int64(failDuration/time.Millisecond)))
 		s.errorBoundary.logException(err)
 		s.syncFailureCount = 0
 	}
