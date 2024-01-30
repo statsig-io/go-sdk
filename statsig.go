@@ -37,6 +37,7 @@ type Options struct {
 	OutputLoggerOptions  OutputLoggerOptions
 	StatsigLoggerOptions StatsigLoggerOptions
 	EvaluationCallbacks  EvaluationCallbacks
+	DisableCDN           bool // Disables use of CDN for downloading config specs
 }
 
 type EvaluationCallbacks struct {

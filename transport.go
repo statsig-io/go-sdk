@@ -63,7 +63,12 @@ func (opts *RequestOptions) fill_defaults() {
 }
 
 func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}) (*http.Response, error) {
-	endpoint := fmt.Sprintf("/download_config_specs/%s.json?sinceTime=%d", transport.sdkKey, sinceTime)
+	var endpoint string
+	if transport.options.DisableCDN {
+		endpoint = fmt.Sprintf("/download_config_specs?sinceTime=%d", sinceTime)
+	} else {
+		endpoint = fmt.Sprintf("/download_config_specs/%s.json?sinceTime=%d", transport.sdkKey, sinceTime)
+	}
 	return transport.get(endpoint, responseBody, RequestOptions{})
 }
 
