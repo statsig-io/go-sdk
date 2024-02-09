@@ -122,10 +122,9 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 	ShutdownAndDangerouslyClearInstance()
 
 	// wait a little to allow the async flush to be executed
-	time.Sleep(time.Second)
-	if atomic.LoadInt32(&flushedEventCount) != 1100 {
-		t.Error("Not all events were flushed eventually")
-	}
+	waitForConditionWithMessage(t, func() bool {
+		return atomic.LoadInt32(&flushedEventCount) == 1100
+	}, "Not all events were flushed eventually")
 }
 
 func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {

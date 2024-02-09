@@ -134,11 +134,9 @@ func TestAdapterWithPolling(t *testing.T) {
 			t.Errorf("Expected gate to return true")
 		}
 		dataAdapter.clearStore(CONFIG_SPECS_KEY)
-		time.Sleep(100 * time.Millisecond)
-		value = CheckGate(user, "always_on_gate")
-		if value {
-			t.Errorf("Expected gate to return false")
-		}
+		waitForConditionWithMessage(t, func() bool {
+			return !CheckGate(user, "always_on_gate")
+		}, "Expected gate to return false")
 	})
 }
 
