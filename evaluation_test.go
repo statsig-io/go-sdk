@@ -146,7 +146,7 @@ func test_helper(apiOverride string, t *testing.T) {
 		}
 
 		for config, serverResult := range entry.Configs {
-			sdkResult := c.evaluator.getConfig(u, config)
+			sdkResult := c.evaluator.getConfig(u, config, nil)
 			if !reflect.DeepEqual(sdkResult.ConfigValue.Value, serverResult.Value) {
 				t.Errorf("Values are different for config %s. SDK got %s but server is %s. User is %+v",
 					config, sdkResult.ConfigValue.Value, serverResult.Value, u)

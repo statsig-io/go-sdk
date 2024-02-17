@@ -17,16 +17,6 @@ import (
 	"github.com/ua-parser/uap-go/uaparser"
 )
 
-type evaluator struct {
-	store           *store
-	gateOverrides   map[string]bool
-	configOverrides map[string]map[string]interface{}
-	layerOverrides  map[string]map[string]interface{}
-	countryLookup   *countrylookup.CountryLookup
-	uaParser        *uaparser.Parser
-	mu              sync.RWMutex
-}
-
 type evalResult struct {
 	Pass                          bool
 	ConfigValue                   DynamicConfig
@@ -39,6 +29,68 @@ type evalResult struct {
 	ExplicitParameters            map[string]bool
 	EvaluationDetails             *evaluationDetails
 	IsExperimentGroup             *bool
+}
+
+func newEvalResultFromUserPersistedValues(configName string, persitedValues UserPersistedValues) *evalResult {
+	if stickyValues, ok := persitedValues[configName]; ok {
+		newEvalResult := newEvalResultFromMap(stickyValues)
+		return newEvalResult
+	}
+	return nil
+}
+
+func newEvalResultFromMap(evalMap map[string]interface{}) *evalResult {
+	var ok bool
+	var secondaryExposures []map[string]string
+	evaluationDetails := newEvaluationDetails(
+		reasonPersisted,
+		safeParseJSONint64(evalMap["configSyncTime"]),
+		safeParseJSONint64(evalMap["initTime"]),
+	)
+	configValue := evalMap["ConfigValue"].(map[string]interface{})
+	if secondaryExposures, ok = evalMap["SecondaryExposures"].([]map[string]string); !ok {
+		secondaryExposures = make([]map[string]string, 0)
+	}
+
+	return &evalResult{
+		Pass:               evalMap["Pass"].(bool),
+		RuleID:             evalMap["RuleID"].(string),
+		GroupName:          evalMap["GroupName"].(string),
+		SecondaryExposures: secondaryExposures,
+		ConfigValue: DynamicConfig{
+			configBase{
+				Name:              configValue["name"].(string),
+				Value:             configValue["value"].(map[string]interface{}),
+				RuleID:            configValue["rule_id"].(string),
+				GroupName:         configValue["group_name"].(string),
+				EvaluationDetails: evaluationDetails,
+			},
+		},
+		EvaluationDetails: evaluationDetails,
+	}
+}
+
+func (e *evalResult) toMap() map[string]interface{} {
+	return map[string]interface{}{
+		"Pass":               e.Pass,
+		"ConfigValue":        e.ConfigValue,
+		"RuleID":             e.RuleID,
+		"GroupName":          e.GroupName,
+		"SecondaryExposures": e.SecondaryExposures,
+		"configSyncTime":     e.EvaluationDetails.configSyncTime,
+		"initTime":           e.EvaluationDetails.initTime,
+	}
+}
+
+type evaluator struct {
+	store                  *store
+	gateOverrides          map[string]bool
+	configOverrides        map[string]map[string]interface{}
+	layerOverrides         map[string]map[string]interface{}
+	countryLookup          *countrylookup.CountryLookup
+	uaParser               *uaparser.Parser
+	persistentStorageUtils *userPersistentStorageUtils
+	mu                     sync.RWMutex
 }
 
 const dynamicConfigType = "dynamic_config"
@@ -60,14 +112,16 @@ func newEvaluator(
 			Logger().LogError(err)
 		}
 	}()
+	persistentStorageUtils := newUserPersistentStorageUtils(options)
 
 	return &evaluator{
-		store:           store,
-		countryLookup:   countryLookup,
-		uaParser:        parser,
-		gateOverrides:   make(map[string]bool),
-		configOverrides: make(map[string]map[string]interface{}),
-		layerOverrides:  make(map[string]map[string]interface{}),
+		store:                  store,
+		countryLookup:          countryLookup,
+		uaParser:               parser,
+		gateOverrides:          make(map[string]bool),
+		configOverrides:        make(map[string]map[string]interface{}),
+		layerOverrides:         make(map[string]map[string]interface{}),
+		persistentStorageUtils: persistentStorageUtils,
 	}
 }
 
@@ -107,23 +161,39 @@ func (e *evaluator) evalGate(user User, gateName string, depth int) *evalResult 
 	return emptyEvalResult
 }
 
-func (e *evaluator) getConfig(user User, configName string) *evalResult {
-	return e.evalConfig(user, configName, 0)
+func (e *evaluator) getConfig(user User, configName string, persistedValues UserPersistedValues) *evalResult {
+	return e.evalConfig(user, configName, persistedValues, 0)
 }
 
-func (e *evaluator) evalConfig(user User, configName string, depth int) *evalResult {
+func (e *evaluator) evalConfig(user User, configName string, persistedValues UserPersistedValues, depth int) *evalResult {
 	if configOverride, hasOverride := e.getConfigOverride(configName); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
 			Pass:               true,
-			ConfigValue:        *NewConfig(configName, configOverride, "override", ""),
+			ConfigValue:        *NewConfig(configName, configOverride, "override", "", evalDetails),
 			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
 			SecondaryExposures: make([]map[string]string, 0),
 		}
 	}
 	if config, hasConfig := e.store.getDynamicConfig(configName); hasConfig {
-		return e.eval(user, config, depth+1)
+		var evaluation *evalResult
+		if persistedValues != nil && config.IsActive != nil && *config.IsActive {
+			stickyResult := newEvalResultFromUserPersistedValues(configName, persistedValues)
+			if stickyResult != nil {
+				return stickyResult
+			}
+
+			evaluation = e.eval(user, config, depth+1)
+			if evaluation.IsExperimentGroup != nil && *evaluation.IsExperimentGroup {
+				e.persistentStorageUtils.addEvaluationToUserPersistedValues(&persistedValues, configName, evaluation)
+				e.persistentStorageUtils.saveToStorage(user, config.IDType, persistedValues)
+			}
+		} else {
+			e.persistentStorageUtils.removeExperimentFromStorage(user, config.IDType, configName)
+			evaluation = e.eval(user, config, depth+1)
+		}
+		return evaluation
 	}
 	emptyEvalResult := new(evalResult)
 	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
@@ -140,7 +210,7 @@ func (e *evaluator) evalLayer(user User, name string, depth int) *evalResult {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
 			Pass:               true,
-			ConfigValue:        *NewConfig(name, layerOverride, "override", ""),
+			ConfigValue:        *NewConfig(name, layerOverride, "override", "", evalDetails),
 			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
 			SecondaryExposures: make([]map[string]string, 0),
@@ -248,7 +318,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 					}
 					result := &evalResult{
 						Pass:                          pass,
-						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID, rule.GroupName),
+						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID, rule.GroupName, evalDetails),
 						RuleID:                        rule.ID,
 						GroupName:                     rule.GroupName,
 						SecondaryExposures:            exposures,
@@ -277,7 +347,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 	if isDynamicConfig {
 		return &evalResult{
 			Pass:                          false,
-			ConfigValue:                   *NewConfig(spec.Name, configValue, defaultRuleID, ""),
+			ConfigValue:                   *NewConfig(spec.Name, configValue, defaultRuleID, "", evalDetails),
 			RuleID:                        defaultRuleID,
 			SecondaryExposures:            exposures,
 			UndelegatedSecondaryExposures: exposures,

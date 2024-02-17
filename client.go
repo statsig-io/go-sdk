@@ -108,7 +108,7 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 			return
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.getConfig(user, config)
+		res := c.evaluator.getConfig(user, config, nil)
 		context := &logContext{isManualExposure: true}
 		c.logger.logConfigExposure(user, config, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 	})
@@ -117,9 +117,9 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 // Gets the DynamicConfig value of an Experiment for the given user
 func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 	if !c.verifyUser(user) {
-		return *NewConfig(experiment, nil, "", "")
+		return *NewConfig(experiment, nil, "", "", nil)
 	}
-	options := &getExperimentOptions{disableLogExposures: false}
+	options := &GetExperimentOptions{DisableLogExposures: false}
 	context := getConfigImplContext{experimentOptions: options}
 	return c.getConfigImpl(user, experiment, context)
 }
@@ -127,9 +127,18 @@ func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 // Gets the DynamicConfig value of an Experiment for the given user without logging an exposure event
 func (c *Client) GetExperimentWithExposureLoggingDisabled(user User, experiment string) DynamicConfig {
 	if !c.verifyUser(user) {
-		return *NewConfig(experiment, nil, "", "")
+		return *NewConfig(experiment, nil, "", "", nil)
 	}
-	options := &getExperimentOptions{disableLogExposures: true}
+	options := &GetExperimentOptions{DisableLogExposures: true}
+	context := getConfigImplContext{experimentOptions: options}
+	return c.getConfigImpl(user, experiment, context)
+}
+
+// Gets the DynamicConfig value of an Experiment for the given user with configurable options
+func (c *Client) GetExperimentWithOptions(user User, experiment string, options *GetExperimentOptions) DynamicConfig {
+	if !c.verifyUser(user) {
+		return *NewConfig(experiment, nil, "", "", nil)
+	}
 	context := getConfigImplContext{experimentOptions: options}
 	return c.getConfigImpl(user, experiment, context)
 }
@@ -137,6 +146,17 @@ func (c *Client) GetExperimentWithExposureLoggingDisabled(user User, experiment 
 // Logs an exposure event for the experiment
 func (c *Client) ManuallyLogExperimentExposure(user User, experiment string) {
 	c.ManuallyLogConfigExposure(user, experiment)
+}
+
+func (c *Client) GetUserPersistedValues(user User, idType string) UserPersistedValues {
+	return c.errorBoundary.captureGetUserPersistedValues(func() UserPersistedValues {
+		persistedValues := c.evaluator.persistentStorageUtils.getUserPersistedValues(user, idType)
+		if persistedValues == nil {
+			return make(UserPersistedValues)
+		} else {
+			return persistedValues
+		}
+	})
 }
 
 // Gets the Layer object for the given user
@@ -244,8 +264,9 @@ type getConfigOptions struct {
 	disableLogExposures bool
 }
 
-type getExperimentOptions struct {
-	disableLogExposures bool
+type GetExperimentOptions struct {
+	DisableLogExposures bool
+	PersistedValues     UserPersistedValues
 }
 
 type getLayerOptions struct {
@@ -302,24 +323,28 @@ func (c *Client) checkGateImpl(user User, gate string, options checkGateOptions)
 
 type getConfigImplContext struct {
 	configOptions     *getConfigOptions
-	experimentOptions *getExperimentOptions
+	experimentOptions *GetExperimentOptions
 }
 
 func (c *Client) getConfigImpl(user User, config string, context getConfigImplContext) DynamicConfig {
 	return c.errorBoundary.captureGetConfig(func() DynamicConfig {
 		if !c.verifyUser(user) {
-			return *NewConfig(config, nil, "", "")
+			return *NewConfig(config, nil, "", "", nil)
+		}
+		isExperiment := context.experimentOptions != nil
+		var persistedValues UserPersistedValues
+		if isExperiment {
+			persistedValues = context.experimentOptions.PersistedValues
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.getConfig(user, config)
+		res := c.evaluator.getConfig(user, config, persistedValues)
 		if res.FetchFromServer {
 			res = c.fetchConfigFromServer(user, config)
 		} else {
 			var exposure *ExposureEvent = nil
-			isExperiment := context.experimentOptions != nil
 			var logExposure bool
 			if isExperiment {
-				logExposure = !context.experimentOptions.disableLogExposures
+				logExposure = !context.experimentOptions.DisableLogExposures
 			} else {
 				logExposure = !context.configOptions.disableLogExposures
 			}
@@ -419,7 +444,7 @@ func normalizeUser(user User, options Options) User {
 func (c *Client) fetchConfigFromServer(user User, configName string) *evalResult {
 	serverRes := fetchConfig(user, configName, c.transport)
 	return &evalResult{
-		ConfigValue: *NewConfig(configName, serverRes.Value, serverRes.RuleID, ""),
+		ConfigValue: *NewConfig(configName, serverRes.Value, serverRes.RuleID, "", nil),
 		RuleID:      serverRes.RuleID,
 	}
 }

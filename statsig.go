@@ -23,21 +23,22 @@ func Initialize(sdkKey string) {
 
 // Advanced options for configuring the Statsig SDK
 type Options struct {
-	API                  string      `json:"api"`
-	Environment          Environment `json:"environment"`
-	LocalMode            bool        `json:"localMode"`
-	ConfigSyncInterval   time.Duration
-	IDListSyncInterval   time.Duration
-	LoggingInterval      time.Duration
-	LoggingMaxBufferSize int
-	BootstrapValues      string
-	RulesUpdatedCallback func(rules string, time int64)
-	InitTimeout          time.Duration
-	DataAdapter          IDataAdapter
-	OutputLoggerOptions  OutputLoggerOptions
-	StatsigLoggerOptions StatsigLoggerOptions
-	EvaluationCallbacks  EvaluationCallbacks
-	DisableCDN           bool // Disables use of CDN for downloading config specs
+	API                   string      `json:"api"`
+	Environment           Environment `json:"environment"`
+	LocalMode             bool        `json:"localMode"`
+	ConfigSyncInterval    time.Duration
+	IDListSyncInterval    time.Duration
+	LoggingInterval       time.Duration
+	LoggingMaxBufferSize  int
+	BootstrapValues       string
+	RulesUpdatedCallback  func(rules string, time int64)
+	InitTimeout           time.Duration
+	DataAdapter           IDataAdapter
+	OutputLoggerOptions   OutputLoggerOptions
+	StatsigLoggerOptions  StatsigLoggerOptions
+	EvaluationCallbacks   EvaluationCallbacks
+	DisableCDN            bool // Disables use of CDN for downloading config specs
+	UserPersistentStorage IUserPersistentStorage
 }
 
 type EvaluationCallbacks struct {
@@ -204,12 +205,27 @@ func GetExperimentWithExposureLoggingDisabled(user User, experiment string) Dyna
 	return instance.GetExperimentWithExposureLoggingDisabled(user, experiment)
 }
 
+// Gets the DynamicConfig value of an Experiment for the given user with configurable options
+func GetExperimentWithOptions(user User, experiment string, options *GetExperimentOptions) DynamicConfig {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetExperimentWithOptions"))
+	}
+	return instance.GetExperimentWithOptions(user, experiment, options)
+}
+
 // Logs an exposure event for the experiment
 func ManuallyLogExperimentExposure(user User, experiment string) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling ManuallyLogExperimentExposure"))
 	}
 	instance.ManuallyLogExperimentExposure(user, experiment)
+}
+
+func GetUserPersistedValues(user User, idType string) UserPersistedValues {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetUserPersistedValues"))
+	}
+	return instance.GetUserPersistedValues(user, idType)
 }
 
 // Gets the Layer object for the given user

@@ -29,11 +29,12 @@ type Event struct {
 }
 
 type configBase struct {
-	Name        string                 `json:"name"`
-	Value       map[string]interface{} `json:"value"`
-	RuleID      string                 `json:"rule_id"`
-	GroupName   string                 `json:"group_name"`
-	LogExposure *func(configBase, string)
+	Name              string                    `json:"name"`
+	Value             map[string]interface{}    `json:"value"`
+	RuleID            string                    `json:"rule_id"`
+	GroupName         string                    `json:"group_name"`
+	EvaluationDetails *evaluationDetails        `json:"evaluation_details"`
+	LogExposure       *func(configBase, string) `json:"log_exposure"`
 }
 
 type FeatureGate struct {
@@ -62,16 +63,17 @@ func NewGate(name string, value bool, ruleID string, groupName string) *FeatureG
 	}
 }
 
-func NewConfig(name string, value map[string]interface{}, ruleID string, groupName string) *DynamicConfig {
+func NewConfig(name string, value map[string]interface{}, ruleID string, groupName string, evaluationDetails *evaluationDetails) *DynamicConfig {
 	if value == nil {
 		value = make(map[string]interface{})
 	}
 	return &DynamicConfig{
 		configBase{
-			Name:      name,
-			Value:     value,
-			RuleID:    ruleID,
-			GroupName: groupName,
+			Name:              name,
+			Value:             value,
+			RuleID:            ruleID,
+			GroupName:         groupName,
+			EvaluationDetails: evaluationDetails,
 		},
 	}
 }

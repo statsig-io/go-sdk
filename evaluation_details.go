@@ -10,6 +10,7 @@ const (
 	reasonUninitialized      evaluationReason = "Uninitialized"
 	reasonDataAdapter        evaluationReason = "DataAdapter"
 	reasonNetworkNotModified evaluationReason = "NetworkNotModified"
+	reasonPersisted          evaluationReason = "Persisted"
 )
 
 type evaluationDetails struct {

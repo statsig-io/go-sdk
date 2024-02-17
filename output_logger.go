@@ -1,6 +1,7 @@
 package statsig
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -31,6 +32,12 @@ func (o *OutputLogger) Log(msg string, err error) {
 			fmt.Print(formatted)
 		}
 	}
+}
+
+func (o *OutputLogger) Debug(any interface{}) {
+	bytes, _ := json.MarshalIndent(any, "", "	")
+	msg := fmt.Sprintf("%+v\n", string(bytes))
+	o.Log(msg, nil)
 }
 
 func (o *OutputLogger) LogStep(process StatsigProcess, msg string) {

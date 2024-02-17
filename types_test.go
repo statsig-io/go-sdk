@@ -71,6 +71,7 @@ func TestBasic(t *testing.T) {
 		jsonMap,
 		"rule_id",
 		"group_name",
+		nil,
 	)
 	doValidation(t, &c.configBase)
 

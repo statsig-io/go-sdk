@@ -101,6 +101,11 @@ func (e *errorBoundary) captureGetClientInitializeResponse(task func() ClientIni
 	return task()
 }
 
+func (e *errorBoundary) captureGetUserPersistedValues(task func() UserPersistedValues) UserPersistedValues {
+	defer e.ebRecover(func() {})
+	return task()
+}
+
 func (e *errorBoundary) captureVoid(task func()) {
 	defer e.ebRecover(func() {})
 	task()

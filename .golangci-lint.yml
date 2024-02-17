@@ -7,4 +7,3 @@ linters:
     - staticcheck
     - typecheck
     - unused
-    - forcetypeassert

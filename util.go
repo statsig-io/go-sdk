@@ -52,6 +52,15 @@ func safeGetFirst(slice []string) string {
 	return ""
 }
 
+func safeParseJSONint64(val interface{}) int64 {
+	if num, ok := val.(json.Number); ok {
+		i64, _ := strconv.ParseInt(string(num), 10, 64)
+		return i64
+	} else {
+		return 0
+	}
+}
+
 func compareMetadata(t *testing.T, metadata map[string]string, expected map[string]string, time int64) {
 	v, _ := json.Marshal(metadata)
 	var rawMetadata map[string]string
