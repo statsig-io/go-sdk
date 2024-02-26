@@ -3,6 +3,7 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,8 @@ import (
 func TestBootstrapWithAdapter(t *testing.T) {
 	events := []Event{}
 	dcs_bytes, _ := os.ReadFile("download_config_specs.json")
+	idlists_bytes, _ := os.ReadFile("test_data/get_id_lists.json")
+	idlist_bytes, _ := os.ReadFile("test_data/list_1.txt")
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "log_event") {
@@ -35,17 +38,19 @@ func TestBootstrapWithAdapter(t *testing.T) {
 	dataAdapter.Initialize()
 	defer dataAdapter.Shutdown()
 	dataAdapter.Set(CONFIG_SPECS_KEY, string(dcs_bytes))
+	dataAdapter.Set(ID_LISTS_KEY, string(idlists_bytes))
+	dataAdapter.Set(fmt.Sprintf("%s::%s", ID_LISTS_KEY, "list_1"), string(idlist_bytes))
 	options := &Options{
-		DataAdapter:          dataAdapter,
+		DataAdapter:          &dataAdapter,
 		API:                  testServer.URL,
 		Environment:          Environment{Tier: "test"},
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
 		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
-	InitializeWithOptions("secret-key", options)
-	user := User{UserID: "statsig_user", Email: "statsiguser@statsig.com"}
 
-	t.Run("able to fetch data from adapter and populate store without network", func(t *testing.T) {
+	t.Run("able to fetch config spec data from adapter and populate store without network", func(t *testing.T) {
+		InitializeWithOptions("secret-key", options)
+		user := User{UserID: "statsig_user", Email: "statsiguser@statsig.com"}
 		value := CheckGate(user, "always_on_gate")
 		if !value {
 			t.Errorf("Expected gate to return true")
@@ -68,28 +73,47 @@ func TestBootstrapWithAdapter(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("able to fetch id list data from adapter and populate store without network", func(t *testing.T) {
+		InitializeWithOptions("secret-key", options)
+		defer ShutdownAndDangerouslyClearInstance()
+		user := User{UserID: "abc"}
+		value := CheckGate(user, "on_for_id_list")
+		if !value {
+			t.Errorf("Expected gate to return true")
+		}
+	})
 }
 
 func TestSaveToAdapter(t *testing.T) {
-	bytes, _ := os.ReadFile("download_config_specs.json")
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
+			bytes, _ := os.ReadFile("download_config_specs.json")
+			_, _ = res.Write(bytes)
+		}
+		if strings.Contains(req.URL.Path, "get_id_lists") {
+			bytes, _ := os.ReadFile("test_data/get_id_lists.json")
 			_, _ = res.Write(bytes)
 		}
 	}))
 	dataAdapter := dataAdapterExample{store: make(map[string]string)}
 	options := &Options{
-		DataAdapter:          dataAdapter,
+		DataAdapter:          &dataAdapter,
 		API:                  testServer.URL,
 		Environment:          Environment{Tier: "test"},
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
 		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		IDListSyncInterval:   100 * time.Millisecond,
+		ConfigSyncInterval:   100 * time.Millisecond,
 	}
 	InitializeWithOptions("secret-key", options)
 	defer ShutdownAndDangerouslyClearInstance()
 
-	t.Run("updates adapter with newer values from network", func(t *testing.T) {
+	t.Run("updates adapter with newer config spec values from network", func(t *testing.T) {
+		waitForCondition(t, func() bool {
+			return dataAdapter.Get(CONFIG_SPECS_KEY) != ""
+		})
 		specString := dataAdapter.Get(CONFIG_SPECS_KEY)
 		specs := downloadConfigSpecResponse{}
 		err := json.Unmarshal([]byte(specString), &specs)
@@ -106,37 +130,84 @@ func TestSaveToAdapter(t *testing.T) {
 			t.Errorf("Expected data adapter to have downloaded layers")
 		}
 	})
+
+	t.Run("updates adapter with newer id list values from network", func(t *testing.T) {
+		waitForCondition(t, func() bool {
+			return dataAdapter.Get(ID_LISTS_KEY) != ""
+		})
+		idListsString := dataAdapter.Get(ID_LISTS_KEY)
+		var idLists map[string]idList
+		err := json.Unmarshal([]byte(idListsString), &idLists)
+		if err != nil {
+			t.Errorf("Error parsing data adapter values")
+		}
+		if len(idLists) != 1 {
+			t.Errorf("Expected data adapter to have list_1")
+		}
+		if idLists["list_1"].Size != 20 {
+			t.Errorf("Expected list_1 to have size 20")
+		}
+		if idLists["list_1"].FileID != "123" {
+			t.Errorf("Expected list_1 to have file ID 123")
+		}
+	})
 }
 
 func TestAdapterWithPolling(t *testing.T) {
-	bytes, _ := os.ReadFile("download_config_specs.json")
+	dcs_bytes, _ := os.ReadFile("download_config_specs.json")
+	idlists_bytes, _ := os.ReadFile("test_data/get_id_lists.json")
+	idlist_bytes, _ := os.ReadFile("test_data/list_1.txt")
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			_, _ = res.Write(bytes)
+			_, _ = res.Write(dcs_bytes)
+		}
+		if strings.Contains(req.URL.Path, "get_id_lists") {
+			_, _ = res.Write(idlists_bytes)
+		}
+		if strings.Contains(req.URL.Path, "idliststorage.1") {
+			_, _ = res.Write(idlist_bytes)
 		}
 	}))
 	dataAdapter := dataAdapterWithPollingExample{store: make(map[string]string)}
+	dataAdapter.Set(CONFIG_SPECS_KEY, string(dcs_bytes))
+	dataAdapter.Set(ID_LISTS_KEY, string(idlists_bytes))
+	dataAdapter.Set(fmt.Sprintf("%s::%s", ID_LISTS_KEY, "list_1"), string(idlist_bytes))
 	options := &Options{
 		DataAdapter:          &dataAdapter,
 		API:                  testServer.URL,
 		Environment:          Environment{Tier: "test"},
 		ConfigSyncInterval:   100 * time.Millisecond,
+		IDListSyncInterval:   100 * time.Millisecond,
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
 		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
 	}
 	InitializeWithOptions("secret-key", options)
 	defer ShutdownAndDangerouslyClearInstance()
-	user := User{UserID: "statsig_user", Email: "statsiguser@statsig.com"}
+
 	t.Run("updating adapter also updates statsig store", func(t *testing.T) {
-		value := CheckGate(user, "always_on_gate")
+		user := User{UserID: "abc"}
+		value := CheckGate(user, "on_for_id_list")
 		if !value {
-			t.Errorf("Expected gate to return true")
+			t.Errorf("Expected on_for_id_list to return true")
+		}
+		idlists_updated_bytes, _ := os.ReadFile("test_data/get_id_lists_updated.json")
+		idlist_updated_bytes, _ := os.ReadFile("test_data/list_1_updated.txt")
+		dataAdapter.Set(fmt.Sprintf("%s::%s", ID_LISTS_KEY, "list_1"), string(idlist_updated_bytes))
+		dataAdapter.Set(ID_LISTS_KEY, string(idlists_updated_bytes))
+		waitForConditionWithMessage(t, func() bool {
+			return !CheckGate(user, "on_for_id_list")
+		}, "Expected on_for_id_list to return false")
+
+		user = User{UserID: "statsig_user", Email: "statsiguser@statsig.com"}
+		value = CheckGate(user, "always_on_gate")
+		if !value {
+			t.Errorf("Expected always_on_gate to return true")
 		}
 		dataAdapter.clearStore(CONFIG_SPECS_KEY)
 		waitForConditionWithMessage(t, func() bool {
 			return !CheckGate(user, "always_on_gate")
-		}, "Expected gate to return false")
+		}, "Expected always_on_gate to return false")
 	})
 }
 

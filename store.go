@@ -2,8 +2,10 @@ package statsig
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -82,6 +84,13 @@ type idList struct {
 	FileID       string `json:"fileID"`
 	ids          *sync.Map
 }
+
+type DataSource string
+
+const (
+	AdapterDataSource DataSource = "adapter"
+	NetworkDataSource DataSource = "network"
+)
 
 type store struct {
 	featureGates         map[string]configSpec
@@ -187,7 +196,11 @@ func newStoreInternal(
 	store.mu.Lock()
 	store.initialSyncTime = store.lastSyncTime
 	store.mu.Unlock()
-	store.syncIDLists()
+	if store.dataAdapter != nil {
+		store.fetchIDListsFromAdapter()
+	} else {
+		store.fetchIDListsFromServer()
+	}
 	store.mu.Lock()
 	store.initializedIDLists = true
 	store.mu.Unlock()
@@ -251,6 +264,9 @@ func (s *store) fetchConfigSpecsFromAdapter() {
 }
 
 func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
+	if s.dataAdapter == nil {
+		return
+	}
 	specString, err := json.Marshal(specs)
 	defer func() {
 		if err := recover(); err != nil {
@@ -303,9 +319,7 @@ func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 				v, _ := json.Marshal(specs)
 				s.rulesUpdatedCallback(string(v[:]), specs.Time)
 			}
-			if s.dataAdapter != nil {
-				s.saveConfigSpecsToAdapter(specs)
-			}
+			s.saveConfigSpecsToAdapter(specs)
 		} else {
 			s.initReason = reasonNetworkNotModified
 		}
@@ -400,7 +414,7 @@ func (s *store) setIDList(name string, list *idList) {
 	s.idLists[name] = list
 }
 
-func (s *store) syncIDLists() {
+func (s *store) fetchIDListsFromServer() {
 	var serverLists map[string]idList
 	s.addDiagnostics().getIdListSources().networkRequest().start().mark()
 	res, err := s.transport.get_id_lists(&serverLists)
@@ -415,9 +429,58 @@ func (s *store) syncIDLists() {
 	}
 	s.addDiagnostics().getIdListSources().networkRequest().end().
 		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
-	s.addDiagnostics().getIdListSources().process().start().idListCount(len(serverLists)).mark()
+	s.processIDListsFromNetwork(serverLists)
+	s.saveIDListsToAdapter(serverLists)
+}
+
+func (s *store) fetchIDListsFromAdapter() {
+	s.addDiagnostics().dataStoreIDLists().fetch().start().mark()
+	defer func() {
+		if err := recover(); err != nil {
+			Logger().LogError(fmt.Sprintf("Error calling data adapter get: %s\n", toError(err).Error()))
+		}
+	}()
+	idListsString := s.dataAdapter.Get(ID_LISTS_KEY)
+	var idLists map[string]idList
+	err := json.Unmarshal([]byte(idListsString), &idLists)
+	if err != nil {
+		s.addDiagnostics().dataStoreIDLists().fetch().end().success(false).mark()
+		return
+	}
+	s.addDiagnostics().dataStoreIDLists().fetch().end().success(true).mark()
+	s.processIDListsFromAdapter(idLists)
+}
+
+func (s *store) saveIDListsToAdapter(idLists map[string]idList) {
+	if s.dataAdapter == nil {
+		return
+	}
+	idListsJSON, err := json.Marshal(idLists)
+	defer func() {
+		if err := recover(); err != nil {
+			Logger().LogError(fmt.Sprintf("Error calling data adapter set: %s\n", toError(err).Error()))
+		}
+	}()
+	if err == nil {
+		s.dataAdapter.Set(ID_LISTS_KEY, string(idListsJSON))
+	}
+}
+
+func (s *store) processIDListsFromNetwork(idLists map[string]idList) {
+	s.addDiagnostics().getIdListSources().process().start().idListCount(len(idLists)).mark()
+	s.processIDLists(idLists, NetworkDataSource)
+	s.addDiagnostics().getIdListSources().process().end().success(true).idListCount(len(idLists)).mark()
+}
+
+func (s *store) processIDListsFromAdapter(idLists map[string]idList) {
+	s.addDiagnostics().dataStoreIDLists().process().start().idListCount(len(idLists)).mark()
+	s.processIDLists(idLists, AdapterDataSource)
+	s.addDiagnostics().dataStoreIDLists().process().end().success(true).idListCount(len(idLists)).mark()
+}
+
+func (s *store) processIDLists(idLists map[string]idList, source DataSource) {
 	wg := sync.WaitGroup{}
-	for name, serverList := range serverLists {
+	for name, serverList := range idLists {
 		localList := s.getIDList(name)
 		if localList == nil {
 			localList = &idList{Name: name}
@@ -450,67 +513,103 @@ func (s *store) syncIDLists() {
 		wg.Add(1)
 		go func(name string, l *idList) {
 			defer wg.Done()
-			s.addDiagnostics().getIdList().networkRequest().start().url(l.URL).mark()
-			res, err := s.transport.get_id_list(l.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", l.Size)})
-			if err != nil || res == nil {
-				marker := s.addDiagnostics().getIdList().networkRequest().end().url(l.URL).success(false)
-				if res != nil {
-					marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
-				}
-				marker.mark()
-				s.errorBoundary.logException(err)
-				return
+			if source == NetworkDataSource {
+				s.downloadSingleIDListFromServer(l)
+			} else if source == AdapterDataSource {
+				s.getSingleIDListFromAdapter(l)
+			} else {
+				s.errorBoundary.logException(errors.New("Invalid ID list data source"))
 			}
-			defer res.Body.Close()
-			s.addDiagnostics().getIdList().networkRequest().end().url(l.URL).
-				success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
-			s.addDiagnostics().getIdList().process().start().url(l.URL).mark()
-
-			length, err := strconv.Atoi(res.Header.Get("content-length"))
-			if err != nil || length <= 0 {
-				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).mark()
-				s.errorBoundary.logException(err)
-				return
-			}
-
-			bodyBytes, err := io.ReadAll(res.Body)
-			if err != nil {
-				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).mark()
-				s.errorBoundary.logException(err)
-				return
-			}
-			content := string(bodyBytes)
-			if len(content) <= 1 || (string(content[0]) != "-" && string(content[0]) != "+") {
-				s.addDiagnostics().getIdList().process().end().url(l.URL).success(false).mark()
-				s.deleteIDList(name)
-				return
-			}
-
-			lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if len(line) <= 1 {
-					continue
-				}
-				id := line[1:]
-				op := string(line[0])
-				if op == "+" {
-					l.ids.Store(id, true)
-				} else if op == "-" {
-					l.ids.Delete(id)
-				}
-			}
-			atomic.AddInt64((&l.Size), int64(length))
-			s.addDiagnostics().getIdList().process().end().url(l.URL).success(true).mark()
 		}(name, localList)
 	}
 	wg.Wait()
 	for name := range s.idLists {
-		if _, ok := serverLists[name]; !ok {
+		if _, ok := idLists[name]; !ok {
 			s.deleteIDList(name)
 		}
 	}
-	s.addDiagnostics().getIdListSources().process().end().success(true).idListCount(len(serverLists)).mark()
+}
+
+func (s *store) downloadSingleIDListFromServer(list *idList) {
+	s.addDiagnostics().getIdList().networkRequest().start().url(list.URL).mark()
+	res, err := s.transport.get_id_list(list.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", list.Size)})
+	if err != nil || res == nil {
+		marker := s.addDiagnostics().getIdList().networkRequest().end().url(list.URL).success(false)
+		if res != nil {
+			marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
+		}
+		marker.mark()
+		s.errorBoundary.logException(err)
+		return
+	}
+	defer res.Body.Close()
+	s.addDiagnostics().getIdList().networkRequest().end().url(list.URL).
+		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
+	s.processSingleIDListFromNetwork(list, res)
+}
+
+func (s *store) getSingleIDListFromAdapter(list *idList) {
+	s.addDiagnostics().dataStoreIDList().fetch().start().mark()
+	defer func() {
+		if err := recover(); err != nil {
+			Logger().LogError(fmt.Sprintf("Error calling data adapter get: %s\n", toError(err).Error()))
+		}
+	}()
+	content := s.dataAdapter.Get(fmt.Sprintf("%s::%s", ID_LISTS_KEY, list.Name))
+	contentBytes := []byte(content)
+	content = string(contentBytes[list.Size:])
+	s.addDiagnostics().dataStoreIDList().fetch().end().success(true).mark()
+	s.processSingleIDListFromAdapter(list, content)
+}
+
+func (s *store) processSingleIDListFromNetwork(list *idList, res *http.Response) {
+	s.addDiagnostics().getIdList().process().start().url(list.URL).mark()
+	length, err := strconv.Atoi(res.Header.Get("content-length"))
+	if err != nil || length <= 0 {
+		s.addDiagnostics().getIdList().process().end().url(list.URL).success(false).mark()
+		s.errorBoundary.logException(err)
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		s.addDiagnostics().getIdList().process().end().url(list.URL).success(false).mark()
+		s.errorBoundary.logException(err)
+		return
+	}
+
+	content := string(bodyBytes)
+	if len(content) <= 1 || (string(content[0]) != "-" && string(content[0]) != "+") {
+		s.addDiagnostics().getIdList().process().end().url(list.URL).success(false).mark()
+		s.deleteIDList(list.Name)
+		return
+	}
+	s.processSingleIDList(list, content, length)
+	s.addDiagnostics().getIdList().process().end().url(list.URL).success(true).mark()
+}
+
+func (s *store) processSingleIDListFromAdapter(list *idList, content string) {
+	s.addDiagnostics().dataStoreIDList().process().start().url(list.URL).mark()
+	s.processSingleIDList(list, content, len(content))
+	s.addDiagnostics().dataStoreIDList().process().end().url(list.URL).success(true).mark()
+}
+
+func (s *store) processSingleIDList(list *idList, content string, length int) {
+	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if len(line) <= 1 {
+			continue
+		}
+		id := line[1:]
+		op := string(line[0])
+		if op == "+" {
+			list.ids.Store(id, true)
+		} else if op == "-" {
+			list.ids.Delete(id)
+		}
+	}
+	atomic.AddInt64((&list.Size), int64(length))
 }
 
 func (s *store) pollForIDListChanges() {
@@ -524,7 +623,11 @@ func (s *store) pollForIDListChanges() {
 		if stop {
 			break
 		}
-		s.syncIDLists()
+		if s.dataAdapter != nil && s.dataAdapter.ShouldBeUsedForQueryingUpdates(ID_LISTS_KEY) {
+			s.fetchIDListsFromAdapter()
+		} else {
+			s.fetchIDListsFromServer()
+		}
 	}
 }
 

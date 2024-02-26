@@ -1,6 +1,7 @@
 package statsig
 
 const CONFIG_SPECS_KEY = "statsig.cache"
+const ID_LISTS_KEY = "statsig.id_lists"
 
 /**
  * An adapter for implementing custom storage of config specs.

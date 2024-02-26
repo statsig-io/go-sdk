@@ -24,6 +24,8 @@ const (
 	GetIDListKey            DiagnosticsKey = "get_id_list"
 	OverallKey              DiagnosticsKey = "overall"
 	DataStoreConfigSpecsKey DiagnosticsKey = "data_store_config_specs"
+	DataStoreIDLists        DiagnosticsKey = "data_store_id_lists"
+	DataStoreIDList         DiagnosticsKey = "data_store_id_list"
 	CheckGateApiKey         DiagnosticsKey = "check_gate"
 	GetConfigApiKey         DiagnosticsKey = "get_config"
 	GetLayerApiKey          DiagnosticsKey = "get_layer"
@@ -154,8 +156,8 @@ func (d *diagnosticsBase) clearMarkers() {
 func (d *diagnosticsBase) isDisabled() bool {
 	options := d.options.StatsigLoggerOptions
 	return (options.DisableInitDiagnostics && d.context == InitializeContext) ||
-	(options.DisableSyncDiagnostics && d.context == ConfigSyncContext) ||
-	(options.DisableApiDiagnostics && d.context == ApiCallContext)
+		(options.DisableSyncDiagnostics && d.context == ConfigSyncContext) ||
+		(options.DisableApiDiagnostics && d.context == ApiCallContext)
 }
 
 /* Context */
@@ -205,6 +207,18 @@ func (m *marker) overall() *marker {
 func (m *marker) dataStoreConfigSpecs() *marker {
 	m.Key = new(DiagnosticsKey)
 	*m.Key = DataStoreConfigSpecsKey
+	return m
+}
+
+func (m *marker) dataStoreIDLists() *marker {
+	m.Key = new(DiagnosticsKey)
+	*m.Key = DataStoreIDLists
+	return m
+}
+
+func (m *marker) dataStoreIDList() *marker {
+	m.Key = new(DiagnosticsKey)
+	*m.Key = DataStoreIDList
 	return m
 }
 

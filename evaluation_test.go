@@ -99,6 +99,7 @@ func TestMain(m *testing.M) {
 	swallow_stderr(func() {
 		os.Exit(m.Run())
 	})
+	ShutdownAndDangerouslyClearInstance()
 }
 
 func TestEvaluation(t *testing.T) {

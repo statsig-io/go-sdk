@@ -317,7 +317,7 @@ func TestDiagnosticsSampling(t *testing.T) {
 	events = nil
 
 	for i := 1; i <= 10; i++ {
-		instance.evaluator.store.syncIDLists()
+		instance.evaluator.store.fetchIDListsFromServer()
 		instance.logger.flush(false)
 	}
 	numEvents = len(events)
