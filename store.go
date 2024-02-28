@@ -1,6 +1,7 @@
 package statsig
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -430,7 +431,7 @@ func (s *store) fetchIDListsFromServer() {
 	s.addDiagnostics().getIdListSources().networkRequest().end().
 		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
 	s.processIDListsFromNetwork(serverLists)
-	s.saveIDListsToAdapter(serverLists)
+	s.saveIDListsToAdapter(s.idLists)
 }
 
 func (s *store) fetchIDListsFromAdapter() {
@@ -451,7 +452,7 @@ func (s *store) fetchIDListsFromAdapter() {
 	s.processIDListsFromAdapter(idLists)
 }
 
-func (s *store) saveIDListsToAdapter(idLists map[string]idList) {
+func (s *store) saveIDListsToAdapter(idLists map[string]*idList) {
 	if s.dataAdapter == nil {
 		return
 	}
@@ -462,6 +463,15 @@ func (s *store) saveIDListsToAdapter(idLists map[string]idList) {
 		}
 	}()
 	if err == nil {
+		for name := range idLists {
+			buf := new(bytes.Buffer)
+			list := s.getIDList(name)
+			list.ids.Range(func(key, value interface{}) bool {
+				buf.WriteString(fmt.Sprintf("+%s\n", key))
+				return true
+			})
+			s.dataAdapter.Set(fmt.Sprintf("%s::%s", ID_LISTS_KEY, list.Name), buf.String())
+		}
 		s.dataAdapter.Set(ID_LISTS_KEY, string(idListsJSON))
 	}
 }

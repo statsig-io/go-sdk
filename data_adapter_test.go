@@ -93,8 +93,15 @@ func TestSaveToAdapter(t *testing.T) {
 			_, _ = res.Write(bytes)
 		}
 		if strings.Contains(req.URL.Path, "get_id_lists") {
-			bytes, _ := os.ReadFile("test_data/get_id_lists.json")
-			_, _ = res.Write(bytes)
+			baseURL := "http://" + req.Host
+			r := map[string]idList{
+				"list_1": {Name: "list_1", Size: 20, URL: baseURL + "/list_1", CreationTime: 0, FileID: "123"},
+			}
+			v, _ := json.Marshal(r)
+			_, _ = res.Write(v)
+		}
+		if strings.Contains(req.URL.Path, "list_1") {
+			_, _ = res.Write([]byte("+ungWv48B\n+Ngi8oeRO\n"))
 		}
 	}))
 	dataAdapter := dataAdapterExample{store: make(map[string]string)}
@@ -136,6 +143,8 @@ func TestSaveToAdapter(t *testing.T) {
 			return dataAdapter.Get(ID_LISTS_KEY) != ""
 		})
 		idListsString := dataAdapter.Get(ID_LISTS_KEY)
+		list1String := dataAdapter.Get(fmt.Sprintf("%s::%s", ID_LISTS_KEY, "list_1"))
+		list1Bytes := []byte(list1String)
 		var idLists map[string]idList
 		err := json.Unmarshal([]byte(idListsString), &idLists)
 		if err != nil {
@@ -145,10 +154,16 @@ func TestSaveToAdapter(t *testing.T) {
 			t.Errorf("Expected data adapter to have list_1")
 		}
 		if idLists["list_1"].Size != 20 {
-			t.Errorf("Expected list_1 to have size 20")
+			t.Errorf("Expected list_1 to have size 20, received %d", idLists["list_1"].Size)
 		}
 		if idLists["list_1"].FileID != "123" {
 			t.Errorf("Expected list_1 to have file ID 123")
+		}
+		if len(list1Bytes) != 20 {
+			t.Errorf("Expected list_1 to have 20 bytes, received %d", len(list1Bytes))
+		}
+		if list1String != "+ungWv48B\n+Ngi8oeRO\n" {
+			t.Errorf("Expected list_1 to contain ids: ungWv48B, Ngi8oeRO")
 		}
 	})
 }
@@ -161,12 +176,6 @@ func TestAdapterWithPolling(t *testing.T) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			_, _ = res.Write(dcs_bytes)
-		}
-		if strings.Contains(req.URL.Path, "get_id_lists") {
-			_, _ = res.Write(idlists_bytes)
-		}
-		if strings.Contains(req.URL.Path, "idliststorage.1") {
-			_, _ = res.Write(idlist_bytes)
 		}
 	}))
 	dataAdapter := dataAdapterWithPollingExample{store: make(map[string]string)}
