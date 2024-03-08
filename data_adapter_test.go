@@ -140,7 +140,7 @@ func TestSaveToAdapter(t *testing.T) {
 
 	t.Run("updates adapter with newer id list values from network", func(t *testing.T) {
 		waitForCondition(t, func() bool {
-			return dataAdapter.Get(ID_LISTS_KEY) != ""
+			return dataAdapter.Get(ID_LISTS_KEY) != "" && dataAdapter.Get(fmt.Sprintf("%s::%s", ID_LISTS_KEY, "list_1")) != ""
 		})
 		idListsString := dataAdapter.Get(ID_LISTS_KEY)
 		list1String := dataAdapter.Get(fmt.Sprintf("%s::%s", ID_LISTS_KEY, "list_1"))
@@ -163,7 +163,7 @@ func TestSaveToAdapter(t *testing.T) {
 			t.Errorf("Expected list_1 to have 20 bytes, received %d", len(list1Bytes))
 		}
 		if list1String != "+ungWv48B\n+Ngi8oeRO\n" {
-			t.Errorf("Expected list_1 to contain ids: ungWv48B, Ngi8oeRO")
+			t.Errorf("Expected list_1 to contain ids: ungWv48B, Ngi8oeRO, received %s", list1String)
 		}
 	})
 }

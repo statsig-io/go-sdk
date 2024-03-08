@@ -283,9 +283,12 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 
 func TestDiagnosticsSampling(t *testing.T) {
 	var events Events
+	var mu sync.RWMutex
 
 	testServer := getTestServer(true, func(newEvents Events) {
+		mu.Lock()
 		events = append(events, newEvents...)
+		mu.Unlock()
 	}, true)
 	defer testServer.Close()
 
