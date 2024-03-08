@@ -1,6 +1,7 @@
 package statsig
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"sync"
@@ -77,6 +78,7 @@ type tags struct {
 	SDKRegion   *string `json:"sdkRegion,omitempty"`
 	IDListCount *int    `json:"idListCount,omitempty"`
 	URL         *string `json:"url,omitempty"`
+	Name        *string `json:"name,omitempty"`
 }
 
 func newDiagnostics(options *Options) *diagnostics {
@@ -303,6 +305,12 @@ func (m *marker) url(val string) *marker {
 	return m
 }
 
+func (m *marker) name(val string) *marker {
+	m.Name = new(string)
+	*m.Name = val
+	return m
+}
+
 /* End of chain */
 func (m *marker) mark() {
 	m.Timestamp = time.Now().UnixNano() / 1000000.0
@@ -317,53 +325,72 @@ func (m *marker) mark() {
 
 func (m *marker) logProcess() {
 	var msg string
+	var dataSource string
+	var dataType string
+	switch key := *m.Key; key {
+	case BootstrapKey:
+		dataType = "specs"
+		dataSource = "bootstrap"
+	case DownloadConfigSpecsKey:
+		dataType = "specs"
+		dataSource = "network"
+	case DataStoreConfigSpecsKey:
+		dataType = "specs"
+		dataSource = "adapter"
+	case GetIDListSourcesKey:
+		dataType = "list of id lists"
+		dataSource = "network"
+	case DataStoreIDLists:
+		dataType = "list of id lists"
+		dataSource = "adapter"
+	case GetIDListKey:
+		dataType = fmt.Sprintf("id list (%s)", *m.Name)
+		dataSource = "network"
+	case DataStoreIDList:
+		dataType = fmt.Sprintf("id list (%s)", *m.Name)
+		dataSource = "adapter"
+	case OverallKey:
+		dataType = ""
+		dataSource = ""
+	case CheckGateApiKey:
+		fallthrough
+	case GetConfigApiKey:
+		fallthrough
+	case GetLayerApiKey:
+		fallthrough
+	default:
+		return
+	}
+
 	if *m.Key == OverallKey {
 		if *m.Action == StartAction {
 			msg = "Starting..."
 		} else if *m.Action == EndAction {
 			msg = "Done"
 		}
-	} else if *m.Key == DownloadConfigSpecsKey {
-		if *m.Step == NetworkRequestStep {
+	} else {
+		if *m.Step == NetworkRequestStep || *m.Step == FetchStep {
 			if *m.Action == StartAction {
-				msg = "Loading specs from network..."
+				msg = fmt.Sprintf("Loading %s from %s...", dataType, dataSource)
 			} else if *m.Action == EndAction {
 				if *m.Success {
-					msg = "Done loading specs from network"
+					msg = fmt.Sprintf("Done loading %s from %s", dataType, dataSource)
 				} else {
-					msg = "Failed to load specs from network"
+					msg = fmt.Sprintf("Failed to load %s from %s", dataType, dataSource)
 				}
 			}
 		} else if *m.Step == ProcessStep {
 			if *m.Action == StartAction {
-				msg = "Processing specs from network..."
+				msg = fmt.Sprintf("Processing %s from %s", dataType, dataSource)
 			} else if *m.Action == EndAction {
 				if *m.Success {
-					msg = "Done processing specs from network"
+					msg = fmt.Sprintf("Done processing %s from %s", dataType, dataSource)
 				} else {
-					msg = "No updates to specs from network"
-				}
-			}
-		}
-	} else if *m.Key == DataStoreConfigSpecsKey {
-		if *m.Step == FetchStep {
-			if *m.Action == StartAction {
-				msg = "Loading specs from adapter..."
-			} else if *m.Action == EndAction {
-				if *m.Success {
-					msg = "Done loading specs from adapter"
-				} else {
-					msg = "Failed to load specs from adapter"
-				}
-			}
-		} else if *m.Step == ProcessStep {
-			if *m.Action == StartAction {
-				msg = "Processing specs from adapter..."
-			} else if *m.Action == EndAction {
-				if *m.Success {
-					msg = "Done processing specs from adapter"
-				} else {
-					msg = "No updates to specs from adapter"
+					if *m.Key == DownloadConfigSpecsKey || *m.Key == DataStoreConfigSpecsKey {
+						msg = fmt.Sprintf("No updates to %s from %s", dataType, dataSource)
+					} else {
+						msg = fmt.Sprintf("Failed to process %s from %s", dataType, dataSource)
+					}
 				}
 			}
 		}

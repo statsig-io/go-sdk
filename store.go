@@ -541,10 +541,10 @@ func (s *store) processIDLists(idLists map[string]idList, source DataSource) {
 }
 
 func (s *store) downloadSingleIDListFromServer(list *idList) {
-	s.addDiagnostics().getIdList().networkRequest().start().url(list.URL).mark()
+	s.addDiagnostics().getIdList().networkRequest().start().name(list.Name).url(list.URL).mark()
 	res, err := s.transport.get_id_list(list.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", list.Size)})
 	if err != nil || res == nil {
-		marker := s.addDiagnostics().getIdList().networkRequest().end().url(list.URL).success(false)
+		marker := s.addDiagnostics().getIdList().networkRequest().end().name(list.Name).url(list.URL).success(false)
 		if res != nil {
 			marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
 		}
@@ -553,13 +553,13 @@ func (s *store) downloadSingleIDListFromServer(list *idList) {
 		return
 	}
 	defer res.Body.Close()
-	s.addDiagnostics().getIdList().networkRequest().end().url(list.URL).
+	s.addDiagnostics().getIdList().networkRequest().end().name(list.Name).url(list.URL).
 		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
 	s.processSingleIDListFromNetwork(list, res)
 }
 
 func (s *store) getSingleIDListFromAdapter(list *idList) {
-	s.addDiagnostics().dataStoreIDList().fetch().start().mark()
+	s.addDiagnostics().dataStoreIDList().fetch().start().name(list.Name).mark()
 	defer func() {
 		if err := recover(); err != nil {
 			Logger().LogError(fmt.Sprintf("Error calling data adapter get: %s\n", toError(err).Error()))
@@ -568,40 +568,40 @@ func (s *store) getSingleIDListFromAdapter(list *idList) {
 	content := s.dataAdapter.Get(fmt.Sprintf("%s::%s", ID_LISTS_KEY, list.Name))
 	contentBytes := []byte(content)
 	content = string(contentBytes[list.Size:])
-	s.addDiagnostics().dataStoreIDList().fetch().end().success(true).mark()
+	s.addDiagnostics().dataStoreIDList().fetch().end().name(list.Name).success(true).mark()
 	s.processSingleIDListFromAdapter(list, content)
 }
 
 func (s *store) processSingleIDListFromNetwork(list *idList, res *http.Response) {
-	s.addDiagnostics().getIdList().process().start().url(list.URL).mark()
+	s.addDiagnostics().getIdList().process().start().name(list.Name).url(list.URL).mark()
 	length, err := strconv.Atoi(res.Header.Get("content-length"))
 	if err != nil || length <= 0 {
-		s.addDiagnostics().getIdList().process().end().url(list.URL).success(false).mark()
+		s.addDiagnostics().getIdList().process().end().name(list.Name).url(list.URL).success(false).mark()
 		s.errorBoundary.logException(err)
 		return
 	}
 
 	bodyBytes, err := io.ReadAll(res.Body)
 	if err != nil {
-		s.addDiagnostics().getIdList().process().end().url(list.URL).success(false).mark()
+		s.addDiagnostics().getIdList().process().end().name(list.Name).url(list.URL).success(false).mark()
 		s.errorBoundary.logException(err)
 		return
 	}
 
 	content := string(bodyBytes)
 	if len(content) <= 1 || (string(content[0]) != "-" && string(content[0]) != "+") {
-		s.addDiagnostics().getIdList().process().end().url(list.URL).success(false).mark()
+		s.addDiagnostics().getIdList().process().end().name(list.Name).url(list.URL).success(false).mark()
 		s.deleteIDList(list.Name)
 		return
 	}
 	s.processSingleIDList(list, content, length)
-	s.addDiagnostics().getIdList().process().end().url(list.URL).success(true).mark()
+	s.addDiagnostics().getIdList().process().end().name(list.Name).url(list.URL).success(true).mark()
 }
 
 func (s *store) processSingleIDListFromAdapter(list *idList, content string) {
-	s.addDiagnostics().dataStoreIDList().process().start().url(list.URL).mark()
+	s.addDiagnostics().dataStoreIDList().process().start().name(list.Name).url(list.URL).mark()
 	s.processSingleIDList(list, content, len(content))
-	s.addDiagnostics().dataStoreIDList().process().end().url(list.URL).success(true).mark()
+	s.addDiagnostics().dataStoreIDList().process().end().name(list.Name).url(list.URL).success(true).mark()
 }
 
 func (s *store) processSingleIDList(list *idList, content string, length int) {
