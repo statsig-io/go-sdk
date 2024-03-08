@@ -109,6 +109,10 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 			return nil, err
 		}
 		bodyBuf = bytes.NewBuffer(bodyBytes)
+	} else {
+		if method == "POST" {
+			bodyBuf = bytes.NewBufferString("{}")
+		}
 	}
 	req, err := http.NewRequest(method, transport.buildURL(endpoint), bodyBuf)
 	if err != nil {
@@ -121,6 +125,7 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 	req.Header.Add("STATSIG-SERVER-SESSION-ID", transport.metadata.SessionID)
 	req.Header.Add("STATSIG-SDK-TYPE", transport.metadata.SDKType)
 	req.Header.Add("STATSIG-SDK-VERSION", transport.metadata.SDKVersion)
+	req.Header.Add("STATSIG-SDK-LANGUAGE-VERSION", transport.metadata.LanguageVersion)
 	return req, nil
 }
 
