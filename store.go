@@ -84,6 +84,7 @@ type idList struct {
 	URL          string `json:"url"`
 	FileID       string `json:"fileID"`
 	ids          *sync.Map
+	mu           *sync.RWMutex
 }
 
 type DataSource string
@@ -466,10 +467,12 @@ func (s *store) saveIDListsToAdapter(idLists map[string]*idList) {
 		for name := range idLists {
 			buf := new(bytes.Buffer)
 			list := s.getIDList(name)
+			list.mu.Lock()
 			list.ids.Range(func(key, value interface{}) bool {
 				buf.WriteString(fmt.Sprintf("+%s\n", key))
 				return true
 			})
+			list.mu.Unlock()
 			s.dataAdapter.Set(fmt.Sprintf("%s::%s", ID_LISTS_KEY, list.Name), buf.String())
 		}
 		s.dataAdapter.Set(ID_LISTS_KEY, string(idListsJSON))
@@ -511,6 +514,7 @@ func (s *store) processIDLists(idLists map[string]idList, source DataSource) {
 				URL:          serverList.URL,
 				FileID:       serverList.FileID,
 				ids:          &sync.Map{},
+				mu:           &sync.RWMutex{},
 			}
 			s.setIDList(name, localList)
 		}
@@ -605,6 +609,8 @@ func (s *store) processSingleIDListFromAdapter(list *idList, content string) {
 }
 
 func (s *store) processSingleIDList(list *idList, content string, length int) {
+	list.mu.Lock()
+	defer list.mu.Unlock()
 	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
