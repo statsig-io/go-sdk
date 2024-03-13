@@ -128,10 +128,10 @@ func test_helper(apiOverride string, t *testing.T) {
 	for _, entry := range d.Entries {
 		u := entry.User
 		for gate, serverResult := range entry.GatesV2 {
-			sdkResult := c.evaluator.checkGate(u, gate)
-			if sdkResult.Pass != serverResult.Value {
+			sdkResult := c.evaluator.evalGate(u, gate)
+			if sdkResult.Value != serverResult.Value {
 				t.Errorf("Values are different for gate %s. SDK got %t but server is %t. User is %+v",
-					gate, sdkResult.Pass, serverResult.Value, u)
+					gate, sdkResult.Value, serverResult.Value, u)
 			}
 
 			if sdkResult.RuleID != serverResult.RuleID {
@@ -147,10 +147,10 @@ func test_helper(apiOverride string, t *testing.T) {
 		}
 
 		for config, serverResult := range entry.Configs {
-			sdkResult := c.evaluator.getConfig(u, config, nil)
-			if !reflect.DeepEqual(sdkResult.ConfigValue.Value, serverResult.Value) {
+			sdkResult := c.evaluator.evalConfig(u, config, nil)
+			if !reflect.DeepEqual(sdkResult.JsonValue, serverResult.Value) {
 				t.Errorf("Values are different for config %s. SDK got %s but server is %s. User is %+v",
-					config, sdkResult.ConfigValue.Value, serverResult.Value, u)
+					config, sdkResult.JsonValue, serverResult.Value, u)
 			}
 
 			if sdkResult.RuleID != serverResult.RuleID {
@@ -158,9 +158,9 @@ func test_helper(apiOverride string, t *testing.T) {
 					config, sdkResult.RuleID, serverResult.RuleID)
 			}
 
-			if sdkResult.ConfigValue.GroupName != serverResult.GroupName {
+			if sdkResult.GroupName != serverResult.GroupName {
 				t.Errorf("Group Names are different for config %s. SDK got %s but server is %s. User is %+v",
-					config, sdkResult.ConfigValue.GroupName, serverResult.GroupName, u)
+					config, sdkResult.GroupName, serverResult.GroupName, u)
 			}
 
 			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
@@ -171,10 +171,10 @@ func test_helper(apiOverride string, t *testing.T) {
 		}
 
 		for layer, serverResult := range entry.Layers {
-			sdkResult := c.evaluator.getLayer(u, layer)
-			if !reflect.DeepEqual(sdkResult.ConfigValue.Value, serverResult.Value) {
+			sdkResult := c.evaluator.evalLayer(u, layer)
+			if !reflect.DeepEqual(sdkResult.JsonValue, serverResult.Value) {
 				t.Errorf("Values are different for layer %s. SDK got %s but server is %s. User is %+v",
-					layer, sdkResult.ConfigValue.Value, serverResult.Value, u)
+					layer, sdkResult.JsonValue, serverResult.Value, u)
 			}
 
 			if sdkResult.RuleID != serverResult.RuleID {
@@ -182,9 +182,9 @@ func test_helper(apiOverride string, t *testing.T) {
 					layer, sdkResult.RuleID, serverResult.RuleID)
 			}
 
-			if sdkResult.ConfigValue.GroupName != serverResult.GroupName {
+			if sdkResult.GroupName != serverResult.GroupName {
 				t.Errorf("Group Names are different for layer %s. SDK got %s but server is %s. User is %+v",
-					layer, sdkResult.ConfigValue.GroupName, serverResult.GroupName, u)
+					layer, sdkResult.GroupName, serverResult.GroupName, u)
 			}
 
 			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {

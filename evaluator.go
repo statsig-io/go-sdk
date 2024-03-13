@@ -18,67 +18,51 @@ import (
 )
 
 type evalResult struct {
-	Pass                          bool
-	ConfigValue                   DynamicConfig
-	FetchFromServer               bool
-	RuleID                        string
-	GroupName                     string
-	SecondaryExposures            []map[string]string
-	UndelegatedSecondaryExposures []map[string]string
-	ConfigDelegate                string
-	ExplicitParameters            map[string]bool
-	EvaluationDetails             *evaluationDetails
-	IsExperimentGroup             *bool
+	Value                         bool                   `json:"value"`
+	JsonValue                     map[string]interface{} `json:"json_value"`
+	FetchFromServer               bool                   `json:"fetch_from_server"`
+	RuleID                        string                 `json:"rule_id"`
+	GroupName                     string                 `json:"group_name"`
+	SecondaryExposures            []map[string]string    `json:"secondary_exposures"`
+	UndelegatedSecondaryExposures []map[string]string    `json:"undelegated_secondary_exposures"`
+	ConfigDelegate                string                 `json:"config_delegate"`
+	ExplicitParameters            map[string]bool        `json:"explicit_parameters"`
+	EvaluationDetails             *evaluationDetails     `json:"evaluation_details,omitempty"`
+	IsExperimentGroup             *bool                  `json:"is_experiment_group,omitempty"`
 }
 
 func newEvalResultFromUserPersistedValues(configName string, persitedValues UserPersistedValues) *evalResult {
 	if stickyValues, ok := persitedValues[configName]; ok {
-		newEvalResult := newEvalResultFromMap(stickyValues)
+		newEvalResult := newEvalResultFromStickyValues(stickyValues)
 		return newEvalResult
 	}
 	return nil
 }
 
-func newEvalResultFromMap(evalMap map[string]interface{}) *evalResult {
-	var ok bool
-	var secondaryExposures []map[string]string
-	evaluationDetails := newEvaluationDetails(
+func newEvalResultFromStickyValues(evalMap StickyValues) *evalResult {
+	evaluationDetails := reconstructEvaluationDetailsFromPersisted(
 		reasonPersisted,
-		safeParseJSONint64(evalMap["configSyncTime"]),
-		safeParseJSONint64(evalMap["initTime"]),
+		safeParseJSONint64(evalMap.Time),
 	)
-	configValue := evalMap["ConfigValue"].(map[string]interface{})
-	if secondaryExposures, ok = evalMap["SecondaryExposures"].([]map[string]string); !ok {
-		secondaryExposures = make([]map[string]string, 0)
-	}
 
 	return &evalResult{
-		Pass:               evalMap["Pass"].(bool),
-		RuleID:             evalMap["RuleID"].(string),
-		GroupName:          evalMap["GroupName"].(string),
-		SecondaryExposures: secondaryExposures,
-		ConfigValue: DynamicConfig{
-			configBase{
-				Name:              configValue["name"].(string),
-				Value:             configValue["value"].(map[string]interface{}),
-				RuleID:            configValue["rule_id"].(string),
-				GroupName:         configValue["group_name"].(string),
-				EvaluationDetails: evaluationDetails,
-			},
-		},
-		EvaluationDetails: evaluationDetails,
+		Value:              evalMap.Value,
+		RuleID:             evalMap.RuleID,
+		GroupName:          evalMap.GroupName,
+		SecondaryExposures: evalMap.SecondaryExposures,
+		JsonValue:          evalMap.JsonValue,
+		EvaluationDetails:  evaluationDetails,
 	}
 }
 
-func (e *evalResult) toMap() map[string]interface{} {
-	return map[string]interface{}{
-		"Pass":               e.Pass,
-		"ConfigValue":        e.ConfigValue,
-		"RuleID":             e.RuleID,
-		"GroupName":          e.GroupName,
-		"SecondaryExposures": e.SecondaryExposures,
-		"configSyncTime":     e.EvaluationDetails.configSyncTime,
-		"initTime":           e.EvaluationDetails.initTime,
+func (e *evalResult) toStickyValues() StickyValues {
+	return StickyValues{
+		Value:              e.Value,
+		JsonValue:          e.JsonValue,
+		RuleID:             e.RuleID,
+		GroupName:          e.GroupName,
+		SecondaryExposures: e.SecondaryExposures,
+		Time:               e.EvaluationDetails.configSyncTime,
 	}
 }
 
@@ -138,15 +122,15 @@ func (e *evaluator) createEvaluationDetails(reason evaluationReason) *evaluation
 	return newEvaluationDetails(reason, e.store.lastSyncTime, e.store.initialSyncTime)
 }
 
-func (e *evaluator) checkGate(user User, gateName string) *evalResult {
-	return e.evalGate(user, gateName, 0)
+func (e *evaluator) evalGate(user User, gateName string) *evalResult {
+	return e.evalGateImpl(user, gateName, 0)
 }
 
-func (e *evaluator) evalGate(user User, gateName string, depth int) *evalResult {
+func (e *evaluator) evalGateImpl(user User, gateName string, depth int) *evalResult {
 	if gateOverride, hasOverride := e.getGateOverride(gateName); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			Pass:               gateOverride,
+			Value:              gateOverride,
 			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
 			SecondaryExposures: make([]map[string]string, 0),
@@ -161,16 +145,16 @@ func (e *evaluator) evalGate(user User, gateName string, depth int) *evalResult 
 	return emptyEvalResult
 }
 
-func (e *evaluator) getConfig(user User, configName string, persistedValues UserPersistedValues) *evalResult {
-	return e.evalConfig(user, configName, persistedValues, 0)
+func (e *evaluator) evalConfig(user User, configName string, persistedValues UserPersistedValues) *evalResult {
+	return e.evalConfigImpl(user, configName, persistedValues, 0)
 }
 
-func (e *evaluator) evalConfig(user User, configName string, persistedValues UserPersistedValues, depth int) *evalResult {
+func (e *evaluator) evalConfigImpl(user User, configName string, persistedValues UserPersistedValues, depth int) *evalResult {
 	if configOverride, hasOverride := e.getConfigOverride(configName); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			Pass:               true,
-			ConfigValue:        *NewConfig(configName, configOverride, "override", "", evalDetails),
+			Value:              true,
+			JsonValue:          configOverride,
 			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
 			SecondaryExposures: make([]map[string]string, 0),
@@ -201,16 +185,16 @@ func (e *evaluator) evalConfig(user User, configName string, persistedValues Use
 	return emptyEvalResult
 }
 
-func (e *evaluator) getLayer(user User, name string) *evalResult {
-	return e.evalLayer(user, name, 0)
+func (e *evaluator) evalLayer(user User, name string) *evalResult {
+	return e.evalLayerImpl(user, name, 0)
 }
 
-func (e *evaluator) evalLayer(user User, name string, depth int) *evalResult {
+func (e *evaluator) evalLayerImpl(user User, name string, depth int) *evalResult {
 	if layerOverride, hasOverride := e.getLayerOverride(name); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			Pass:               true,
-			ConfigValue:        *NewConfig(name, layerOverride, "override", "", evalDetails),
+			Value:              true,
+			JsonValue:          layerOverride,
 			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
 			SecondaryExposures: make([]map[string]string, 0),
@@ -299,7 +283,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 				return r
 			}
 			exposures = append(exposures, r.SecondaryExposures...)
-			if r.Pass {
+			if r.Value {
 
 				delegatedResult := e.evalDelegate(user, rule, exposures, depth+1)
 				if delegatedResult != nil {
@@ -317,8 +301,8 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 						configValue = ruleConfigValue
 					}
 					result := &evalResult{
-						Pass:                          pass,
-						ConfigValue:                   *NewConfig(spec.Name, configValue, rule.ID, rule.GroupName, evalDetails),
+						Value:                         pass,
+						JsonValue:                     configValue,
 						RuleID:                        rule.ID,
 						GroupName:                     rule.GroupName,
 						SecondaryExposures:            exposures,
@@ -331,7 +315,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 					return result
 				} else {
 					return &evalResult{
-						Pass:               pass,
+						Value:              pass,
 						RuleID:             rule.ID,
 						GroupName:          rule.GroupName,
 						SecondaryExposures: exposures,
@@ -346,15 +330,15 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 
 	if isDynamicConfig {
 		return &evalResult{
-			Pass:                          false,
-			ConfigValue:                   *NewConfig(spec.Name, configValue, defaultRuleID, "", evalDetails),
+			Value:                         false,
+			JsonValue:                     configValue,
 			RuleID:                        defaultRuleID,
 			SecondaryExposures:            exposures,
 			UndelegatedSecondaryExposures: exposures,
 			EvaluationDetails:             evalDetails,
 		}
 	}
-	return &evalResult{Pass: false, RuleID: defaultRuleID, SecondaryExposures: exposures}
+	return &evalResult{Value: false, RuleID: defaultRuleID, SecondaryExposures: exposures}
 }
 
 func (e *evaluator) evalDelegate(user User, rule configRule, exposures []map[string]string, depth int) *evalResult {
@@ -401,11 +385,11 @@ func getUnitID(user User, idType string) string {
 
 func (e *evaluator) evalRule(user User, rule configRule, depth int) *evalResult {
 	var exposures = make([]map[string]string, 0)
-	var finalResult = &evalResult{Pass: true, FetchFromServer: false}
+	var finalResult = &evalResult{Value: true, FetchFromServer: false}
 	for _, cond := range rule.Conditions {
 		res := e.evalCondition(user, cond, depth+1)
-		if !res.Pass {
-			finalResult.Pass = false
+		if !res.Value {
+			finalResult.Value = false
 		}
 		if res.FetchFromServer {
 			finalResult.FetchFromServer = true
@@ -422,26 +406,26 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int) *e
 	op := strings.ToLower(cond.Operator)
 	switch condType {
 	case "public":
-		return &evalResult{Pass: true}
+		return &evalResult{Value: true}
 	case "fail_gate", "pass_gate":
 		dependentGateName, ok := cond.TargetValue.(string)
 		if !ok {
-			return &evalResult{Pass: false}
+			return &evalResult{Value: false}
 		}
-		result := e.evalGate(user, dependentGateName, depth+1)
+		result := e.evalGateImpl(user, dependentGateName, depth+1)
 		if result.FetchFromServer {
 			return &evalResult{FetchFromServer: true}
 		}
 		newExposure := map[string]string{
 			"gate":      dependentGateName,
-			"gateValue": strconv.FormatBool(result.Pass),
+			"gateValue": strconv.FormatBool(result.Value),
 			"ruleID":    result.RuleID,
 		}
 		allExposures := append(result.SecondaryExposures, newExposure)
 		if condType == "pass_gate" {
-			return &evalResult{Pass: result.Pass, SecondaryExposures: allExposures}
+			return &evalResult{Value: result.Value, SecondaryExposures: allExposures}
 		} else {
-			return &evalResult{Pass: !result.Pass, SecondaryExposures: allExposures}
+			return &evalResult{Value: !result.Value, SecondaryExposures: allExposures}
 		}
 	case "ip_based":
 		value = getFromUser(user, cond.Field)
@@ -578,7 +562,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int) *e
 		pass = false
 		server = true
 	}
-	return &evalResult{Pass: pass, FetchFromServer: server}
+	return &evalResult{Value: pass, FetchFromServer: server}
 }
 
 func getFromUser(user User, field string) interface{} {

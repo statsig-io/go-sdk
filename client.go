@@ -81,9 +81,9 @@ func (c *Client) ManuallyLogGateExposure(user User, gate string) {
 			return
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.checkGate(user, gate)
+		res := c.evaluator.evalGate(user, gate)
 		context := &logContext{isManualExposure: true}
-		c.logger.logGateExposure(user, gate, res.Pass, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
+		c.logger.logGateExposure(user, gate, res.Value, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 	})
 }
 
@@ -108,7 +108,7 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 			return
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.getConfig(user, config, nil)
+		res := c.evaluator.evalConfig(user, config, nil)
 		context := &logContext{isManualExposure: true}
 		c.logger.logConfigExposure(user, config, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 	})
@@ -178,8 +178,8 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 			return
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.getLayer(user, layer)
-		config := NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, res.ConfigValue.GroupName, nil).configBase
+		res := c.evaluator.evalLayer(user, layer)
+		config := NewLayer(layer, res.JsonValue, res.RuleID, res.GroupName, nil).configBase
 		context := &logContext{isManualExposure: true}
 		c.logger.logLayerExposure(user, config, parameter, *res, res.EvaluationDetails, context)
 	})
@@ -297,27 +297,27 @@ type getConfigInput struct {
 	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
-func (c *Client) checkGateImpl(user User, gate string, options checkGateOptions) FeatureGate {
+func (c *Client) checkGateImpl(user User, name string, options checkGateOptions) FeatureGate {
 	return c.errorBoundary.captureCheckGate(func() FeatureGate {
 		if !c.verifyUser(user) {
-			return *NewGate(gate, false, "", "")
+			return *NewGate(name, false, "", "")
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.checkGate(user, gate)
+		res := c.evaluator.evalGate(user, name)
 		if res.FetchFromServer {
-			serverRes := fetchGate(user, gate, c.transport)
-			res = &evalResult{Pass: serverRes.Value, RuleID: serverRes.RuleID}
+			serverRes := fetchGate(user, name, c.transport)
+			res = &evalResult{Value: serverRes.Value, RuleID: serverRes.RuleID}
 		} else {
 			var exposure *ExposureEvent = nil
 			if !options.disableLogExposures {
 				context := &logContext{isManualExposure: false}
-				exposure = c.logger.logGateExposure(user, gate, res.Pass, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
+				exposure = c.logger.logGateExposure(user, name, res.Value, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 			}
 			if c.options.EvaluationCallbacks.GateEvaluationCallback != nil {
-				c.options.EvaluationCallbacks.GateEvaluationCallback(gate, res.Pass, exposure)
+				c.options.EvaluationCallbacks.GateEvaluationCallback(name, res.Value, exposure)
 			}
 		}
-		return *NewGate(gate, res.Pass, res.RuleID, res.GroupName)
+		return *NewGate(name, res.Value, res.RuleID, res.GroupName)
 	})
 }
 
@@ -326,10 +326,10 @@ type getConfigImplContext struct {
 	experimentOptions *GetExperimentOptions
 }
 
-func (c *Client) getConfigImpl(user User, config string, context getConfigImplContext) DynamicConfig {
+func (c *Client) getConfigImpl(user User, name string, context getConfigImplContext) DynamicConfig {
 	return c.errorBoundary.captureGetConfig(func() DynamicConfig {
 		if !c.verifyUser(user) {
-			return *NewConfig(config, nil, "", "", nil)
+			return *NewConfig(name, nil, "", "", nil)
 		}
 		isExperiment := context.experimentOptions != nil
 		var persistedValues UserPersistedValues
@@ -337,9 +337,11 @@ func (c *Client) getConfigImpl(user User, config string, context getConfigImplCo
 			persistedValues = context.experimentOptions.PersistedValues
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.getConfig(user, config, persistedValues)
+		res := c.evaluator.evalConfig(user, name, persistedValues)
+		config := *NewConfig(name, res.JsonValue, res.RuleID, res.GroupName, res.EvaluationDetails)
 		if res.FetchFromServer {
-			res = c.fetchConfigFromServer(user, config)
+			res = c.fetchConfigFromServer(user, name)
+			config = *NewConfig(name, res.JsonValue, res.RuleID, res.GroupName, res.EvaluationDetails)
 		} else {
 			var exposure *ExposureEvent = nil
 			var logExposure bool
@@ -350,29 +352,29 @@ func (c *Client) getConfigImpl(user User, config string, context getConfigImplCo
 			}
 			if logExposure {
 				context := &logContext{isManualExposure: false}
-				exposure = c.logger.logConfigExposure(user, config, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
+				exposure = c.logger.logConfigExposure(user, name, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 			}
 			if isExperiment && c.options.EvaluationCallbacks.ExperimentEvaluationCallback != nil {
-				c.options.EvaluationCallbacks.ExperimentEvaluationCallback(config, res.ConfigValue, exposure)
+				c.options.EvaluationCallbacks.ExperimentEvaluationCallback(name, config, exposure)
 			} else if c.options.EvaluationCallbacks.ConfigEvaluationCallback != nil {
-				c.options.EvaluationCallbacks.ConfigEvaluationCallback(config, res.ConfigValue, exposure)
+				c.options.EvaluationCallbacks.ConfigEvaluationCallback(name, config, exposure)
 			}
 		}
-		return res.ConfigValue
+		return config
 	})
 }
 
-func (c *Client) getLayerImpl(user User, layer string, options getLayerOptions) Layer {
+func (c *Client) getLayerImpl(user User, name string, options getLayerOptions) Layer {
 	return c.errorBoundary.captureGetLayer(func() Layer {
 		if !c.verifyUser(user) {
-			return *NewLayer(layer, nil, "", "", nil)
+			return *NewLayer(name, nil, "", "", nil)
 		}
 
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.getLayer(user, layer)
+		res := c.evaluator.evalLayer(user, name)
 
 		if res.FetchFromServer {
-			res = c.fetchConfigFromServer(user, layer)
+			res = c.fetchConfigFromServer(user, name)
 		}
 
 		logFunc := func(config configBase, parameterName string) {
@@ -382,11 +384,11 @@ func (c *Client) getLayerImpl(user User, layer string, options getLayerOptions) 
 				exposure = c.logger.logLayerExposure(user, config, parameterName, *res, res.EvaluationDetails, context)
 			}
 			if c.options.EvaluationCallbacks.LayerEvaluationCallback != nil {
-				c.options.EvaluationCallbacks.LayerEvaluationCallback(layer, parameterName, res.ConfigValue, exposure)
+				c.options.EvaluationCallbacks.LayerEvaluationCallback(name, parameterName, DynamicConfig{configBase: config}, exposure)
 			}
 		}
 
-		return *NewLayer(layer, res.ConfigValue.Value, res.ConfigValue.RuleID, res.ConfigValue.GroupName, &logFunc)
+		return *NewLayer(name, res.JsonValue, res.RuleID, res.GroupName, &logFunc)
 	})
 }
 
@@ -444,7 +446,7 @@ func normalizeUser(user User, options Options) User {
 func (c *Client) fetchConfigFromServer(user User, configName string) *evalResult {
 	serverRes := fetchConfig(user, configName, c.transport)
 	return &evalResult{
-		ConfigValue: *NewConfig(configName, serverRes.Value, serverRes.RuleID, "", nil),
-		RuleID:      serverRes.RuleID,
+		JsonValue: serverRes.Value,
+		RuleID:    serverRes.RuleID,
 	}
 }

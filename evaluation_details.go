@@ -32,3 +32,15 @@ func newEvaluationDetails(
 		serverTime:     getUnixMilli(),
 	}
 }
+
+func reconstructEvaluationDetailsFromPersisted(
+	reason evaluationReason,
+	configSyncTime int64,
+) *evaluationDetails {
+	return &evaluationDetails{
+		reason:         reason,
+		configSyncTime: configSyncTime,
+		initTime:       0, // unsupported for persisted
+		serverTime:     getUnixMilli(),
+	}
+}

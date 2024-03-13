@@ -6,7 +6,18 @@ import (
 	"fmt"
 )
 
-type UserPersistedValues = map[string]map[string]interface{}
+// The properties of this struct must fit a universal schema that
+// when JSON-ified, can be parsed by every SDK supporting user persistent evaluation.
+type StickyValues struct {
+	Value              bool                   `json:"value"`
+	JsonValue          map[string]interface{} `json:"json_value"`
+	RuleID             string                 `json:"rule_id"`
+	GroupName          string                 `json:"group_name"`
+	SecondaryExposures []map[string]string    `json:"secondary_exposures"`
+	Time               int64                  `json:"time"`
+}
+
+type UserPersistedValues = map[string]StickyValues
 
 type userPersistentStorageUtils struct {
 	cache   map[string]UserPersistedValues
@@ -103,7 +114,7 @@ func (p *userPersistentStorageUtils) addEvaluationToUserPersistedValues(userPers
 	if userPersistedValues == nil {
 		*userPersistedValues = make(UserPersistedValues)
 	}
-	(*userPersistedValues)[configName] = evaluation.toMap()
+	(*userPersistedValues)[configName] = evaluation.toStickyValues()
 }
 
 func getStorageKey(user User, idType string) string {

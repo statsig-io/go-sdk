@@ -163,7 +163,7 @@ func TestSaveToAdapter(t *testing.T) {
 			t.Errorf("Expected list_1 to have 20 bytes, received %d", len(list1Bytes))
 		}
 		if list1String != "+ungWv48B\n+Ngi8oeRO\n" {
-			t.Errorf("Expected list_1 to contain ids: ungWv48B, Ngi8oeRO, received %s", list1String)
+			t.Errorf("Expected list_1 to contain ids: ungWv48B, Ngi8oeRO, received %v", strings.Split(list1String, "\n"))
 		}
 	})
 }

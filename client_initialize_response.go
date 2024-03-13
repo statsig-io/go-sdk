@@ -90,7 +90,7 @@ func getClientInitializeResponse(
 		hashedName, base := evalResultToBaseResponse(gateName, evalResult)
 		result := GateInitializeResponse{
 			baseSpecInitializeResponse: base,
-			Value:                      evalResult.Pass,
+			Value:                      evalResult.Value,
 		}
 		return hashedName, result
 	}
@@ -99,7 +99,7 @@ func getClientInitializeResponse(
 		hashedName, base := evalResultToBaseResponse(configName, evalResult)
 		result := ConfigInitializeResponse{
 			baseSpecInitializeResponse: base,
-			Value:                      evalResult.ConfigValue.Value,
+			Value:                      evalResult.JsonValue,
 			Group:                      evalResult.RuleID,
 			IsDeviceBased:              strings.ToLower(spec.IDType) == "stableid",
 		}
@@ -134,7 +134,7 @@ func getClientInitializeResponse(
 		hashedName, base := evalResultToBaseResponse(layerName, evalResult)
 		result := LayerInitializeResponse{
 			baseSpecInitializeResponse:    base,
-			Value:                         evalResult.ConfigValue.Value,
+			Value:                         evalResult.JsonValue,
 			Group:                         evalResult.RuleID,
 			IsDeviceBased:                 strings.ToLower(spec.IDType) == "stableid",
 			UndelegatedSecondaryExposures: cleanExposures(evalResult.UndelegatedSecondaryExposures),
