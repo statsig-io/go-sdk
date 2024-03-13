@@ -48,6 +48,48 @@ func doValidation(t *testing.T, c *configBase) {
 	}
 }
 
+func doValidationLayer(t *testing.T, c *Layer) {
+	if c.Name != "test" {
+		t.Errorf("Failed to set name")
+	}
+	if c.RuleID != "rule_id" {
+		t.Errorf("Failed to set rule_id")
+	}
+	if c.GroupName != "group_name" {
+		t.Errorf("Failed to set group_name")
+	}
+
+	if c.GetString("String", "abc") != "str" {
+		t.Errorf("Failed to get string")
+	}
+	if c.GetString("Number", "abc") != "abc" {
+		t.Errorf("Failed to use fallback string")
+	}
+	if c.GetString("Object", "def") != "def" {
+		t.Errorf("Failed to use fallback string")
+	}
+
+	if c.GetNumber("String", 0.07) != 0.07 {
+		t.Errorf("Failed to use fallback number")
+	}
+	if c.GetNumber("Number", 0.07) != 143.7 {
+		t.Errorf("Failed to get number")
+	}
+	if c.GetNumber("Object", 4) != 4 {
+		t.Errorf("Failed to use fallback number")
+	}
+
+	if !c.GetBool("String", true) {
+		t.Errorf("Failed to use fallback boolean")
+	}
+	if !c.GetBool("Boolean", false) {
+		t.Errorf("Failed to get boolean")
+	}
+	if c.GetBool("Object", false) {
+		t.Errorf("Failed to use fallback boolean")
+	}
+}
+
 func TestBasic(t *testing.T) {
 	jsonMap := make(map[string]interface{})
 	_ = json.Unmarshal(
@@ -75,8 +117,8 @@ func TestBasic(t *testing.T) {
 	)
 	doValidation(t, &c.configBase)
 
-	l := NewLayer("test", jsonMap, "rule_id", "group_name", nil)
-	doValidation(t, &l.configBase)
+	l := NewLayer("test", jsonMap, "rule_id", "group_name", nil, "allocated_experiment_name")
+	doValidationLayer(t, l)
 
 	fallbackValues := make([]interface{}, 0)
 	fallbackValues = append(fallbackValues, 4, 5, 6)

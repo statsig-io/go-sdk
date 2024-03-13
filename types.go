@@ -29,20 +29,18 @@ type Event struct {
 }
 
 type configBase struct {
-	Name              string                    `json:"name"`
-	Value             map[string]interface{}    `json:"value"`
-	RuleID            string                    `json:"rule_id"`
-	GroupName         string                    `json:"group_name"`
-	EvaluationDetails *evaluationDetails        `json:"evaluation_details"`
-	LogExposure       *func(configBase, string) `json:"log_exposure"`
+	Name              string                 `json:"name"`
+	Value             map[string]interface{} `json:"value"`
+	RuleID            string                 `json:"rule_id"`
+	GroupName         string                 `json:"group_name"`
+	EvaluationDetails *evaluationDetails     `json:"evaluation_details"`
 }
 
 type FeatureGate struct {
-	Name        string `json:"name"`
-	Value       bool   `json:"value"`
-	RuleID      string `json:"rule_id"`
-	GroupName   string `json:"group_name"`
-	LogExposure *func(configBase, string)
+	Name      string `json:"name"`
+	Value     bool   `json:"value"`
+	RuleID    string `json:"rule_id"`
+	GroupName string `json:"group_name"`
 }
 
 // A json blob configured in the Statsig Console
@@ -52,6 +50,8 @@ type DynamicConfig struct {
 
 type Layer struct {
 	configBase
+	LogExposure             *func(Layer, string) `json:"log_exposure"`
+	AllocatedExperimentName string               `json:"allocated_experiment_name"`
 }
 
 func NewGate(name string, value bool, ruleID string, groupName string) *FeatureGate {
@@ -68,7 +68,7 @@ func NewConfig(name string, value map[string]interface{}, ruleID string, groupNa
 		value = make(map[string]interface{})
 	}
 	return &DynamicConfig{
-		configBase{
+		configBase: configBase{
 			Name:              name,
 			Value:             value,
 			RuleID:            ruleID,
@@ -78,24 +78,38 @@ func NewConfig(name string, value map[string]interface{}, ruleID string, groupNa
 	}
 }
 
-func NewLayer(name string, value map[string]interface{}, ruleID string, groupName string, logExposure *func(configBase, string)) *Layer {
+func NewLayer(name string, value map[string]interface{}, ruleID string, groupName string, logExposure *func(Layer, string), allocatedExperimentName string) *Layer {
 	if value == nil {
 		value = make(map[string]interface{})
 	}
 	return &Layer{
-		configBase{
-			Name:        name,
-			Value:       value,
-			RuleID:      ruleID,
-			GroupName:   groupName,
-			LogExposure: logExposure,
+		configBase: configBase{
+			Name:      name,
+			Value:     value,
+			RuleID:    ruleID,
+			GroupName: groupName,
 		},
+		AllocatedExperimentName: allocatedExperimentName,
+		LogExposure:             logExposure,
 	}
 }
 
 // Gets the string value at the given key in the DynamicConfig
 // Returns the fallback string if the item at the given key is not found or not of type string
 func (d *configBase) GetString(key string, fallback string) string {
+	if v, ok := d.Value[key]; ok {
+		switch val := v.(type) {
+		case string:
+			return val
+		}
+	}
+
+	return fallback
+}
+
+// Gets the string value at the given key in the DynamicConfig
+// Returns the fallback string if the item at the given key is not found or not of type string
+func (d *Layer) GetString(key string, fallback string) string {
 	if v, ok := d.Value[key]; ok {
 		switch val := v.(type) {
 		case string:
@@ -113,6 +127,18 @@ func (d *configBase) GetNumber(key string, fallback float64) float64 {
 	if v, ok := d.Value[key]; ok {
 		switch val := v.(type) {
 		case float64:
+			return val
+		}
+	}
+	return fallback
+}
+
+// Gets the float64 value at the given key in the DynamicConfig
+// Returns the fallback float64 if the item at the given key is not found or not of type float64
+func (d *Layer) GetNumber(key string, fallback float64) float64 {
+	if v, ok := d.Value[key]; ok {
+		switch val := v.(type) {
+		case float64:
 			logExposure(d, key)
 			return val
 		}
@@ -123,6 +149,18 @@ func (d *configBase) GetNumber(key string, fallback float64) float64 {
 // Gets the boolean value at the given key in the DynamicConfig
 // Returns the fallback boolean if the item at the given key is not found or not of type boolean
 func (d *configBase) GetBool(key string, fallback bool) bool {
+	if v, ok := d.Value[key]; ok {
+		switch val := v.(type) {
+		case bool:
+			return val
+		}
+	}
+	return fallback
+}
+
+// Gets the boolean value at the given key in the DynamicConfig
+// Returns the fallback boolean if the item at the given key is not found or not of type boolean
+func (d *Layer) GetBool(key string, fallback bool) bool {
 	if v, ok := d.Value[key]; ok {
 		switch val := v.(type) {
 		case bool:
@@ -139,6 +177,18 @@ func (d *configBase) GetSlice(key string, fallback []interface{}) []interface{} 
 	if v, ok := d.Value[key]; ok {
 		switch val := v.(type) {
 		case []interface{}:
+			return val
+		}
+	}
+	return fallback
+}
+
+// Gets the slice value at the given key in the DynamicConfig
+// Returns the fallback slice if the item at the given key is not found or not of type slice
+func (d *Layer) GetSlice(key string, fallback []interface{}) []interface{} {
+	if v, ok := d.Value[key]; ok {
+		switch val := v.(type) {
+		case []interface{}:
 			logExposure(d, key)
 			return val
 		}
@@ -150,6 +200,16 @@ func (d *configBase) GetMap(key string, fallback map[string]interface{}) map[str
 	if v, ok := d.Value[key]; ok {
 		switch val := v.(type) {
 		case map[string]interface{}:
+			return val
+		}
+	}
+	return fallback
+}
+
+func (d *Layer) GetMap(key string, fallback map[string]interface{}) map[string]interface{} {
+	if v, ok := d.Value[key]; ok {
+		switch val := v.(type) {
+		case map[string]interface{}:
 			logExposure(d, key)
 			return val
 		}
@@ -157,7 +217,7 @@ func (d *configBase) GetMap(key string, fallback map[string]interface{}) map[str
 	return fallback
 }
 
-func logExposure(c *configBase, parameterName string) {
+func logExposure(c *Layer, parameterName string) {
 	if c == nil || c.LogExposure == nil {
 		return
 	}

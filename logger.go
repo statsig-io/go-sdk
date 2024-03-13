@@ -183,7 +183,7 @@ func (l *logger) logConfigExposure(
 
 func (l *logger) logLayerExposure(
 	user User,
-	config configBase,
+	config Layer,
 	parameterName string,
 	evalResult evalResult,
 	evalDetails *evaluationDetails,

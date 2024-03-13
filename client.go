@@ -179,9 +179,9 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 		}
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.evalLayer(user, layer)
-		config := NewLayer(layer, res.JsonValue, res.RuleID, res.GroupName, nil).configBase
+		config := NewLayer(layer, res.JsonValue, res.RuleID, res.GroupName, nil, res.ConfigDelegate)
 		context := &logContext{isManualExposure: true}
-		c.logger.logLayerExposure(user, config, parameter, *res, res.EvaluationDetails, context)
+		c.logger.logLayerExposure(user, *config, parameter, *res, res.EvaluationDetails, context)
 	})
 }
 
@@ -367,7 +367,7 @@ func (c *Client) getConfigImpl(user User, name string, context getConfigImplCont
 func (c *Client) getLayerImpl(user User, name string, options getLayerOptions) Layer {
 	return c.errorBoundary.captureGetLayer(func() Layer {
 		if !c.verifyUser(user) {
-			return *NewLayer(name, nil, "", "", nil)
+			return *NewLayer(name, nil, "", "", nil, "")
 		}
 
 		user = normalizeUser(user, *c.options)
@@ -377,18 +377,18 @@ func (c *Client) getLayerImpl(user User, name string, options getLayerOptions) L
 			res = c.fetchConfigFromServer(user, name)
 		}
 
-		logFunc := func(config configBase, parameterName string) {
+		logFunc := func(layer Layer, parameterName string) {
 			var exposure *ExposureEvent = nil
 			if !options.disableLogExposures {
 				context := &logContext{isManualExposure: false}
-				exposure = c.logger.logLayerExposure(user, config, parameterName, *res, res.EvaluationDetails, context)
+				exposure = c.logger.logLayerExposure(user, layer, parameterName, *res, res.EvaluationDetails, context)
 			}
 			if c.options.EvaluationCallbacks.LayerEvaluationCallback != nil {
-				c.options.EvaluationCallbacks.LayerEvaluationCallback(name, parameterName, DynamicConfig{configBase: config}, exposure)
+				c.options.EvaluationCallbacks.LayerEvaluationCallback(name, parameterName, DynamicConfig{layer.configBase}, exposure)
 			}
 		}
 
-		return *NewLayer(name, res.JsonValue, res.RuleID, res.GroupName, &logFunc)
+		return *NewLayer(name, res.JsonValue, res.RuleID, res.GroupName, &logFunc, res.ConfigDelegate)
 	})
 }
 
