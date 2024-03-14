@@ -23,10 +23,10 @@ func (d *userPersistentStorageExample) Save(key string, value string) {
 
 type brokenUserPersistentStorageExample struct{}
 
-func (d *brokenUserPersistentStorageExample) Load(key string) (string, bool) {
+func (d *brokenUserPersistentStorageExample) Load(string) (string, bool) {
 	panic(errors.New("invalid Load function"))
 }
 
-func (d *brokenUserPersistentStorageExample) Save(key string, value string) {
+func (d *brokenUserPersistentStorageExample) Save(string, string) {
 	panic(errors.New("invalid Save function"))
 }

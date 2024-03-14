@@ -255,7 +255,7 @@ func (s *store) fetchConfigSpecsFromAdapter() {
 			Logger().LogError(fmt.Sprintf("Error calling data adapter get: %s\n", toError(err).Error()))
 		}
 	}()
-	specString := s.dataAdapter.Get(CONFIG_SPECS_KEY)
+	specString := s.dataAdapter.Get(configSpecsKey)
 	s.addDiagnostics().dataStoreConfigSpecs().fetch().end().success(true).mark()
 	if _, updated := s.processConfigSpecs(specString, s.addDiagnostics().dataStoreConfigSpecs()); updated {
 		s.mu.Lock()
@@ -275,7 +275,7 @@ func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
 		}
 	}()
 	if err == nil {
-		s.dataAdapter.Set(CONFIG_SPECS_KEY, string(specString))
+		s.dataAdapter.Set(configSpecsKey, string(specString))
 	}
 }
 
@@ -298,7 +298,7 @@ func (s *store) handleSyncError(err error, isColdStart bool) {
 func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 	s.addDiagnostics().downloadConfigSpecs().networkRequest().start().mark()
 	var specs downloadConfigSpecResponse
-	res, err := s.transport.download_config_specs(s.lastSyncTime, &specs)
+	res, err := s.transport.downloadConfigSpecs(s.lastSyncTime, &specs)
 	if res == nil || err != nil {
 		marker := s.addDiagnostics().downloadConfigSpecs().networkRequest().end().success(false)
 		if res != nil {
@@ -418,7 +418,7 @@ func (s *store) setIDList(name string, list *idList) {
 func (s *store) fetchIDListsFromServer() {
 	var serverLists map[string]idList
 	s.addDiagnostics().getIdListSources().networkRequest().start().mark()
-	res, err := s.transport.get_id_lists(&serverLists)
+	res, err := s.transport.getIdLists(&serverLists)
 	if res == nil || err != nil {
 		marker := s.addDiagnostics().getIdListSources().networkRequest().end().success(false)
 		if res != nil {
@@ -441,7 +441,7 @@ func (s *store) fetchIDListsFromAdapter() {
 			Logger().LogError(fmt.Sprintf("Error calling data adapter get: %s\n", toError(err).Error()))
 		}
 	}()
-	idListsString := s.dataAdapter.Get(ID_LISTS_KEY)
+	idListsString := s.dataAdapter.Get(idListsKey)
 	var idLists map[string]idList
 	err := json.Unmarshal([]byte(idListsString), &idLists)
 	if err != nil {
@@ -470,9 +470,9 @@ func (s *store) saveIDListsToAdapter(idLists map[string]*idList) {
 				buf.WriteString(fmt.Sprintf("+%s\n", key))
 				return true
 			})
-			s.dataAdapter.Set(fmt.Sprintf("%s::%s", ID_LISTS_KEY, list.Name), buf.String())
+			s.dataAdapter.Set(fmt.Sprintf("%s::%s", idListsKey, list.Name), buf.String())
 		}
-		s.dataAdapter.Set(ID_LISTS_KEY, string(idListsJSON))
+		s.dataAdapter.Set(idListsKey, string(idListsJSON))
 	}
 }
 
@@ -528,7 +528,7 @@ func (s *store) processIDLists(idLists map[string]idList, source DataSource) {
 			} else if source == AdapterDataSource {
 				s.getSingleIDListFromAdapter(l)
 			} else {
-				s.errorBoundary.logException(errors.New("Invalid ID list data source"))
+				s.errorBoundary.logException(errors.New("invalid ID list data source"))
 			}
 		}(name, localList)
 	}
@@ -542,7 +542,7 @@ func (s *store) processIDLists(idLists map[string]idList, source DataSource) {
 
 func (s *store) downloadSingleIDListFromServer(list *idList) {
 	s.addDiagnostics().getIdList().networkRequest().start().url(list.URL).mark()
-	res, err := s.transport.get_id_list(list.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", list.Size)})
+	res, err := s.transport.getIdList(list.URL, map[string]string{"Range": fmt.Sprintf("bytes=%d-", list.Size)})
 	if err != nil || res == nil {
 		marker := s.addDiagnostics().getIdList().networkRequest().end().url(list.URL).success(false)
 		if res != nil {
@@ -565,7 +565,7 @@ func (s *store) getSingleIDListFromAdapter(list *idList) {
 			Logger().LogError(fmt.Sprintf("Error calling data adapter get: %s\n", toError(err).Error()))
 		}
 	}()
-	content := s.dataAdapter.Get(fmt.Sprintf("%s::%s", ID_LISTS_KEY, list.Name))
+	content := s.dataAdapter.Get(fmt.Sprintf("%s::%s", idListsKey, list.Name))
 	contentBytes := []byte(content)
 	content = string(contentBytes[list.Size:])
 	s.addDiagnostics().dataStoreIDList().fetch().end().success(true).mark()
@@ -619,7 +619,7 @@ func (s *store) processSingleIDList(list *idList, content string, length int) {
 			list.ids.Delete(id)
 		}
 	}
-	atomic.AddInt64((&list.Size), int64(length))
+	atomic.AddInt64(&list.Size, int64(length))
 }
 
 func (s *store) pollForIDListChanges() {
@@ -633,7 +633,7 @@ func (s *store) pollForIDListChanges() {
 		if stop {
 			break
 		}
-		if s.dataAdapter != nil && s.dataAdapter.ShouldBeUsedForQueryingUpdates(ID_LISTS_KEY) {
+		if s.dataAdapter != nil && s.dataAdapter.ShouldBeUsedForQueryingUpdates(idListsKey) {
 			s.fetchIDListsFromAdapter()
 		} else {
 			s.fetchIDListsFromServer()
@@ -652,7 +652,7 @@ func (s *store) pollForRulesetChanges() {
 		if stop {
 			break
 		}
-		if s.dataAdapter != nil && s.dataAdapter.ShouldBeUsedForQueryingUpdates(CONFIG_SPECS_KEY) {
+		if s.dataAdapter != nil && s.dataAdapter.ShouldBeUsedForQueryingUpdates(configSpecsKey) {
 			s.fetchConfigSpecsFromAdapter()
 		} else {
 			s.fetchConfigSpecsFromServer(false)

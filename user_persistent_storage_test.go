@@ -12,7 +12,7 @@ func TestUserPersistentStorage(t *testing.T) {
 	bytes, _ := os.ReadFile("download_config_specs_sticky_experiments.json")
 	opts := &Options{
 		OutputLoggerOptions:   getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions:  getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions:  getStatsigLoggerOptionsForTest(),
 		BootstrapValues:       string(bytes),
 		UserPersistentStorage: persistentStorage,
 	}
@@ -202,7 +202,7 @@ func TestInvalidUserPersistentStorage(t *testing.T) {
 	bytes, _ := os.ReadFile("download_config_specs_sticky_experiments.json")
 	opts := &Options{
 		OutputLoggerOptions:   getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions:  getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions:  getStatsigLoggerOptionsForTest(),
 		BootstrapValues:       string(bytes),
 		UserPersistentStorage: persistentStorage,
 	}

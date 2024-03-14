@@ -31,8 +31,8 @@ type evalResult struct {
 	IsExperimentGroup             *bool
 }
 
-func newEvalResultFromUserPersistedValues(configName string, persitedValues UserPersistedValues) *evalResult {
-	if stickyValues, ok := persitedValues[configName]; ok {
+func newEvalResultFromUserPersistedValues(configName string, persistedValues UserPersistedValues) *evalResult {
+	if stickyValues, ok := persistedValues[configName]; ok {
 		newEvalResult := newEvalResultFromMap(stickyValues)
 		return newEvalResult
 	}
@@ -44,8 +44,8 @@ func newEvalResultFromMap(evalMap map[string]interface{}) *evalResult {
 	var secondaryExposures []map[string]string
 	evaluationDetails := newEvaluationDetails(
 		reasonPersisted,
-		safeParseJSONint64(evalMap["configSyncTime"]),
-		safeParseJSONint64(evalMap["initTime"]),
+		safeParseJSONInt64(evalMap["configSyncTime"]),
+		safeParseJSONInt64(evalMap["initTime"]),
 	)
 	configValue := evalMap["ConfigValue"].(map[string]interface{})
 	if secondaryExposures, ok = evalMap["SecondaryExposures"].([]map[string]string); !ok {
@@ -246,21 +246,21 @@ func (e *evaluator) getLayerOverride(name string) (map[string]interface{}, bool)
 	return layer, ok
 }
 
-// Override the value of a Feature Gate for the given user
+// OverrideGate overrides the value of a Feature Gate for the given user
 func (e *evaluator) OverrideGate(gate string, val bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.gateOverrides[gate] = val
 }
 
-// Override the DynamicConfig value for the given user
+// OverrideConfig overrides the DynamicConfig value for the given user
 func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.configOverrides[config] = val
 }
 
-// Override the Layer value for the given user
+// OverrideLayer overrides the Layer value for the given user
 func (e *evaluator) OverrideLayer(layer string, val map[string]interface{}) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -820,11 +820,11 @@ func arrayAny(arr interface{}, val interface{}, fun func(x, y interface{}) bool)
 func getTime(a interface{}) time.Time {
 	switch v := a.(type) {
 	case float64, int64, int32, int:
-		t_sec := time.Unix(getUnixTimestamp(v), 0)
-		if t_sec.Year() > time.Now().Year()+100 {
+		tSec := time.Unix(getUnixTimestamp(v), 0)
+		if tSec.Year() > time.Now().Year()+100 {
 			return time.Unix(getUnixTimestamp(v)/1000, 0)
 		}
-		return t_sec
+		return tSec
 	case string:
 		t, err := time.Parse(time.RFC3339, v)
 		if err == nil {
@@ -834,11 +834,11 @@ func getTime(a interface{}) time.Time {
 		if err != nil {
 			return time.Time{}
 		}
-		t_sec := time.Unix(getUnixTimestamp(vInt), 0)
-		if t_sec.Year() > time.Now().Year()+100 {
+		tSec := time.Unix(getUnixTimestamp(vInt), 0)
+		if tSec.Year() > time.Now().Year()+100 {
 			return time.Unix(getUnixTimestamp(vInt)/1000, 0)
 		}
-		return t_sec
+		return tSec
 	}
 	return time.Time{}
 }

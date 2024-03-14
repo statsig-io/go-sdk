@@ -31,13 +31,15 @@ type logExceptionResponse struct {
 	Success bool
 }
 
-var ErrorBoundaryAPI = "https://statsigapi.net/v1"
-var ErrorBoundaryEndpoint = "/sdk_exception"
+var (
+	ErrorBoundaryAPI      = "https://statsigapi.net/v1"
+	ErrorBoundaryEndpoint = "/sdk_exception"
+)
 
 const (
-	InvalidSDKKeyError  string = "Must provide a valid SDK key."
-	EmptyUserError      string = "A non-empty StatsigUser.UserID or StatsigUser.CustomIDs is required. See https://docs.statsig.com/messages/serverRequiredUserID"
-	EventBatchSizeError string = "The max number of events supported in one batch is 500. Please reduce the slice size and try again."
+	InvalidSDKKeyError  string = "must provide a valid SDK key"
+	EmptyUserError      string = "a non-empty StatsigUser.UserID or StatsigUser.CustomIDs is required. See https://docs.statsig.com/messages/serverRequiredUserID"
+	EventBatchSizeError string = "the max number of events supported in one batch is 500. Please reduce the slice size and try again"
 )
 
 func newErrorBoundary(sdkKey string, options *Options, diagnostics *diagnostics) *errorBoundary {

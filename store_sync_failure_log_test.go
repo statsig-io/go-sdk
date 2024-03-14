@@ -24,23 +24,23 @@ func TestStoreSyncFailure(t *testing.T) {
 		Environment:          Environment{Tier: "test"},
 		ConfigSyncInterval:   100 * time.Millisecond,
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
 
 	syncOutdatedMax = 200 * time.Millisecond
-	stderrLogs := swallow_stderr(func() {
+	stderrLogs := swallowStderr(func() {
 		InitializeWithOptions("secret-key", opt)
 	})
 	if stderrLogs == "" {
 		t.Error("Expected error message in stderr")
 	}
-	stderrLogs = swallow_stderr(func() {
+	stderrLogs = swallowStderr(func() {
 		time.Sleep(100 * time.Millisecond)
 	})
 	if stderrLogs != "" {
 		t.Error("Expected no output to stderr")
 	}
-	stderrLogs = swallow_stderr(func() {
+	stderrLogs = swallowStderr(func() {
 		time.Sleep(100 * time.Millisecond)
 	})
 	if stderrLogs == "" {

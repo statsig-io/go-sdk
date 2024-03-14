@@ -17,7 +17,7 @@ func TestBootstrap(t *testing.T) {
 	bytes, _ := os.ReadFile("download_config_specs.json")
 	InitializeWithOptions("secret-key", &Options{
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	})
 	if !IsInitialized() {
 		t.Errorf("expected statsig to be initialized")
@@ -30,7 +30,7 @@ func TestBootstrap(t *testing.T) {
 	opt := &Options{
 		BootstrapValues:      string(bytes[:]),
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
 	InitializeWithOptions("secret-key", opt)
 
@@ -60,7 +60,7 @@ func TestRulesUpdatedCallback(t *testing.T) {
 			}
 		},
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
 
 	InitializeWithOptions("secret-key", opt)
@@ -76,13 +76,13 @@ func TestRulesUpdatedCallback(t *testing.T) {
 	ShutdownAndDangerouslyClearInstance()
 
 	// Now use rules from the previous update callback to bootstrap, and validate values
-	opt_bootstrap := &Options{
+	optBootstrap := &Options{
 		BootstrapValues:      rules,
 		LocalMode:            true,
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
-	InitializeWithOptions("secret-key", opt_bootstrap)
+	InitializeWithOptions("secret-key", optBootstrap)
 
 	if !CheckGate(User{UserID: "123"}, "always_on_gate") {
 		t.Errorf("always_on_gate should return true bootstrap value is provided")
@@ -118,7 +118,7 @@ func TestLogImmediate(t *testing.T) {
 		API:                  testServer.URL,
 		Environment:          Environment{Tier: "test"},
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
 	InitializeWithOptions("secret-key", opt)
 	event := Event{EventName: "test_event", User: User{UserID: "123"}}

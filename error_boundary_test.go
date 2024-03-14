@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func mock_server(t *testing.T, expectedError error, hit *bool) *httptest.Server {
+func mockServer(t *testing.T, expectedError error, hit *bool) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		if strings.Contains(req.URL.Path, "/download_config_specs") {
 			res.WriteHeader(500)
@@ -34,7 +34,7 @@ func mock_server(t *testing.T, expectedError error, hit *bool) *httptest.Server 
 func TestLogException(t *testing.T) {
 	err := errors.New("test error boundary log exception")
 	hit := false
-	testServer := mock_server(t, err, &hit)
+	testServer := mockServer(t, err, &hit)
 	defer testServer.Close()
 	opt := &Options{
 		API: testServer.URL,
@@ -49,12 +49,12 @@ func TestLogException(t *testing.T) {
 
 func TestDCSError(t *testing.T) {
 	hit := false
-	testServer := mock_server(t, nil, &hit)
+	testServer := mockServer(t, nil, &hit)
 	defer testServer.Close()
 	opt := &Options{
 		API:                  testServer.URL,
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
 	InitializeWithOptions("secret-key", opt)
 	defer ShutdownAndDangerouslyClearInstance()
@@ -66,7 +66,7 @@ func TestDCSError(t *testing.T) {
 func TestRepeatedError(t *testing.T) {
 	err := errors.New("common error")
 	hit := false
-	testServer := mock_server(t, err, &hit)
+	testServer := mockServer(t, err, &hit)
 	defer testServer.Close()
 	opt := &Options{
 		API: testServer.URL,

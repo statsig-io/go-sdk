@@ -13,6 +13,8 @@ const (
 	GateExposureEventName   ExposureEventName = "statsig::gate_exposure"
 	ConfigExposureEventName ExposureEventName = "statsig::config_exposure"
 	LayerExposureEventName  ExposureEventName = "statsig::layer_exposure"
+
+	diagnosticsEventName = "statsig::diagnostics"
 )
 
 type ExposureEvent struct {
@@ -23,8 +25,6 @@ type ExposureEvent struct {
 	SecondaryExposures []map[string]string `json:"secondaryExposures"`
 	Time               int64               `json:"time"`
 }
-
-const diagnosticsEventName = "statsig::diagnostics"
 
 type diagnosticsEvent struct {
 	EventName string                 `json:"eventName"`

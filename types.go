@@ -4,7 +4,7 @@ package statsig
 //
 // NOTE: UserID is **required** - see https://docs.statsig.com/messages/serverRequiredUserID\
 // PrivateAttributes are only used for user targeting/grouping in feature gates, dynamic configs,
-// experiments and etc; they are omitted in logs.
+// experiments, etc.; they are omitted in logs.
 type User struct {
 	UserID             string                 `json:"userID"`
 	Email              string                 `json:"email"`
@@ -19,7 +19,7 @@ type User struct {
 	CustomIDs          map[string]string      `json:"customIDs"`
 }
 
-// an event to be sent to Statsig for logging and analysis
+// Event is an event to be sent to Statsig for logging and analysis
 type Event struct {
 	EventName string            `json:"eventName"`
 	User      User              `json:"user"`
@@ -45,7 +45,7 @@ type FeatureGate struct {
 	LogExposure *func(configBase, string)
 }
 
-// A json blob configured in the Statsig Console
+// DynamicConfig is a json blob configured in the Statsig Console
 type DynamicConfig struct {
 	configBase
 }
@@ -93,7 +93,7 @@ func NewLayer(name string, value map[string]interface{}, ruleID string, groupNam
 	}
 }
 
-// Gets the string value at the given key in the DynamicConfig
+// GetString gets the string value at the given key in the DynamicConfig
 // Returns the fallback string if the item at the given key is not found or not of type string
 func (d *configBase) GetString(key string, fallback string) string {
 	if v, ok := d.Value[key]; ok {
@@ -107,7 +107,7 @@ func (d *configBase) GetString(key string, fallback string) string {
 	return fallback
 }
 
-// Gets the float64 value at the given key in the DynamicConfig
+// GetNumber gets the float64 value at the given key in the DynamicConfig
 // Returns the fallback float64 if the item at the given key is not found or not of type float64
 func (d *configBase) GetNumber(key string, fallback float64) float64 {
 	if v, ok := d.Value[key]; ok {
@@ -120,7 +120,7 @@ func (d *configBase) GetNumber(key string, fallback float64) float64 {
 	return fallback
 }
 
-// Gets the boolean value at the given key in the DynamicConfig
+// GetBool gets the boolean value at the given key in the DynamicConfig
 // Returns the fallback boolean if the item at the given key is not found or not of type boolean
 func (d *configBase) GetBool(key string, fallback bool) bool {
 	if v, ok := d.Value[key]; ok {
@@ -133,7 +133,7 @@ func (d *configBase) GetBool(key string, fallback bool) bool {
 	return fallback
 }
 
-// Gets the slice value at the given key in the DynamicConfig
+// GetSlice gets the slice value at the given key in the DynamicConfig
 // Returns the fallback slice if the item at the given key is not found or not of type slice
 func (d *configBase) GetSlice(key string, fallback []interface{}) []interface{} {
 	if v, ok := d.Value[key]; ok {
