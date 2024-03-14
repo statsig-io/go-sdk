@@ -52,7 +52,7 @@ func safeGetFirst(slice []string) string {
 	return ""
 }
 
-func safeParseJSONint64(val interface{}) int64 {
+func safeParseJSONInt64(val interface{}) int64 {
 	if num, ok := val.(json.Number); ok {
 		i64, _ := strconv.ParseInt(string(num), 10, 64)
 		return i64

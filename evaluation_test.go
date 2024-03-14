@@ -77,7 +77,7 @@ func getOutputLoggerOptionsForTest(t *testing.T) OutputLoggerOptions {
 	}
 }
 
-func getStatsigLoggerOptionsForTest(t *testing.T) StatsigLoggerOptions {
+func getStatsigLoggerOptionsForTest() StatsigLoggerOptions {
 	return StatsigLoggerOptions{
 		DisableInitDiagnostics: true,
 		DisableSyncDiagnostics: true,
@@ -96,7 +96,7 @@ func TestMain(m *testing.M) {
 		secret = string(bytes)
 	}
 	os.Remove(debugLogFile)
-	swallow_stderr(func() {
+	swallowStderr(func() {
 		os.Exit(m.Run())
 	})
 	ShutdownAndDangerouslyClearInstance()
@@ -104,11 +104,11 @@ func TestMain(m *testing.M) {
 
 func TestEvaluation(t *testing.T) {
 	for _, api := range testAPIs {
-		test_helper(api, t)
+		testHelper(api, t)
 	}
 }
 
-func test_helper(apiOverride string, t *testing.T) {
+func testHelper(apiOverride string, t *testing.T) {
 	t.Logf("Testing for " + apiOverride)
 	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
 	c := NewClientWithOptions(secret, &Options{API: apiOverride})
@@ -139,7 +139,7 @@ func test_helper(apiOverride string, t *testing.T) {
 					gate, sdkResult.RuleID, serverResult.RuleID, u)
 			}
 
-			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
+			if !compareSecondaryExp(sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
 				t.Errorf("Secondary exposures are different for gate %s. SDK got %s but server is %s",
 					gate, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
 			}
@@ -163,7 +163,7 @@ func test_helper(apiOverride string, t *testing.T) {
 					config, sdkResult.ConfigValue.GroupName, serverResult.GroupName, u)
 			}
 
-			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
+			if !compareSecondaryExp(sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
 				t.Errorf("Secondary exposures are different for config %s. SDK got %s but server is %s",
 					config, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
 			}
@@ -187,12 +187,12 @@ func test_helper(apiOverride string, t *testing.T) {
 					layer, sdkResult.ConfigValue.GroupName, serverResult.GroupName, u)
 			}
 
-			if !compare_secondary_exp(t, sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
+			if !compareSecondaryExp(sdkResult.SecondaryExposures, serverResult.SecondaryExposures) {
 				t.Errorf("Secondary exposures are different for layer %s. SDK got %s but server is %s",
 					layer, sdkResult.SecondaryExposures, serverResult.SecondaryExposures)
 			}
 
-			if !compare_secondary_exp(t, sdkResult.UndelegatedSecondaryExposures, serverResult.UndelegatedSecondaryExposures) {
+			if !compareSecondaryExp(sdkResult.UndelegatedSecondaryExposures, serverResult.UndelegatedSecondaryExposures) {
 				t.Errorf("Undelegated Secondary exposures are different for layer %s. SDK got %s but server is %s",
 					layer, sdkResult.UndelegatedSecondaryExposures, serverResult.UndelegatedSecondaryExposures)
 			}
@@ -210,29 +210,29 @@ func TestStatsigLocalMode(t *testing.T) {
 		LocalMode: true,
 	}
 	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
-	local_c := NewClientWithOptions("", local)
+	localC := NewClientWithOptions("", local)
 	network := &Options{}
-	net_c := NewClientWithOptions(secret, network)
-	local_gate := local_c.CheckGate(*user, "test_public")
-	if local_gate {
+	netC := NewClientWithOptions(secret, network)
+	localGate := localC.CheckGate(*user, "test_public")
+	if localGate {
 		t.Errorf("Local mode should always return false for gate checks")
 	}
-	net_gate := net_c.CheckGate(*user, "test_public")
-	if !net_gate {
+	netGate := netC.CheckGate(*user, "test_public")
+	if !netGate {
 		t.Errorf("Network mode should work")
 	}
 
-	local_config := local_c.GetConfig(*user, "test_custom_config")
-	net_config := net_c.GetConfig(*user, "test_custom_config")
-	if len(local_config.Value) != 0 {
+	localConfig := localC.GetConfig(*user, "test_custom_config")
+	netConfig := netC.GetConfig(*user, "test_custom_config")
+	if len(localConfig.Value) != 0 {
 		t.Errorf("Local mode should always return false for gate checks")
 	}
-	if len(net_config.Value) == 0 {
+	if len(netConfig.Value) == 0 {
 		t.Errorf("Network mode should fetch configs")
 	}
 }
 
-func compare_secondary_exp(t *testing.T, v1 []map[string]string, v2 []map[string]string) bool {
+func compareSecondaryExp(v1 []map[string]string, v2 []map[string]string) bool {
 	if (v1 == nil && v2 != nil) || (v2 == nil && v1 != nil) {
 		return false
 	}

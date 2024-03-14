@@ -56,7 +56,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 			Tier: "awesome_land",
 		},
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
 
 	InitializeWithOptions("secret-key", options)

@@ -63,7 +63,7 @@ func TestInitializeResponseConsistency(t *testing.T) {
 			InitializeWithOptions(secret, &Options{
 				API:                  api,
 				OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-				StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+				StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 			})
 			defer ShutdownAndDangerouslyClearInstance()
 

@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Using global state variables directly will lead to race conditions
+// GlobalState direct usage will lead to race conditions
 // Instead, define an accessor below using the Mutex lock
 type GlobalState struct {
 	logger    *OutputLogger

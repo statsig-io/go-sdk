@@ -11,7 +11,7 @@ import (
 )
 
 func TestLayerExposure(t *testing.T) {
-	events := []Event{}
+	var events []Event
 
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
@@ -37,7 +37,7 @@ func TestLayerExposure(t *testing.T) {
 		API:                  testServer.URL,
 		Environment:          Environment{Tier: "test"},
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
 
 	user := User{UserID: "some_user_id"}

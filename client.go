@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// An instance of a StatsigClient for interfacing with Statsig Feature Gates, Dynamic Configs, Experiments, and Event Logging
+// Client is an instance of a StatsigClient for interfacing with Statsig Feature Gates, Dynamic Configs, Experiments, and Event Logging
 type Client struct {
 	sdkKey        string
 	evaluator     *evaluator
@@ -18,12 +18,12 @@ type Client struct {
 	diagnostics   *diagnostics
 }
 
-// Initializes a Statsig Client with the given sdkKey
+// NewClient initializes a Statsig Client with the given sdkKey
 func NewClient(sdkKey string) *Client {
 	return NewClientWithOptions(sdkKey, &Options{})
 }
 
-// Initializes a Statsig Client with the given sdkKey and options
+// NewClientWithOptions initializes a Statsig Client with the given sdkKey and options
 func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	diagnostics := newDiagnostics(options)
 	diagnostics.initialize().overall().start().mark()
@@ -50,31 +50,31 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	}
 }
 
-// Checks the value of a Feature Gate for the given user
+// CheckGate checks the value of a Feature Gate for the given user
 func (c *Client) CheckGate(user User, gate string) bool {
 	options := checkGateOptions{disableLogExposures: false}
 	return c.checkGateImpl(user, gate, options).Value
 }
 
-// Checks the value of a Feature Gate for the given user without logging an exposure event
+// CheckGateWithExposureLoggingDisabled checks the value of a Feature Gate for the given user without logging an exposure event
 func (c *Client) CheckGateWithExposureLoggingDisabled(user User, gate string) bool {
 	options := checkGateOptions{disableLogExposures: true}
 	return c.checkGateImpl(user, gate, options).Value
 }
 
-// Get the Feature Gate for the given user
+// GetGate gets the Feature Gate for the given user
 func (c *Client) GetGate(user User, gate string) FeatureGate {
 	options := checkGateOptions{disableLogExposures: false}
 	return c.checkGateImpl(user, gate, options)
 }
 
-// Checks the value of a Feature Gate for the given user without logging an exposure event
+// GetGateWithExposureLoggingDisabled checks the value of a Feature Gate for the given user without logging an exposure event
 func (c *Client) GetGateWithExposureLoggingDisabled(user User, gate string) FeatureGate {
 	options := checkGateOptions{disableLogExposures: true}
 	return c.checkGateImpl(user, gate, options)
 }
 
-// Logs an exposure event for the dynamic config
+// ManuallyLogGateExposure logs an exposure event for the dynamic config
 func (c *Client) ManuallyLogGateExposure(user User, gate string) {
 	c.errorBoundary.captureVoid(func() {
 		if !c.verifyUser(user) {
@@ -87,21 +87,21 @@ func (c *Client) ManuallyLogGateExposure(user User, gate string) {
 	})
 }
 
-// Gets the DynamicConfig value for the given user
+// GetConfig gets the DynamicConfig value for the given user
 func (c *Client) GetConfig(user User, config string) DynamicConfig {
 	options := &getConfigOptions{disableLogExposures: false}
 	context := getConfigImplContext{configOptions: options}
 	return c.getConfigImpl(user, config, context)
 }
 
-// Gets the DynamicConfig value for the given user without logging an exposure event
+// GetConfigWithExposureLoggingDisabled gets the DynamicConfig value for the given user without logging an exposure event
 func (c *Client) GetConfigWithExposureLoggingDisabled(user User, config string) DynamicConfig {
 	options := &getConfigOptions{disableLogExposures: true}
 	context := getConfigImplContext{configOptions: options}
 	return c.getConfigImpl(user, config, context)
 }
 
-// Logs an exposure event for the config
+// ManuallyLogConfigExposure logs an exposure event for the config
 func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 	c.errorBoundary.captureVoid(func() {
 		if !c.verifyUser(user) {
@@ -114,7 +114,7 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 	})
 }
 
-// Gets the DynamicConfig value of an Experiment for the given user
+// GetExperiment gets the DynamicConfig value of an Experiment for the given user
 func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 	if !c.verifyUser(user) {
 		return *NewConfig(experiment, nil, "", "", nil)
@@ -124,7 +124,7 @@ func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 	return c.getConfigImpl(user, experiment, context)
 }
 
-// Gets the DynamicConfig value of an Experiment for the given user without logging an exposure event
+// GetExperimentWithExposureLoggingDisabled gets the DynamicConfig value of an Experiment for the given user without logging an exposure event
 func (c *Client) GetExperimentWithExposureLoggingDisabled(user User, experiment string) DynamicConfig {
 	if !c.verifyUser(user) {
 		return *NewConfig(experiment, nil, "", "", nil)
@@ -134,7 +134,7 @@ func (c *Client) GetExperimentWithExposureLoggingDisabled(user User, experiment 
 	return c.getConfigImpl(user, experiment, context)
 }
 
-// Gets the DynamicConfig value of an Experiment for the given user with configurable options
+// GetExperimentWithOptions gets the DynamicConfig value of an Experiment for the given user with configurable options
 func (c *Client) GetExperimentWithOptions(user User, experiment string, options *GetExperimentOptions) DynamicConfig {
 	if !c.verifyUser(user) {
 		return *NewConfig(experiment, nil, "", "", nil)
@@ -143,11 +143,12 @@ func (c *Client) GetExperimentWithOptions(user User, experiment string, options 
 	return c.getConfigImpl(user, experiment, context)
 }
 
-// Logs an exposure event for the experiment
+// ManuallyLogExperimentExposure logs an exposure event for the experiment
 func (c *Client) ManuallyLogExperimentExposure(user User, experiment string) {
 	c.ManuallyLogConfigExposure(user, experiment)
 }
 
+// GetUserPersistedValues gets the persisted values for the given user
 func (c *Client) GetUserPersistedValues(user User, idType string) UserPersistedValues {
 	return c.errorBoundary.captureGetUserPersistedValues(func() UserPersistedValues {
 		persistedValues := c.evaluator.persistentStorageUtils.getUserPersistedValues(user, idType)
@@ -159,19 +160,19 @@ func (c *Client) GetUserPersistedValues(user User, idType string) UserPersistedV
 	})
 }
 
-// Gets the Layer object for the given user
+// GetLayer gets the Layer object for the given user
 func (c *Client) GetLayer(user User, layer string) Layer {
 	options := getLayerOptions{disableLogExposures: false}
 	return c.getLayerImpl(user, layer, options)
 }
 
-// Gets the Layer object for the given user without logging an exposure event
+// GetLayerWithExposureLoggingDisabled gets the Layer object for the given user without logging an exposure event
 func (c *Client) GetLayerWithExposureLoggingDisabled(user User, layer string) Layer {
 	options := getLayerOptions{disableLogExposures: true}
 	return c.getLayerImpl(user, layer, options)
 }
 
-// Logs an exposure event for the parameter in the given layer
+// ManuallyLogLayerParameterExposure logs an exposure event for the parameter in the given layer
 func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, parameter string) {
 	c.errorBoundary.captureVoid(func() {
 		if !c.verifyUser(user) {
@@ -185,7 +186,7 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 	})
 }
 
-// Logs an event to Statsig for analysis in the Statsig Console
+// LogEvent logs an event to Statsig for analysis in the Statsig Console
 func (c *Client) LogEvent(event Event) {
 	c.errorBoundary.captureVoid(func() {
 		event.User = normalizeUser(event.User, *c.options)
@@ -196,38 +197,40 @@ func (c *Client) LogEvent(event Event) {
 	})
 }
 
-// Override the value of a Feature Gate for the given user
+// OverrideGate overrides the value of a Feature Gate for the given user
 func (c *Client) OverrideGate(gate string, val bool) {
 	c.errorBoundary.captureVoid(func() { c.evaluator.OverrideGate(gate, val) })
 }
 
-// Override the DynamicConfig value for the given user
+// OverrideConfig overrides the DynamicConfig value for the given user
 func (c *Client) OverrideConfig(config string, val map[string]interface{}) {
 	c.errorBoundary.captureVoid(func() { c.evaluator.OverrideConfig(config, val) })
 }
 
-// Override the Layer value for the given user
+// OverrideLayer overrides the Layer value for the given user
 func (c *Client) OverrideLayer(layer string, val map[string]interface{}) {
 	c.errorBoundary.captureVoid(func() { c.evaluator.OverrideLayer(layer, val) })
 }
 
+// LogImmediate logs a batch of events to Statsig for analysis in the Statsig Console
 func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 	if len(events) > 500 {
 		err := errors.New(EventBatchSizeError)
 		return nil, fmt.Errorf(err.Error())
 	}
-	events_processed := make([]interface{}, 0)
+	eventsProcessed := make([]interface{}, 0)
 	for _, event := range events {
 		event.User = normalizeUser(event.User, *c.options)
-		events_processed = append(events_processed, event)
+		eventsProcessed = append(eventsProcessed, event)
 	}
 	input := logEventInput{
-		Events:          events_processed,
+		Events:          eventsProcessed,
 		StatsigMetadata: c.transport.metadata,
 	}
 	return c.transport.post("/log_event", input, nil, RequestOptions{})
 }
 
+// GetClientInitializeResponse gets the ClientInitializeResponse for the given user
 func (c *Client) GetClientInitializeResponse(user User, clientKey string) ClientInitializeResponse {
 	return c.errorBoundary.captureGetClientInitializeResponse(func() ClientInitializeResponse {
 		if !c.verifyUser(user) {
@@ -247,7 +250,7 @@ func (c *Client) verifyUser(user User) bool {
 	return true
 }
 
-// Cleans up Statsig, persisting any Event Logs and cleanup processes
+// Shutdown cleans up Statsig, persisting any Event Logs and cleanup processes
 // Using any method is undefined after Shutdown() has been called
 func (c *Client) Shutdown() {
 	c.errorBoundary.captureVoid(func() {
@@ -264,6 +267,7 @@ type getConfigOptions struct {
 	disableLogExposures bool
 }
 
+// GetExperimentOptions is a set of options for fetching an experiment
 type GetExperimentOptions struct {
 	DisableLogExposures bool
 	PersistedValues     UserPersistedValues

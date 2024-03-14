@@ -7,17 +7,16 @@ import (
 	"time"
 )
 
+type DiagnosticsAction string
+type DiagnosticsStep string
+type DiagnosticsKey string
 type DiagnosticsContext string
 
 const (
 	InitializeContext DiagnosticsContext = "initialize"
 	ConfigSyncContext DiagnosticsContext = "config_sync"
 	ApiCallContext    DiagnosticsContext = "api_call"
-)
 
-type DiagnosticsKey string
-
-const (
 	DownloadConfigSpecsKey  DiagnosticsKey = "download_config_specs"
 	BootstrapKey            DiagnosticsKey = "bootstrap"
 	GetIDListSourcesKey     DiagnosticsKey = "get_id_list_sources"
@@ -29,24 +28,16 @@ const (
 	CheckGateApiKey         DiagnosticsKey = "check_gate"
 	GetConfigApiKey         DiagnosticsKey = "get_config"
 	GetLayerApiKey          DiagnosticsKey = "get_layer"
-)
 
-type DiagnosticsStep string
-
-const (
 	NetworkRequestStep DiagnosticsStep = "network_request"
 	FetchStep          DiagnosticsStep = "fetch"
 	ProcessStep        DiagnosticsStep = "process"
-)
 
-type DiagnosticsAction string
-
-const (
 	StartAction DiagnosticsAction = "start"
 	EndAction   DiagnosticsAction = "end"
-)
 
-const MaxMarkerSize = 50
+	MaxMarkerSize = 50
+)
 
 type diagnosticsBase struct {
 	context       DiagnosticsContext
@@ -142,9 +133,9 @@ func (d *diagnosticsBase) updateSamplingRates(samplingRates map[string]int) {
 	d.samplingRates = samplingRates
 }
 
-func sample(rate_over_ten_thousand int) bool {
+func sample(rateOverTenThousand int) bool {
 	rand.Seed(time.Now().UnixNano())
-	return int(math.Floor(rand.Float64()*10_000)) < rate_over_ten_thousand
+	return int(math.Floor(rand.Float64()*10_000)) < rateOverTenThousand
 }
 
 func (d *diagnosticsBase) clearMarkers() {

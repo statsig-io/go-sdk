@@ -26,17 +26,17 @@ func (d *dataAdapterExample) Initialize() {}
 
 func (d *dataAdapterExample) Shutdown() {}
 
-func (d *dataAdapterExample) ShouldBeUsedForQueryingUpdates(key string) bool {
+func (d *dataAdapterExample) ShouldBeUsedForQueryingUpdates(string) bool {
 	return false
 }
 
 type brokenDataAdapterExample struct{}
 
-func (d brokenDataAdapterExample) Get(key string) string {
+func (d brokenDataAdapterExample) Get(string) string {
 	panic(errors.New("invalid get function"))
 }
 
-func (d brokenDataAdapterExample) Set(key string, value string) {
+func (d brokenDataAdapterExample) Set(string, string) {
 	panic(errors.New("invalid set function"))
 }
 
@@ -44,7 +44,7 @@ func (d brokenDataAdapterExample) Initialize() {}
 
 func (d brokenDataAdapterExample) Shutdown() {}
 
-func (d brokenDataAdapterExample) ShouldBeUsedForQueryingUpdates(key string) bool {
+func (d brokenDataAdapterExample) ShouldBeUsedForQueryingUpdates(string) bool {
 	return false
 }
 
@@ -69,7 +69,7 @@ func (d *dataAdapterWithPollingExample) Initialize() {}
 
 func (d *dataAdapterWithPollingExample) Shutdown() {}
 
-func (d *dataAdapterWithPollingExample) ShouldBeUsedForQueryingUpdates(key string) bool {
+func (d *dataAdapterWithPollingExample) ShouldBeUsedForQueryingUpdates(string) bool {
 	return true
 }
 func (d *dataAdapterWithPollingExample) clearStore(key string) {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -56,13 +55,13 @@ type RequestOptions struct {
 	backoff time.Duration
 }
 
-func (opts *RequestOptions) fill_defaults() {
+func (opts *RequestOptions) fillDefaults() {
 	if opts.backoff == 0 {
 		opts.backoff = time.Second
 	}
 }
 
-func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}) (*http.Response, error) {
+func (transport *transport) downloadConfigSpecs(sinceTime int64, responseBody interface{}) (*http.Response, error) {
 	var endpoint string
 	if transport.options.DisableCDN {
 		endpoint = fmt.Sprintf("/download_config_specs?sinceTime=%d", sinceTime)
@@ -72,11 +71,11 @@ func (transport *transport) download_config_specs(sinceTime int64, responseBody 
 	return transport.get(endpoint, responseBody, RequestOptions{})
 }
 
-func (transport *transport) get_id_lists(responseBody interface{}) (*http.Response, error) {
+func (transport *transport) getIdLists(responseBody interface{}) (*http.Response, error) {
 	return transport.post("/get_id_lists", nil, responseBody, RequestOptions{})
 }
 
-func (transport *transport) get_id_list(url string, headers map[string]string) (*http.Response, error) {
+func (transport *transport) getIdList(url string, headers map[string]string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -143,8 +142,8 @@ func (transport *transport) doRequest(
 	if request == nil || err != nil {
 		return nil, err
 	}
-	options.fill_defaults()
-	return retry(options.retries, time.Duration(options.backoff), func() (*http.Response, bool, error) {
+	options.fillDefaults()
+	return retry(options.retries, options.backoff, func() (*http.Response, bool, error) {
 		response, err := transport.client.Do(request)
 		if err != nil {
 			return response, response != nil, err
@@ -152,7 +151,7 @@ func (transport *transport) doRequest(
 		drainAndCloseBody := func() {
 			if response.Body != nil {
 				// Drain body to re-use the same connection
-				_, _ = io.Copy(ioutil.Discard, response.Body)
+				_, _ = io.Copy(io.Discard, response.Body)
 				response.Body.Close()
 			}
 		}

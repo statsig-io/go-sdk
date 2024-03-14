@@ -9,7 +9,7 @@ import (
 
 var instance *Client
 
-// Initializes the global Statsig instance with the given sdkKey
+// Initialize initializes the global Statsig instance with the given sdkKey
 func Initialize(sdkKey string) {
 	InitializeGlobalOutputLogger(OutputLoggerOptions{})
 	InitializeGlobalSessionID()
@@ -21,7 +21,7 @@ func Initialize(sdkKey string) {
 	instance = NewClient(sdkKey)
 }
 
-// Advanced options for configuring the Statsig SDK
+// Options are an advanced options for configuring the Statsig SDK
 type Options struct {
 	API                   string      `json:"api"`
 	Environment           Environment `json:"environment"`
@@ -62,6 +62,7 @@ type StatsigLoggerOptions struct {
 	DisableAllLogging      bool
 }
 
+// Environment is a struct that represents the environment option
 // See https://docs.statsig.com/guides/usingEnvironments
 type Environment struct {
 	Tier   string            `json:"tier"`
@@ -73,7 +74,7 @@ func IsInitialized() bool {
 	return instance != nil
 }
 
-// Initializes the global Statsig instance with the given sdkKey and options
+// InitializeWithOptions initializes the global Statsig instance with the given sdkKey and options
 func InitializeWithOptions(sdkKey string, options *Options) {
 	InitializeGlobalOutputLogger(options.OutputLoggerOptions)
 	InitializeGlobalSessionID()
@@ -101,7 +102,7 @@ func InitializeWithOptions(sdkKey string, options *Options) {
 	}
 }
 
-// Checks the value of a Feature Gate for the given user
+// CheckGate checks the value of a Feature Gate for the given user
 func CheckGate(user User, gate string) bool {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling CheckGate"))
@@ -109,7 +110,7 @@ func CheckGate(user User, gate string) bool {
 	return instance.CheckGate(user, gate)
 }
 
-// Checks the value of a Feature Gate for the given user without logging an exposure event
+// CheckGateWithExposureLoggingDisabled checks the value of a Feature Gate for the given user without logging an exposure event
 func CheckGateWithExposureLoggingDisabled(user User, gate string) bool {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling CheckGateWithExposureLoggingDisabled"))
@@ -117,7 +118,7 @@ func CheckGateWithExposureLoggingDisabled(user User, gate string) bool {
 	return instance.CheckGateWithExposureLoggingDisabled(user, gate)
 }
 
-// Get the Feature Gate for the given user
+// GetGate gets the Feature Gate for the given user
 func GetGate(user User, gate string) FeatureGate {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetGate"))
@@ -125,7 +126,7 @@ func GetGate(user User, gate string) FeatureGate {
 	return instance.GetGate(user, gate)
 }
 
-// Get the Feature Gate for the given user without logging an exposure event
+// GetGateWithExposureLoggingDisabled gets the Feature Gate for the given user without logging an exposure event
 func GetGateWithExposureLoggingDisabled(user User, gate string) FeatureGate {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetGateWithExposureLoggingDisabled"))
@@ -133,7 +134,7 @@ func GetGateWithExposureLoggingDisabled(user User, gate string) FeatureGate {
 	return instance.GetGateWithExposureLoggingDisabled(user, gate)
 }
 
-// Logs an exposure event for the gate
+// ManuallyLogGateExposure logs an exposure event for the gate
 func ManuallyLogGateExposure(user User, config string) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling ManuallyLogGateExposure"))
@@ -141,7 +142,7 @@ func ManuallyLogGateExposure(user User, config string) {
 	instance.ManuallyLogGateExposure(user, config)
 }
 
-// Gets the DynamicConfig value for the given user
+// GetConfig gets the DynamicConfig value for the given user
 func GetConfig(user User, config string) DynamicConfig {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetConfig"))
@@ -149,7 +150,7 @@ func GetConfig(user User, config string) DynamicConfig {
 	return instance.GetConfig(user, config)
 }
 
-// Gets the DynamicConfig value for the given user without logging an exposure event
+// GetConfigWithExposureLoggingDisabled gets the DynamicConfig value for the given user without logging an exposure event
 func GetConfigWithExposureLoggingDisabled(user User, config string) DynamicConfig {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetConfigWithExposureLoggingDisabled"))
@@ -157,7 +158,7 @@ func GetConfigWithExposureLoggingDisabled(user User, config string) DynamicConfi
 	return instance.GetConfigWithExposureLoggingDisabled(user, config)
 }
 
-// Logs an exposure event for the dynamic config
+// ManuallyLogConfigExposure logs an exposure event for the dynamic config
 func ManuallyLogConfigExposure(user User, config string) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling ManuallyLogConfigExposure"))
@@ -165,7 +166,7 @@ func ManuallyLogConfigExposure(user User, config string) {
 	instance.ManuallyLogConfigExposure(user, config)
 }
 
-// Override the value of a Feature Gate for the given user
+// OverrideGate overrides the value of a Feature Gate for the given user
 func OverrideGate(gate string, val bool) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling OverrideGate"))
@@ -173,7 +174,7 @@ func OverrideGate(gate string, val bool) {
 	instance.OverrideGate(gate, val)
 }
 
-// Override the DynamicConfig value for the given user
+// OverrideConfig overrides the DynamicConfig value for the given user
 func OverrideConfig(config string, val map[string]interface{}) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling OverrideConfig"))
@@ -181,7 +182,7 @@ func OverrideConfig(config string, val map[string]interface{}) {
 	instance.OverrideConfig(config, val)
 }
 
-// Override the Layer value for the given user
+// OverrideLayer overrides the Layer value for the given user
 func OverrideLayer(layer string, val map[string]interface{}) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling OverrideLayer"))
@@ -189,7 +190,7 @@ func OverrideLayer(layer string, val map[string]interface{}) {
 	instance.OverrideLayer(layer, val)
 }
 
-// Gets the DynamicConfig value of an Experiment for the given user
+// GetExperiment gets the DynamicConfig value of an Experiment for the given user
 func GetExperiment(user User, experiment string) DynamicConfig {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetExperiment"))
@@ -197,7 +198,7 @@ func GetExperiment(user User, experiment string) DynamicConfig {
 	return instance.GetExperiment(user, experiment)
 }
 
-// Gets the DynamicConfig value of an Experiment for the given user without logging an exposure event
+// GetExperimentWithExposureLoggingDisabled gets the DynamicConfig value of an Experiment for the given user without logging an exposure event
 func GetExperimentWithExposureLoggingDisabled(user User, experiment string) DynamicConfig {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetExperimentWithExposureLoggingDisabled"))
@@ -205,7 +206,7 @@ func GetExperimentWithExposureLoggingDisabled(user User, experiment string) Dyna
 	return instance.GetExperimentWithExposureLoggingDisabled(user, experiment)
 }
 
-// Gets the DynamicConfig value of an Experiment for the given user with configurable options
+// GetExperimentWithOptions gets the DynamicConfig value of an Experiment for the given user with configurable options
 func GetExperimentWithOptions(user User, experiment string, options *GetExperimentOptions) DynamicConfig {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetExperimentWithOptions"))
@@ -213,7 +214,7 @@ func GetExperimentWithOptions(user User, experiment string, options *GetExperime
 	return instance.GetExperimentWithOptions(user, experiment, options)
 }
 
-// Logs an exposure event for the experiment
+// ManuallyLogExperimentExposure logs an exposure event for the experiment
 func ManuallyLogExperimentExposure(user User, experiment string) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling ManuallyLogExperimentExposure"))
@@ -221,6 +222,7 @@ func ManuallyLogExperimentExposure(user User, experiment string) {
 	instance.ManuallyLogExperimentExposure(user, experiment)
 }
 
+// GetUserPersistedValues gets the PersistedValues for the given user
 func GetUserPersistedValues(user User, idType string) UserPersistedValues {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetUserPersistedValues"))
@@ -228,7 +230,7 @@ func GetUserPersistedValues(user User, idType string) UserPersistedValues {
 	return instance.GetUserPersistedValues(user, idType)
 }
 
-// Gets the Layer object for the given user
+// GetLayer gets the Layer object for the given user
 func GetLayer(user User, layer string) Layer {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetLayer"))
@@ -236,7 +238,7 @@ func GetLayer(user User, layer string) Layer {
 	return instance.GetLayer(user, layer)
 }
 
-// Gets the Layer object for the given user without logging an exposure event
+// GetLayerWithExposureLoggingDisabled gets the Layer object for the given user without logging an exposure event
 func GetLayerWithExposureLoggingDisabled(user User, layer string) Layer {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetLayerWithExposureLoggingDisabled"))
@@ -244,7 +246,7 @@ func GetLayerWithExposureLoggingDisabled(user User, layer string) Layer {
 	return instance.GetLayerWithExposureLoggingDisabled(user, layer)
 }
 
-// Logs an exposure event for the parameter in the given layer
+// ManuallyLogLayerParameterExposure logs an exposure event for the parameter in the given layer
 func ManuallyLogLayerParameterExposure(user User, layer string, parameter string) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling ManuallyLogLayerParameterExposure"))
@@ -252,7 +254,7 @@ func ManuallyLogLayerParameterExposure(user User, layer string, parameter string
 	instance.ManuallyLogLayerParameterExposure(user, layer, parameter)
 }
 
-// Logs an event to the Statsig console
+// LogEvent logs an event to the Statsig console
 func LogEvent(event Event) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling LogEvent"))
@@ -260,7 +262,7 @@ func LogEvent(event Event) {
 	instance.LogEvent(event)
 }
 
-// Logs a slice of events to Statsig server immediately
+// LogImmediate logs a slice of events to Statsig server immediately
 func LogImmediate(events []Event) (*http.Response, error) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling LogImmediate"))
@@ -282,7 +284,7 @@ func GetClientInitializeResponseForTargetApp(user User, clientKey string) Client
 	return instance.GetClientInitializeResponse(user, clientKey)
 }
 
-// Cleans up Statsig, persisting any Event Logs and cleanup processes
+// Shutdown cleans up Statsig, persisting any Event Logs and cleanup processes
 // Using any method is undefined after Shutdown() has been called
 func Shutdown() {
 	if !IsInitialized() {
@@ -291,7 +293,7 @@ func Shutdown() {
 	instance.Shutdown()
 }
 
-// For test only so we can clear the shared instance. Not thread safe.
+// ShutdownAndDangerouslyClearInstance is used for test only so we can clear the shared instance. Not thread safe.
 func ShutdownAndDangerouslyClearInstance() {
 	Shutdown()
 	instance = nil

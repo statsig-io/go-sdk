@@ -55,7 +55,7 @@ func TestEvaluationDetails(t *testing.T) {
 			API:                  getTestServer(true).URL,
 			Environment:          Environment{Tier: "test"},
 			OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-			StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+			StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 			EvaluationCallbacks:  evaluationCallbacks,
 		}
 		user = User{UserID: "some_user_id"}

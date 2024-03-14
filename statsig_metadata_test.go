@@ -29,7 +29,7 @@ func TestStatsigMetadata(t *testing.T) {
 			}
 		}).URL,
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 		LoggingMaxBufferSize: 1,
 	})
 	if sessionID == "" {
@@ -47,7 +47,7 @@ func TestStatsigMetadata(t *testing.T) {
 			}
 		}).URL,
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	})
 	ShutdownAndDangerouslyClearInstance()
 }

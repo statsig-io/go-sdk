@@ -14,10 +14,10 @@ import (
 )
 
 func TestBootstrapWithAdapter(t *testing.T) {
-	events := []Event{}
-	dcs_bytes, _ := os.ReadFile("download_config_specs.json")
-	idlists_bytes, _ := os.ReadFile("test_data/get_id_lists.json")
-	idlist_bytes, _ := os.ReadFile("test_data/list_1.txt")
+	var events []Event
+	dcsBytes, _ := os.ReadFile("download_config_specs.json")
+	idlistsBytes, _ := os.ReadFile("test_data/get_id_lists.json")
+	idlistBytes, _ := os.ReadFile("test_data/list_1.txt")
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "log_event") {
@@ -37,15 +37,15 @@ func TestBootstrapWithAdapter(t *testing.T) {
 	dataAdapter := dataAdapterExample{store: make(map[string]string)}
 	dataAdapter.Initialize()
 	defer dataAdapter.Shutdown()
-	dataAdapter.Set(CONFIG_SPECS_KEY, string(dcs_bytes))
-	dataAdapter.Set(ID_LISTS_KEY, string(idlists_bytes))
-	dataAdapter.Set(fmt.Sprintf("%s::%s", ID_LISTS_KEY, "list_1"), string(idlist_bytes))
+	dataAdapter.Set(configSpecsKey, string(dcsBytes))
+	dataAdapter.Set(idListsKey, string(idlistsBytes))
+	dataAdapter.Set(fmt.Sprintf("%s::%s", idListsKey, "list_1"), string(idlistBytes))
 	options := &Options{
 		DataAdapter:          &dataAdapter,
 		API:                  testServer.URL,
 		Environment:          Environment{Tier: "test"},
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
 
 	t.Run("able to fetch config spec data from adapter and populate store without network", func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestSaveToAdapter(t *testing.T) {
 		API:                  testServer.URL,
 		Environment:          Environment{Tier: "test"},
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 		IDListSyncInterval:   100 * time.Millisecond,
 		ConfigSyncInterval:   100 * time.Millisecond,
 	}
@@ -119,31 +119,31 @@ func TestSaveToAdapter(t *testing.T) {
 
 	t.Run("updates adapter with newer config spec values from network", func(t *testing.T) {
 		waitForCondition(t, func() bool {
-			return dataAdapter.Get(CONFIG_SPECS_KEY) != ""
+			return dataAdapter.Get(configSpecsKey) != ""
 		})
-		specString := dataAdapter.Get(CONFIG_SPECS_KEY)
+		specString := dataAdapter.Get(configSpecsKey)
 		specs := downloadConfigSpecResponse{}
 		err := json.Unmarshal([]byte(specString), &specs)
 		if err != nil {
 			t.Errorf("Error parsing data adapter values")
 		}
-		if !contains_spec(specs.FeatureGates, "always_on_gate", "feature_gate") {
+		if !containsSpec(specs.FeatureGates, "always_on_gate", "feature_gate") {
 			t.Errorf("Expected data adapter to have downloaded gates")
 		}
-		if !contains_spec(specs.DynamicConfigs, "test_config", "dynamic_config") {
+		if !containsSpec(specs.DynamicConfigs, "test_config", "dynamic_config") {
 			t.Errorf("Expected data adapter to have downloaded configs")
 		}
-		if !contains_spec(specs.LayerConfigs, "a_layer", "dynamic_config") {
+		if !containsSpec(specs.LayerConfigs, "a_layer", "dynamic_config") {
 			t.Errorf("Expected data adapter to have downloaded layers")
 		}
 	})
 
 	t.Run("updates adapter with newer id list values from network", func(t *testing.T) {
 		waitForCondition(t, func() bool {
-			return dataAdapter.Get(ID_LISTS_KEY) != ""
+			return dataAdapter.Get(idListsKey) != ""
 		})
-		idListsString := dataAdapter.Get(ID_LISTS_KEY)
-		list1String := dataAdapter.Get(fmt.Sprintf("%s::%s", ID_LISTS_KEY, "list_1"))
+		idListsString := dataAdapter.Get(idListsKey)
+		list1String := dataAdapter.Get(fmt.Sprintf("%s::%s", idListsKey, "list_1"))
 		list1Bytes := []byte(list1String)
 		var idLists map[string]idList
 		err := json.Unmarshal([]byte(idListsString), &idLists)
@@ -169,19 +169,19 @@ func TestSaveToAdapter(t *testing.T) {
 }
 
 func TestAdapterWithPolling(t *testing.T) {
-	dcs_bytes, _ := os.ReadFile("download_config_specs.json")
-	idlists_bytes, _ := os.ReadFile("test_data/get_id_lists.json")
-	idlist_bytes, _ := os.ReadFile("test_data/list_1.txt")
+	dcsBytes, _ := os.ReadFile("download_config_specs.json")
+	idlistsBytes, _ := os.ReadFile("test_data/get_id_lists.json")
+	idlistBytes, _ := os.ReadFile("test_data/list_1.txt")
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			_, _ = res.Write(dcs_bytes)
+			_, _ = res.Write(dcsBytes)
 		}
 	}))
 	dataAdapter := dataAdapterWithPollingExample{store: make(map[string]string)}
-	dataAdapter.Set(CONFIG_SPECS_KEY, string(dcs_bytes))
-	dataAdapter.Set(ID_LISTS_KEY, string(idlists_bytes))
-	dataAdapter.Set(fmt.Sprintf("%s::%s", ID_LISTS_KEY, "list_1"), string(idlist_bytes))
+	dataAdapter.Set(configSpecsKey, string(dcsBytes))
+	dataAdapter.Set(idListsKey, string(idlistsBytes))
+	dataAdapter.Set(fmt.Sprintf("%s::%s", idListsKey, "list_1"), string(idlistBytes))
 	options := &Options{
 		DataAdapter:          &dataAdapter,
 		API:                  testServer.URL,
@@ -189,7 +189,7 @@ func TestAdapterWithPolling(t *testing.T) {
 		ConfigSyncInterval:   100 * time.Millisecond,
 		IDListSyncInterval:   100 * time.Millisecond,
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
 	InitializeWithOptions("secret-key", options)
 	defer ShutdownAndDangerouslyClearInstance()
@@ -200,10 +200,10 @@ func TestAdapterWithPolling(t *testing.T) {
 		if !value {
 			t.Errorf("Expected on_for_id_list to return true")
 		}
-		idlists_updated_bytes, _ := os.ReadFile("test_data/get_id_lists_updated.json")
-		idlist_updated_bytes, _ := os.ReadFile("test_data/list_1_updated.txt")
-		dataAdapter.Set(fmt.Sprintf("%s::%s", ID_LISTS_KEY, "list_1"), string(idlist_updated_bytes))
-		dataAdapter.Set(ID_LISTS_KEY, string(idlists_updated_bytes))
+		idlistsUpdatedBytes, _ := os.ReadFile("test_data/get_id_lists_updated.json")
+		idlistUpdatedBytes, _ := os.ReadFile("test_data/list_1_updated.txt")
+		dataAdapter.Set(fmt.Sprintf("%s::%s", idListsKey, "list_1"), string(idlistUpdatedBytes))
+		dataAdapter.Set(idListsKey, string(idlistsUpdatedBytes))
 		waitForConditionWithMessage(t, func() bool {
 			return !CheckGate(user, "on_for_id_list")
 		}, "Expected on_for_id_list to return false")
@@ -213,7 +213,7 @@ func TestAdapterWithPolling(t *testing.T) {
 		if !value {
 			t.Errorf("Expected always_on_gate to return true")
 		}
-		dataAdapter.clearStore(CONFIG_SPECS_KEY)
+		dataAdapter.clearStore(configSpecsKey)
 		waitForConditionWithMessage(t, func() bool {
 			return !CheckGate(user, "always_on_gate")
 		}, "Expected always_on_gate to return false")
@@ -221,7 +221,7 @@ func TestAdapterWithPolling(t *testing.T) {
 }
 
 func TestIncorrectlyImplementedAdapter(t *testing.T) {
-	events := []Event{}
+	var events []Event
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
@@ -247,9 +247,9 @@ func TestIncorrectlyImplementedAdapter(t *testing.T) {
 		API:                  testServer.URL,
 		Environment:          Environment{Tier: "test"},
 		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
-		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(),
 	}
-	stderrLogs := swallow_stderr(func() {
+	stderrLogs := swallowStderr(func() {
 		InitializeWithOptions("secret-key", options)
 	})
 	if stderrLogs == "" {
@@ -282,7 +282,7 @@ func TestIncorrectlyImplementedAdapter(t *testing.T) {
 	})
 }
 
-func swallow_stderr(task func()) string {
+func swallowStderr(task func()) string {
 	stderr := os.Stderr
 	r, w, _ := os.Pipe()
 	os.Stderr = w
@@ -294,7 +294,7 @@ func swallow_stderr(task func()) string {
 	return buf.String()
 }
 
-func contains_spec(specs []configSpec, name string, specType string) bool {
+func containsSpec(specs []configSpec, name string, specType string) bool {
 	for _, e := range specs {
 		if e.Name == name && e.Type == specType {
 			return true
