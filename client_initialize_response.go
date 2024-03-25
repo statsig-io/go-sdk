@@ -1,7 +1,6 @@
 package statsig
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -116,12 +115,9 @@ func getClientInitializeResponse(
 				*result.ExplicitParameters = spec.ExplicitParameters
 				layerName, _ := store.getExperimentLayer(spec.Name)
 				layer, exists := store.getLayerConfig(layerName)
-				var defaultValue map[string]interface{}
+				defaultValue := make(map[string]interface{})
 				if exists {
-					err := json.Unmarshal(layer.DefaultValue, &defaultValue)
-					if err != nil {
-						defaultValue = make(map[string]interface{})
-					}
+					mergeMaps(defaultValue, layer.DefaultValueJSON)
 					mergeMaps(defaultValue, result.Value)
 					result.Value = defaultValue
 				}
