@@ -3,7 +3,6 @@ package statsig
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -268,10 +267,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 	evalDetails := e.createEvaluationDetails(reason)
 	isDynamicConfig := strings.ToLower(spec.Type) == dynamicConfigType
 	if isDynamicConfig {
-		err := json.Unmarshal(spec.DefaultValue, &configValue)
-		if err != nil {
-			configValue = make(map[string]interface{})
-		}
+		configValue = spec.DefaultValueJSON
 	}
 
 	var exposures = make([]map[string]string, 0)
@@ -293,12 +289,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 				pass := evalPassPercent(user, rule, spec)
 				if isDynamicConfig {
 					if pass {
-						var ruleConfigValue map[string]interface{}
-						err := json.Unmarshal(rule.ReturnValue, &ruleConfigValue)
-						if err != nil {
-							ruleConfigValue = make(map[string]interface{})
-						}
-						configValue = ruleConfigValue
+						configValue = rule.ReturnValueJSON
 					}
 					result := &evalResult{
 						Value:                         pass,
@@ -480,11 +471,19 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int) *e
 	// array operations
 	case "any":
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
-			return compareStrings(x, y, true, func(s1, s2 string) bool { return s1 == s2 })
+			if condType == "user_bucket" {
+				return compareNumbers(x, y, func(s1, s2 float64) bool { return s1 == s2 })
+			} else {
+				return compareStrings(x, y, true, func(s1, s2 string) bool { return s1 == s2 })
+			}
 		})
 	case "none":
 		pass = !arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
-			return compareStrings(x, y, true, func(s1, s2 string) bool { return s1 == s2 })
+			if condType == "user_bucket" {
+				return compareNumbers(x, y, func(s1, s2 float64) bool { return s1 == s2 })
+			} else {
+				return compareStrings(x, y, true, func(s1, s2 string) bool { return s1 == s2 })
+			}
 		})
 	case "any_case_sensitive":
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {

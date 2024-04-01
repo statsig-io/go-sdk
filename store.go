@@ -15,18 +15,20 @@ import (
 )
 
 type configSpec struct {
-	Name               string          `json:"name"`
-	Type               string          `json:"type"`
-	Salt               string          `json:"salt"`
-	Enabled            bool            `json:"enabled"`
-	Rules              []configRule    `json:"rules"`
-	DefaultValue       json.RawMessage `json:"defaultValue"`
-	IDType             string          `json:"idType"`
-	ExplicitParameters []string        `json:"explicitParameters"`
-	Entity             string          `json:"entity"`
-	IsActive           *bool           `json:"isActive,omitempty"`
-	HasSharedParams    *bool           `json:"hasSharedParams,omitempty"`
-	TargetAppIDs       []string        `json:"targetAppIDs,omitempty"`
+	Name               string                 `json:"name"`
+	Type               string                 `json:"type"`
+	Salt               string                 `json:"salt"`
+	Enabled            bool                   `json:"enabled"`
+	Rules              []configRule           `json:"rules"`
+	DefaultValue       json.RawMessage        `json:"defaultValue"`
+	DefaultValueJSON   map[string]interface{} `json:"-"`
+	DefaultValueBool   *bool                  `json:"-"`
+	IDType             string                 `json:"idType"`
+	ExplicitParameters []string               `json:"explicitParameters"`
+	Entity             string                 `json:"entity"`
+	IsActive           *bool                  `json:"isActive,omitempty"`
+	HasSharedParams    *bool                  `json:"hasSharedParams,omitempty"`
+	TargetAppIDs       []string               `json:"targetAppIDs,omitempty"`
 }
 
 func (c configSpec) hasTargetAppID(appId string) bool {
@@ -42,16 +44,18 @@ func (c configSpec) hasTargetAppID(appId string) bool {
 }
 
 type configRule struct {
-	Name              string            `json:"name"`
-	ID                string            `json:"id"`
-	GroupName         string            `json:"groupName,omitempty"`
-	Salt              string            `json:"salt"`
-	PassPercentage    float64           `json:"passPercentage"`
-	Conditions        []configCondition `json:"conditions"`
-	ReturnValue       json.RawMessage   `json:"returnValue"`
-	IDType            string            `json:"idType"`
-	ConfigDelegate    string            `json:"configDelegate"`
-	IsExperimentGroup *bool             `json:"isExperimentGroup,omitempty"`
+	Name              string                 `json:"name"`
+	ID                string                 `json:"id"`
+	GroupName         string                 `json:"groupName,omitempty"`
+	Salt              string                 `json:"salt"`
+	PassPercentage    float64                `json:"passPercentage"`
+	Conditions        []configCondition      `json:"conditions"`
+	ReturnValue       json.RawMessage        `json:"returnValue"`
+	ReturnValueJSON   map[string]interface{} `json:"-"`
+	ReturnValueBool   *bool                  `json:"-"`
+	IDType            string                 `json:"idType"`
+	ConfigDelegate    string                 `json:"configDelegate"`
+	IsExperimentGroup *bool                  `json:"isExperimentGroup,omitempty"`
 }
 
 type configCondition struct {
@@ -347,6 +351,23 @@ func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *m
 	return parsed, updated
 }
 
+func (s *store) parseJSONValuesFromSpec(spec *configSpec) {
+	var defaultValue map[string]interface{}
+	err := json.Unmarshal(spec.DefaultValue, &defaultValue)
+	if err != nil {
+		defaultValue = make(map[string]interface{})
+	}
+	spec.DefaultValueJSON = defaultValue
+	for i, rule := range spec.Rules {
+		var ruleValue map[string]interface{}
+		err := json.Unmarshal(rule.ReturnValue, &ruleValue)
+		if err != nil {
+			ruleValue = make(map[string]interface{})
+		}
+		spec.Rules[i].ReturnValueJSON = ruleValue
+	}
+}
+
 // Returns a tuple of booleans indicating 1. parsed, 2. updated
 func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 	s.diagnostics.initDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
@@ -365,11 +386,13 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 
 		newConfigs := make(map[string]configSpec)
 		for _, config := range specs.DynamicConfigs {
+			s.parseJSONValuesFromSpec(&config)
 			newConfigs[config.Name] = config
 		}
 
 		newLayers := make(map[string]configSpec)
 		for _, layer := range specs.LayerConfigs {
+			s.parseJSONValuesFromSpec(&layer)
 			newLayers[layer.Name] = layer
 		}
 
