@@ -471,16 +471,16 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int) *e
 	// array operations
 	case "any":
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
-			if condType == "user_bucket" {
-				return compareNumbers(x, y, func(s1, s2 float64) bool { return s1 == s2 })
+			if cond.UserBucket != nil {
+				return lookupUserBucket(value, cond.UserBucket)
 			} else {
 				return compareStrings(x, y, true, func(s1, s2 string) bool { return s1 == s2 })
 			}
 		})
 	case "none":
 		pass = !arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
-			if condType == "user_bucket" {
-				return compareNumbers(x, y, func(s1, s2 float64) bool { return s1 == s2 })
+			if cond.UserBucket != nil {
+				return lookupUserBucket(value, cond.UserBucket)
 			} else {
 				return compareStrings(x, y, true, func(s1, s2 string) bool { return s1 == s2 })
 			}
@@ -696,6 +696,14 @@ func compareNumbers(a, b interface{}, fun func(x, y float64) bool) bool {
 		return false
 	}
 	return fun(numA, numB)
+}
+
+func lookupUserBucket(val interface{}, lookup map[int64]bool) bool {
+	if valInt, ok := val.(int64); ok {
+		_, exists := lookup[valInt]
+		return exists
+	}
+	return false
 }
 
 func compareStrings(s1 interface{}, s2 interface{}, ignoreCase bool, fun func(x, y string) bool) bool {

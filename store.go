@@ -63,6 +63,7 @@ type configCondition struct {
 	Operator         string                 `json:"operator"`
 	Field            string                 `json:"field"`
 	TargetValue      interface{}            `json:"targetValue"`
+	UserBucket       map[int64]bool         `json:"-"`
 	AdditionalValues map[string]interface{} `json:"additionalValues"`
 	IDType           string                 `json:"idType"`
 }
@@ -368,6 +369,23 @@ func (s *store) parseJSONValuesFromSpec(spec *configSpec) {
 	}
 }
 
+func (s *store) parseTargetValueMapFromSpec(spec *configSpec) {
+	for _, rule := range spec.Rules {
+		for i, cond := range rule.Conditions {
+			if (cond.Operator == "any" || cond.Operator == "none") && cond.Type == "user_bucket" {
+				userBucketArray, ok := cond.TargetValue.([]interface{})
+				if len(userBucketArray) == 0 || !ok {
+					return
+				}
+				rule.Conditions[i].UserBucket = make(map[int64]bool)
+				for _, val := range userBucketArray {
+					rule.Conditions[i].UserBucket[int64(val.(float64))] = true
+				}
+			}
+		}
+	}
+}
+
 // Returns a tuple of booleans indicating 1. parsed, 2. updated
 func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 	s.diagnostics.initDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
@@ -381,17 +399,20 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 	if specs.HasUpdates {
 		newGates := make(map[string]configSpec)
 		for _, gate := range specs.FeatureGates {
+			s.parseTargetValueMapFromSpec(&gate)
 			newGates[gate.Name] = gate
 		}
 
 		newConfigs := make(map[string]configSpec)
 		for _, config := range specs.DynamicConfigs {
+			s.parseTargetValueMapFromSpec(&config)
 			s.parseJSONValuesFromSpec(&config)
 			newConfigs[config.Name] = config
 		}
 
 		newLayers := make(map[string]configSpec)
 		for _, layer := range specs.LayerConfigs {
+			s.parseTargetValueMapFromSpec(&layer)
 			s.parseJSONValuesFromSpec(&layer)
 			newLayers[layer.Name] = layer
 		}
