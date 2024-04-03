@@ -515,7 +515,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int) *e
 		if cond.TargetValue == nil || value == nil {
 			pass = cond.TargetValue == nil && value == nil
 		} else {
-			matched, _ := regexp.MatchString(toString(cond.TargetValue), toString(value))
+			matched, _ := regexp.MatchString(castToString(cond.TargetValue), castToString(value))
 			pass = matched
 		}
 
@@ -546,9 +546,9 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int) *e
 	case "in_segment_list", "not_in_segment_list":
 		inlist := false
 		if reflect.TypeOf(cond.TargetValue).String() == "string" && reflect.TypeOf(value).String() == "string" {
-			list := e.store.getIDList(toString(cond.TargetValue))
+			list := e.store.getIDList(castToString(cond.TargetValue))
 			if list != nil {
-				h := sha256.Sum256([]byte(toString(value)))
+				h := sha256.Sum256([]byte(castToString(value)))
 				_, inlist = list.ids.Load(base64.StdEncoding.EncodeToString(h[:])[:8])
 			}
 		}
@@ -681,12 +681,31 @@ func getNumericValue(a interface{}) (float64, bool) {
 	return 0, false
 }
 
-func toString(a interface{}) string {
+func castToString(a interface{}) string {
 	asString, ok := a.(string)
 	if !ok {
 		return ""
 	}
 	return asString
+}
+
+func convertToString(a interface{}) string {
+	if asString, ok := a.(string); ok {
+		return asString
+	}
+	if asInt, ok := a.(int); ok {
+		return strconv.Itoa(asInt)
+	}
+	if asInt64, ok := a.(int64); ok {
+		return strconv.FormatInt(asInt64, 10)
+	}
+	if asFloat, ok := a.(float64); ok {
+		return strconv.FormatFloat(asFloat, 'f', -1, 64)
+	}
+	if asBool, ok := a.(bool); ok {
+		return strconv.FormatBool(asBool)
+	}
+	return ""
 }
 
 func compareNumbers(a, b interface{}, fun func(x, y float64) bool) bool {
@@ -700,8 +719,8 @@ func compareNumbers(a, b interface{}, fun func(x, y float64) bool) bool {
 
 func lookupUserBucket(val interface{}, lookup map[int64]bool) bool {
 	if valInt, ok := val.(int64); ok {
-		_, exists := lookup[valInt]
-		return exists
+		_, pass := lookup[valInt]
+		return pass
 	}
 	return false
 }
@@ -711,16 +730,8 @@ func compareStrings(s1 interface{}, s2 interface{}, ignoreCase bool, fun func(x,
 	if s1 == nil || s2 == nil {
 		return false
 	}
-	if reflect.TypeOf(s1).Kind() == reflect.String {
-		str1 = toString(s1)
-	} else {
-		str1 = fmt.Sprintf("%v", s1)
-	}
-	if reflect.TypeOf(s2).Kind() == reflect.String {
-		str2 = toString(s2)
-	} else {
-		str2 = fmt.Sprintf("%v", s2)
-	}
+	str1 = convertToString(s1)
+	str2 = convertToString(s2)
 
 	if ignoreCase {
 		return fun(strings.ToLower(str1), strings.ToLower(str2))

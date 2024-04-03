@@ -272,7 +272,7 @@ func compareIDLists(l1 *idList, l2 *idList) bool {
 func unsyncIDList(m *sync.Map) map[string]bool {
 	mm := make(map[string]bool)
 	m.Range(func(k, v interface{}) bool {
-		mm[toString(k)] = true
+		mm[castToString(k)] = true
 		return true
 	})
 	return mm
