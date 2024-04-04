@@ -150,7 +150,7 @@ func (c *Client) ManuallyLogExperimentExposure(user User, experiment string) {
 
 func (c *Client) GetUserPersistedValues(user User, idType string) UserPersistedValues {
 	return c.errorBoundary.captureGetUserPersistedValues(func() UserPersistedValues {
-		persistedValues := c.evaluator.persistentStorageUtils.getUserPersistedValues(user, idType)
+		persistedValues := c.evaluator.persistentStorageUtils.load(user, idType)
 		if persistedValues == nil {
 			return make(UserPersistedValues)
 		} else {

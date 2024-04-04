@@ -169,11 +169,10 @@ func (e *evaluator) evalConfigImpl(user User, configName string, persistedValues
 
 			evaluation = e.eval(user, config, depth+1)
 			if evaluation.IsExperimentGroup != nil && *evaluation.IsExperimentGroup {
-				e.persistentStorageUtils.addEvaluationToUserPersistedValues(&persistedValues, configName, evaluation)
-				e.persistentStorageUtils.saveToStorage(user, config.IDType, persistedValues)
+				e.persistentStorageUtils.save(user, config.IDType, configName, evaluation)
 			}
 		} else {
-			e.persistentStorageUtils.removeExperimentFromStorage(user, config.IDType, configName)
+			e.persistentStorageUtils.delete(user, config.IDType, configName)
 			evaluation = e.eval(user, config, depth+1)
 		}
 		return evaluation

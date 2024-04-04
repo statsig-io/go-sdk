@@ -1,14 +1,13 @@
 package statsig
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 )
 
 func TestUserPersistentStorage(t *testing.T) {
-	persistentStorage := &userPersistentStorageExample{store: make(map[string]string)}
+	persistentStorage := &userPersistentStorageExample{store: make(map[string]UserPersistedValues)}
 	bytes, _ := os.ReadFile("download_config_specs_sticky_experiments.json")
 	opts := &Options{
 		OutputLoggerOptions:   getOutputLoggerOptionsForTest(t),
@@ -160,8 +159,7 @@ func TestUserPersistentStorage(t *testing.T) {
 		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
 	}
 
-	var userInControlPersistedValues UserPersistedValues
-	_ = json.Unmarshal([]byte(persistentStorage.store[fmt.Sprintf("%s:userID", userInControl.UserID)]), &userInControlPersistedValues)
+	userInControlPersistedValues := persistentStorage.store[fmt.Sprintf("%s:userID", userInControl.UserID)]
 	if _, ok := userInControlPersistedValues[stillActiveExpName]; !ok {
 		t.Errorf("Expected %s to exist in user persisted storage for user %s", stillActiveExpName, userInControl.UserID)
 	}
@@ -175,8 +173,7 @@ func TestUserPersistentStorage(t *testing.T) {
 		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
 	}
 
-	userInControlPersistedValues = nil
-	_ = json.Unmarshal([]byte(persistentStorage.store[fmt.Sprintf("%s:userID", userInControl.UserID)]), &userInControlPersistedValues)
+	userInControlPersistedValues = persistentStorage.store[fmt.Sprintf("%s:userID", userInControl.UserID)]
 	if _, ok := userInControlPersistedValues[expName]; ok {
 		t.Errorf("Expected %s to not exist in user persisted storage for user %s", expName, userInControl.UserID)
 	}
@@ -190,8 +187,7 @@ func TestUserPersistentStorage(t *testing.T) {
 		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
 	}
 
-	var userInTestPersistedValues UserPersistedValues
-	_ = json.Unmarshal([]byte(persistentStorage.store[fmt.Sprintf("%s:userID", userInTest.UserID)]), &userInTestPersistedValues)
+	userInTestPersistedValues := persistentStorage.store[fmt.Sprintf("%s:userID", userInTest.UserID)]
 	if _, ok := userInTestPersistedValues[expName]; ok {
 		t.Errorf("Expected %s to not exist in user persisted storage for user %s", expName, userInTest.UserID)
 	}
