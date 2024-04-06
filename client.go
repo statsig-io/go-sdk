@@ -161,13 +161,18 @@ func (c *Client) GetUserPersistedValues(user User, idType string) UserPersistedV
 
 // Gets the Layer object for the given user
 func (c *Client) GetLayer(user User, layer string) Layer {
-	options := getLayerOptions{disableLogExposures: false}
+	options := &GetLayerOptions{DisableLogExposures: false, PersistedValues: nil}
 	return c.getLayerImpl(user, layer, options)
 }
 
 // Gets the Layer object for the given user without logging an exposure event
 func (c *Client) GetLayerWithExposureLoggingDisabled(user User, layer string) Layer {
-	options := getLayerOptions{disableLogExposures: true}
+	options := &GetLayerOptions{DisableLogExposures: true, PersistedValues: nil}
+	return c.getLayerImpl(user, layer, options)
+}
+
+// Gets the Layer object for the given user with configurable options
+func (c *Client) GetLayerWithOptions(user User, layer string, options *GetLayerOptions) Layer {
 	return c.getLayerImpl(user, layer, options)
 }
 
@@ -178,7 +183,7 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 			return
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.evalLayer(user, layer)
+		res := c.evaluator.evalLayer(user, layer, nil)
 		config := NewLayer(layer, res.JsonValue, res.RuleID, res.GroupName, nil, res.ConfigDelegate)
 		context := &logContext{isManualExposure: true}
 		c.logger.logLayerExposure(user, *config, parameter, *res, res.EvaluationDetails, context)
@@ -269,8 +274,9 @@ type GetExperimentOptions struct {
 	PersistedValues     UserPersistedValues
 }
 
-type getLayerOptions struct {
-	disableLogExposures bool
+type GetLayerOptions struct {
+	DisableLogExposures bool
+	PersistedValues     UserPersistedValues
 }
 
 type gateResponse struct {
@@ -364,14 +370,14 @@ func (c *Client) getConfigImpl(user User, name string, context getConfigImplCont
 	})
 }
 
-func (c *Client) getLayerImpl(user User, name string, options getLayerOptions) Layer {
+func (c *Client) getLayerImpl(user User, name string, options *GetLayerOptions) Layer {
 	return c.errorBoundary.captureGetLayer(func() Layer {
 		if !c.verifyUser(user) {
 			return *NewLayer(name, nil, "", "", nil, "")
 		}
 
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.evalLayer(user, name)
+		res := c.evaluator.evalLayer(user, name, options.PersistedValues)
 
 		if res.FetchFromServer {
 			res = c.fetchConfigFromServer(user, name)
@@ -379,7 +385,7 @@ func (c *Client) getLayerImpl(user User, name string, options getLayerOptions) L
 
 		logFunc := func(layer Layer, parameterName string) {
 			var exposure *ExposureEvent = nil
-			if !options.disableLogExposures {
+			if !options.DisableLogExposures {
 				context := &logContext{isManualExposure: false}
 				exposure = c.logger.logLayerExposure(user, layer, parameterName, *res, res.EvaluationDetails, context)
 			}

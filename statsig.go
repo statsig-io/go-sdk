@@ -244,6 +244,14 @@ func GetLayerWithExposureLoggingDisabled(user User, layer string) Layer {
 	return instance.GetLayerWithExposureLoggingDisabled(user, layer)
 }
 
+// Gets the Layer object for the given user with configurable options
+func GetLayerWithOptions(user User, layer string, options *GetLayerOptions) Layer {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetLayerWithOptions"))
+	}
+	return instance.getLayerImpl(user, layer, options)
+}
+
 // Logs an exposure event for the parameter in the given layer
 func ManuallyLogLayerParameterExposure(user User, layer string, parameter string) {
 	if !IsInitialized() {

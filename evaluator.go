@@ -45,23 +45,29 @@ func newEvalResultFromStickyValues(evalMap StickyValues) *evalResult {
 	)
 
 	return &evalResult{
-		Value:              evalMap.Value,
-		RuleID:             evalMap.RuleID,
-		GroupName:          evalMap.GroupName,
-		SecondaryExposures: evalMap.SecondaryExposures,
-		JsonValue:          evalMap.JsonValue,
-		EvaluationDetails:  evaluationDetails,
+		Value:                         evalMap.Value,
+		RuleID:                        evalMap.RuleID,
+		GroupName:                     evalMap.GroupName,
+		SecondaryExposures:            evalMap.SecondaryExposures,
+		JsonValue:                     evalMap.JsonValue,
+		EvaluationDetails:             evaluationDetails,
+		ConfigDelegate:                evalMap.ConfigDelegate,
+		ExplicitParameters:            evalMap.ExplicitParameters,
+		UndelegatedSecondaryExposures: evalMap.UndelegatedSecondaryExposures,
 	}
 }
 
 func (e *evalResult) toStickyValues() StickyValues {
 	return StickyValues{
-		Value:              e.Value,
-		JsonValue:          e.JsonValue,
-		RuleID:             e.RuleID,
-		GroupName:          e.GroupName,
-		SecondaryExposures: e.SecondaryExposures,
-		Time:               e.EvaluationDetails.configSyncTime,
+		Value:                         e.Value,
+		JsonValue:                     e.JsonValue,
+		RuleID:                        e.RuleID,
+		GroupName:                     e.GroupName,
+		SecondaryExposures:            e.SecondaryExposures,
+		Time:                          e.EvaluationDetails.configSyncTime,
+		ConfigDelegate:                e.ConfigDelegate,
+		ExplicitParameters:            e.ExplicitParameters,
+		UndelegatedSecondaryExposures: e.UndelegatedSecondaryExposures,
 	}
 }
 
@@ -159,35 +165,31 @@ func (e *evaluator) evalConfigImpl(user User, configName string, persistedValues
 			SecondaryExposures: make([]map[string]string, 0),
 		}
 	}
-	if config, hasConfig := e.store.getDynamicConfig(configName); hasConfig {
-		var evaluation *evalResult
-		if persistedValues != nil && config.IsActive != nil && *config.IsActive {
-			stickyResult := newEvalResultFromUserPersistedValues(configName, persistedValues)
-			if stickyResult != nil {
-				return stickyResult
-			}
-
-			evaluation = e.eval(user, config, depth+1)
-			if evaluation.IsExperimentGroup != nil && *evaluation.IsExperimentGroup {
-				e.persistentStorageUtils.save(user, config.IDType, configName, evaluation)
-			}
-		} else {
-			e.persistentStorageUtils.delete(user, config.IDType, configName)
-			evaluation = e.eval(user, config, depth+1)
-		}
-		return evaluation
+	config, hasConfig := e.store.getDynamicConfig(configName)
+	if !hasConfig {
+		emptyEvalResult := new(evalResult)
+		emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+		emptyEvalResult.SecondaryExposures = make([]map[string]string, 0)
+		return emptyEvalResult
 	}
-	emptyEvalResult := new(evalResult)
-	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
-	emptyEvalResult.SecondaryExposures = make([]map[string]string, 0)
-	return emptyEvalResult
+
+	if persistedValues == nil || config.IsActive == nil || !*config.IsActive {
+		return e.evalAndSDeleteFromPersistentStorage(user, config, depth)
+	}
+
+	stickyResult := newEvalResultFromUserPersistedValues(configName, persistedValues)
+	if stickyResult != nil {
+		return stickyResult
+	}
+
+	return e.evalAndSaveToPersistentStorage(user, config, depth)
 }
 
-func (e *evaluator) evalLayer(user User, name string) *evalResult {
-	return e.evalLayerImpl(user, name, 0)
+func (e *evaluator) evalLayer(user User, name string, persistedValues UserPersistedValues) *evalResult {
+	return e.evalLayerImpl(user, name, persistedValues, 0)
 }
 
-func (e *evaluator) evalLayerImpl(user User, name string, depth int) *evalResult {
+func (e *evaluator) evalLayerImpl(user User, name string, persistedValues UserPersistedValues, depth int) *evalResult {
 	if layerOverride, hasOverride := e.getLayerOverride(name); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
@@ -198,13 +200,54 @@ func (e *evaluator) evalLayerImpl(user User, name string, depth int) *evalResult
 			SecondaryExposures: make([]map[string]string, 0),
 		}
 	}
-	if config, hasConfig := e.store.getLayerConfig(name); hasConfig {
-		return e.eval(user, config, depth+1)
+	config, hasConfig := e.store.getLayerConfig(name)
+	if !hasConfig {
+		emptyEvalResult := new(evalResult)
+		emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+		emptyEvalResult.SecondaryExposures = make([]map[string]string, 0)
+		return emptyEvalResult
 	}
-	emptyEvalResult := new(evalResult)
-	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
-	emptyEvalResult.SecondaryExposures = make([]map[string]string, 0)
-	return emptyEvalResult
+
+	if persistedValues == nil {
+		return e.evalAndSDeleteFromPersistentStorage(user, config, depth)
+	}
+
+	stickyResult := newEvalResultFromUserPersistedValues(name, persistedValues)
+	if stickyResult != nil {
+		if e.allocatedExperimentExistsAndIsActive(stickyResult) {
+			return stickyResult
+		} else {
+			return e.evalAndSDeleteFromPersistentStorage(user, config, depth)
+		}
+	} else {
+		evaluation := e.eval(user, config, depth)
+		if e.allocatedExperimentExistsAndIsActive(evaluation) {
+			if evaluation.IsExperimentGroup != nil && *evaluation.IsExperimentGroup {
+				e.persistentStorageUtils.save(user, config.IDType, name, evaluation)
+			}
+		} else {
+			e.persistentStorageUtils.delete(user, config.IDType, name)
+		}
+		return evaluation
+	}
+}
+
+func (e *evaluator) allocatedExperimentExistsAndIsActive(evaluation *evalResult) bool {
+	delegate, exists := e.store.getDynamicConfig(evaluation.ConfigDelegate)
+	return exists && delegate.IsActive != nil && *delegate.IsActive
+}
+
+func (e *evaluator) evalAndSaveToPersistentStorage(user User, config configSpec, depth int) *evalResult {
+	evaluation := e.eval(user, config, depth)
+	if evaluation.IsExperimentGroup != nil && *evaluation.IsExperimentGroup {
+		e.persistentStorageUtils.save(user, config.IDType, config.Name, evaluation)
+	}
+	return evaluation
+}
+
+func (e *evaluator) evalAndSDeleteFromPersistentStorage(user User, config configSpec, depth int) *evalResult {
+	e.persistentStorageUtils.delete(user, config.IDType, config.Name)
+	return e.eval(user, config, depth)
 }
 
 func (e *evaluator) getGateOverride(name string) (bool, bool) {

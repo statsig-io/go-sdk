@@ -171,7 +171,7 @@ func test_helper(apiOverride string, t *testing.T) {
 		}
 
 		for layer, serverResult := range entry.Layers {
-			sdkResult := c.evaluator.evalLayer(u, layer)
+			sdkResult := c.evaluator.evalLayer(u, layer, nil)
 			if !reflect.DeepEqual(sdkResult.JsonValue, serverResult.Value) {
 				t.Errorf("Values are different for layer %s. SDK got %s but server is %s. User is %+v",
 					layer, sdkResult.JsonValue, serverResult.Value, u)
