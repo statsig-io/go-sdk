@@ -11,9 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/statsig-io/ip3country-go/pkg/countrylookup"
-	"github.com/ua-parser/uap-go/uaparser"
 )
 
 type evalResult struct {
@@ -76,8 +73,8 @@ type evaluator struct {
 	gateOverrides          map[string]bool
 	configOverrides        map[string]map[string]interface{}
 	layerOverrides         map[string]map[string]interface{}
-	countryLookup          *countrylookup.CountryLookup
-	uaParser               *uaparser.Parser
+	countryLookup          *countryLookup
+	uaParser               *uaParser
 	persistentStorageUtils *userPersistentStorageUtils
 	mu                     sync.RWMutex
 }
@@ -93,8 +90,6 @@ func newEvaluator(
 	sdkKey string,
 ) *evaluator {
 	store := newStore(transport, errorBoundary, options, diagnostics, sdkKey)
-	parser := uaparser.NewFromSaved()
-	countryLookup := countrylookup.New()
 	defer func() {
 		if err := recover(); err != nil {
 			errorBoundary.logException(toError(err))
@@ -105,8 +100,8 @@ func newEvaluator(
 
 	return &evaluator{
 		store:                  store,
-		countryLookup:          countryLookup,
-		uaParser:               parser,
+		countryLookup:          newCountryLookup(options.IPCountryOptions),
+		uaParser:               newUAParser(options.UAParserOptions),
 		gateOverrides:          make(map[string]bool),
 		configOverrides:        make(map[string]map[string]interface{}),
 		layerOverrides:         make(map[string]map[string]interface{}),
@@ -655,13 +650,16 @@ func getFromEnvironment(user User, field string) string {
 	return value
 }
 
-func getFromUserAgent(user User, field string, parser *uaparser.Parser) string {
+func getFromUserAgent(user User, field string, parser *uaParser) string {
 	ua := getFromUser(user, "useragent")
 	uaStr, ok := ua.(string)
 	if !ok {
 		return ""
 	}
-	client := parser.Parse(uaStr)
+	client := parser.parse(uaStr)
+	if client == nil {
+		return ""
+	}
 	switch strings.ToLower(field) {
 	case "os_name", "osname":
 		return client.Os.Family
@@ -675,14 +673,14 @@ func getFromUserAgent(user User, field string, parser *uaparser.Parser) string {
 	return ""
 }
 
-func getFromIP(user User, field string, lookup *countrylookup.CountryLookup) string {
+func getFromIP(user User, field string, lookup *countryLookup) string {
 	if strings.ToLower(field) != "country" {
 		return ""
 	}
 
 	ip := getFromUser(user, "ip")
 	if ipStr, ok := ip.(string); ok {
-		if res, lookupOK := lookup.LookupIp(ipStr); lookupOK {
+		if res, lookupOK := lookup.lookupIp(ipStr); lookupOK {
 			return res
 		}
 	}

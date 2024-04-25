@@ -39,6 +39,8 @@ type Options struct {
 	EvaluationCallbacks   EvaluationCallbacks
 	DisableCDN            bool // Disables use of CDN for downloading config specs
 	UserPersistentStorage IUserPersistentStorage
+	IPCountryOptions      IPCountryOptions
+	UAParserOptions       UAParserOptions
 }
 
 type EvaluationCallbacks struct {
@@ -60,6 +62,18 @@ type StatsigLoggerOptions struct {
 	DisableSyncDiagnostics bool
 	DisableApiDiagnostics  bool
 	DisableAllLogging      bool
+}
+
+type IPCountryOptions struct {
+	Disabled     bool // Fully disable IP to country lookup
+	LazyLoad     bool // Load in background
+	EnsureLoaded bool // Wait until loaded when needed
+}
+
+type UAParserOptions struct {
+	Disabled     bool // Fully disable UA parser
+	LazyLoad     bool // Load in background
+	EnsureLoaded bool // Wait until loaded when needed
 }
 
 // See https://docs.statsig.com/guides/usingEnvironments

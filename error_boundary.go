@@ -120,7 +120,7 @@ func (e *errorBoundary) ebRecover(recoverCallback func()) {
 }
 
 func (e *errorBoundary) logException(exception error) {
-	if e.options.StatsigLoggerOptions.DisableAllLogging {
+	if e.options.StatsigLoggerOptions.DisableAllLogging || e.options.LocalMode {
 		return
 	}
 	var exceptionString string
