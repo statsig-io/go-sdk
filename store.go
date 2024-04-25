@@ -302,6 +302,9 @@ func (s *store) handleSyncError(err error, isColdStart bool) {
 }
 
 func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
+	if s.transport.options.LocalMode {
+		return
+	}
 	s.addDiagnostics().downloadConfigSpecs().networkRequest().start().mark()
 	var specs downloadConfigSpecResponse
 	res, err := s.transport.download_config_specs(s.lastSyncTime, &specs)
@@ -461,6 +464,9 @@ func (s *store) setIDList(name string, list *idList) {
 }
 
 func (s *store) fetchIDListsFromServer() {
+	if s.transport.options.LocalMode {
+		return
+	}
 	var serverLists map[string]idList
 	s.addDiagnostics().getIdListSources().networkRequest().start().mark()
 	res, err := s.transport.get_id_lists(&serverLists)
