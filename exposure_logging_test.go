@@ -55,10 +55,24 @@ func TestExposureLogging(t *testing.T) {
 		experiment := GetExperiment(user, "sample_experiment")
 		layer := GetLayer(user, "a_layer")
 		layer.GetString("experiment_param", "")
+		layerNameExist, existOk := GetExperimentLayer("sample_experiment")
+		_, nonExistOk := GetExperimentLayer("non_exist_experiment")
 		ShutdownAndDangerouslyClearInstance()
 
 		if len(events) != 5 {
 			t.Errorf("Should receive exactly 5 log_events")
+		}
+
+		if !existOk {
+			t.Errorf("Layer name should exist for experiment sample_experiment")
+		}
+
+		if layerNameExist != "a_layer" {
+			t.Errorf("Layer name should be a_layer for experiment sample_experiment")
+		}
+
+		if nonExistOk {
+			t.Errorf("Layer name should not exist for non_exist_experiment")
 		}
 
 		if gateValue != gate.Value {

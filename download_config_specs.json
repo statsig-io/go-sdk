@@ -462,6 +462,9 @@
       "entity": "layer"
     }
   ],
+  "layers": {
+    "a_layer": ["sample_experiment"]
+  },
   "has_updates": true,
   "time": 1631638014811,
   "id_lists": { "list_1": true, "list_2": true }

@@ -111,6 +111,12 @@ func (e *errorBoundary) captureVoid(task func()) {
 	task()
 }
 
+func (e *errorBoundary) captureGetExperimentLayer(task func() (string, bool)) (string, bool) {
+	defer e.ebRecover(func() {})
+	val, ok := task()
+	return val, ok
+}
+
 func (e *errorBoundary) ebRecover(recoverCallback func()) {
 	if err := recover(); err != nil {
 		e.logException(toError(err))

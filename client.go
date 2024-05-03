@@ -114,6 +114,13 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 	})
 }
 
+// Gets the layer name of an Experiment
+func (c *Client) GetExperimentLayer(experiment string) (string, bool) {
+	return c.errorBoundary.captureGetExperimentLayer(func() (string, bool) {
+		return c.evaluator.store.getExperimentLayer(experiment)
+	})
+}
+
 // Gets the DynamicConfig value of an Experiment for the given user
 func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 	if !c.verifyUser(user) {

@@ -203,6 +203,14 @@ func OverrideLayer(layer string, val map[string]interface{}) {
 	instance.OverrideLayer(layer, val)
 }
 
+// Gets the name of layer an Experiment
+func GetExperimentLayer(experiment string) (string, bool) {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetExperimentLayer"))
+	}
+	return instance.GetExperimentLayer(experiment)
+}
+
 // Gets the DynamicConfig value of an Experiment for the given user
 func GetExperiment(user User, experiment string) DynamicConfig {
 	if !IsInitialized() {
