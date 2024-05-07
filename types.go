@@ -37,10 +37,11 @@ type configBase struct {
 }
 
 type FeatureGate struct {
-	Name      string `json:"name"`
-	Value     bool   `json:"value"`
-	RuleID    string `json:"rule_id"`
-	GroupName string `json:"group_name"`
+	Name              string             `json:"name"`
+	Value             bool               `json:"value"`
+	RuleID            string             `json:"rule_id"`
+	GroupName         string             `json:"group_name"`
+	EvaluationDetails *evaluationDetails `json:"evaluation_details"`
 }
 
 // A json blob configured in the Statsig Console
@@ -54,12 +55,13 @@ type Layer struct {
 	AllocatedExperimentName string               `json:"allocated_experiment_name"`
 }
 
-func NewGate(name string, value bool, ruleID string, groupName string) *FeatureGate {
+func NewGate(name string, value bool, ruleID string, groupName string, evaluationDetails *evaluationDetails) *FeatureGate {
 	return &FeatureGate{
-		Name:      name,
-		Value:     value,
-		RuleID:    ruleID,
-		GroupName: groupName,
+		Name:              name,
+		Value:             value,
+		RuleID:            ruleID,
+		GroupName:         groupName,
+		EvaluationDetails: evaluationDetails,
 	}
 }
 

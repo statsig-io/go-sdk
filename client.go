@@ -313,7 +313,7 @@ type getConfigInput struct {
 func (c *Client) checkGateImpl(user User, name string, options checkGateOptions) FeatureGate {
 	return c.errorBoundary.captureCheckGate(func() FeatureGate {
 		if !c.verifyUser(user) {
-			return *NewGate(name, false, "", "")
+			return *NewGate(name, false, "", "", nil)
 		}
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.evalGate(user, name)
@@ -330,7 +330,7 @@ func (c *Client) checkGateImpl(user User, name string, options checkGateOptions)
 				c.options.EvaluationCallbacks.GateEvaluationCallback(name, res.Value, exposure)
 			}
 		}
-		return *NewGate(name, res.Value, res.RuleID, res.GroupName)
+		return *NewGate(name, res.Value, res.RuleID, res.GroupName, res.EvaluationDetails)
 	})
 }
 
