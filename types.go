@@ -33,7 +33,7 @@ type configBase struct {
 	Value             map[string]interface{} `json:"value"`
 	RuleID            string                 `json:"rule_id"`
 	GroupName         string                 `json:"group_name"`
-	EvaluationDetails *evaluationDetails     `json:"evaluation_details"`
+	EvaluationDetails *EvaluationDetails     `json:"evaluation_details"`
 }
 
 type FeatureGate struct {
@@ -41,7 +41,7 @@ type FeatureGate struct {
 	Value             bool               `json:"value"`
 	RuleID            string             `json:"rule_id"`
 	GroupName         string             `json:"group_name"`
-	EvaluationDetails *evaluationDetails `json:"evaluation_details"`
+	EvaluationDetails *EvaluationDetails `json:"evaluation_details"`
 }
 
 // A json blob configured in the Statsig Console
@@ -55,7 +55,7 @@ type Layer struct {
 	AllocatedExperimentName string               `json:"allocated_experiment_name"`
 }
 
-func NewGate(name string, value bool, ruleID string, groupName string, evaluationDetails *evaluationDetails) *FeatureGate {
+func NewGate(name string, value bool, ruleID string, groupName string, evaluationDetails *EvaluationDetails) *FeatureGate {
 	return &FeatureGate{
 		Name:              name,
 		Value:             value,
@@ -65,7 +65,7 @@ func NewGate(name string, value bool, ruleID string, groupName string, evaluatio
 	}
 }
 
-func NewConfig(name string, value map[string]interface{}, ruleID string, groupName string, evaluationDetails *evaluationDetails) *DynamicConfig {
+func NewConfig(name string, value map[string]interface{}, ruleID string, groupName string, evaluationDetails *EvaluationDetails) *DynamicConfig {
 	if value == nil {
 		value = make(map[string]interface{})
 	}

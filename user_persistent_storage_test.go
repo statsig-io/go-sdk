@@ -26,8 +26,8 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Control" {
 		t.Errorf("Expected: Control. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonBootstrap {
-		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonBootstrap {
+		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.Reason)
 	}
 
 	// Test group
@@ -35,8 +35,8 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Test" {
 		t.Errorf("Expected: Test. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonBootstrap {
-		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonBootstrap {
+		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.Reason)
 	}
 
 	// Not allocated to the experiment
@@ -60,8 +60,8 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Control" {
 		t.Errorf("Expected: Control. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonBootstrap {
-		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonBootstrap {
+		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.Reason)
 	}
 
 	// Test group with persistent storage enabled
@@ -71,8 +71,8 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Test" {
 		t.Errorf("Expected: Test. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonBootstrap {
-		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonBootstrap {
+		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.Reason)
 	}
 
 	// Verify that persistent storage has been updated
@@ -90,16 +90,16 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Control" {
 		t.Errorf("Expected: Control. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonPersisted {
-		t.Errorf("Expected: %s. Received: %s", reasonPersisted, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonPersisted {
+		t.Errorf("Expected: %s. Received: %s", reasonPersisted, exp.EvaluationDetails.Reason)
 	}
 	persistedValues = GetUserPersistedValues(userInTest, "userID")
 	exp = GetExperimentWithOptions(userInTest, expName, &GetExperimentOptions{PersistedValues: persistedValues})
 	if exp.GroupName != "Test" {
 		t.Errorf("Expected: Test. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonPersisted {
-		t.Errorf("Expected: %s. Received: %s", reasonPersisted, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonPersisted {
+		t.Errorf("Expected: %s. Received: %s", reasonPersisted, exp.EvaluationDetails.Reason)
 	}
 
 	// Use sticky bucketing with valid persisted values to assign a user that would otherwise be unallocated
@@ -109,8 +109,8 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Control" {
 		t.Errorf("Expected: Control. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonPersisted {
-		t.Errorf("Expected: %s. Received: %s", reasonPersisted, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonPersisted {
+		t.Errorf("Expected: %s. Received: %s", reasonPersisted, exp.EvaluationDetails.Reason)
 	}
 
 	// Use sticky bucketing with valid persisted values for an unallocated user
@@ -120,8 +120,8 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.RuleID != "layerAssignment" {
 		t.Errorf("Expected: layerAssignment. Received: %s", exp.RuleID)
 	}
-	if exp.EvaluationDetails.reason != reasonBootstrap {
-		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonBootstrap {
+		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.Reason)
 	}
 
 	// Use sticky bucketing on a different ID type that hasn't been saved to storage
@@ -131,8 +131,8 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Test" {
 		t.Errorf("Expected: Test. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonBootstrap {
-		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonBootstrap {
+		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.Reason)
 	}
 
 	// Verify that persistent storage has been updated
@@ -155,8 +155,8 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Control" {
 		t.Errorf("Expected: Control. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonBootstrap {
-		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonBootstrap {
+		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.Reason)
 	}
 
 	userInControlPersistedValues := persistentStorage.store[fmt.Sprintf("%s:userID", userInControl.UserID)]
@@ -169,8 +169,8 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Control" {
 		t.Errorf("Expected: Control. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonBootstrap {
-		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonBootstrap {
+		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.Reason)
 	}
 
 	userInControlPersistedValues = persistentStorage.store[fmt.Sprintf("%s:userID", userInControl.UserID)]
@@ -183,8 +183,8 @@ func TestUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Test" {
 		t.Errorf("Expected: Test. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonBootstrap {
-		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonBootstrap {
+		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.Reason)
 	}
 
 	userInTestPersistedValues := persistentStorage.store[fmt.Sprintf("%s:userID", userInTest.UserID)]
@@ -211,8 +211,8 @@ func TestInvalidUserPersistentStorage(t *testing.T) {
 	if exp.GroupName != "Control" {
 		t.Errorf("Expected: Control. Received: %s", exp.GroupName)
 	}
-	if exp.EvaluationDetails.reason != reasonBootstrap {
-		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.reason)
+	if exp.EvaluationDetails.Reason != reasonBootstrap {
+		t.Errorf("Expected: %s. Received: %s", reasonBootstrap, exp.EvaluationDetails.Reason)
 	}
 
 	if err := recover(); err != nil {

@@ -95,13 +95,13 @@ func (l *logger) logCustom(evt Event) {
 
 func (l *logger) logExposureWithEvaluationDetails(
 	evt *ExposureEvent,
-	evalDetails *evaluationDetails,
+	evalDetails *EvaluationDetails,
 ) {
 	if evalDetails != nil {
-		evt.Metadata["reason"] = string(evalDetails.reason)
-		evt.Metadata["configSyncTime"] = fmt.Sprint(evalDetails.configSyncTime)
-		evt.Metadata["initTime"] = fmt.Sprint(evalDetails.initTime)
-		evt.Metadata["serverTime"] = fmt.Sprint(evalDetails.serverTime)
+		evt.Metadata["reason"] = string(evalDetails.Reason)
+		evt.Metadata["configSyncTime"] = fmt.Sprint(evalDetails.ConfigSyncTime)
+		evt.Metadata["initTime"] = fmt.Sprint(evalDetails.InitTime)
+		evt.Metadata["serverTime"] = fmt.Sprint(evalDetails.ServerTime)
 	}
 	l.logExposure(*evt)
 
@@ -135,7 +135,7 @@ func (l *logger) logGateExposure(
 	value bool,
 	ruleID string,
 	exposures []map[string]string,
-	evalDetails *evaluationDetails,
+	evalDetails *EvaluationDetails,
 	context *logContext,
 ) *ExposureEvent {
 	metadata := map[string]string{
@@ -161,7 +161,7 @@ func (l *logger) logConfigExposure(
 	configName string,
 	ruleID string,
 	exposures []map[string]string,
-	evalDetails *evaluationDetails,
+	evalDetails *EvaluationDetails,
 	context *logContext,
 ) *ExposureEvent {
 	metadata := map[string]string{
@@ -186,7 +186,7 @@ func (l *logger) logLayerExposure(
 	config Layer,
 	parameterName string,
 	evalResult evalResult,
-	evalDetails *evaluationDetails,
+	evalDetails *EvaluationDetails,
 	context *logContext,
 ) *ExposureEvent {
 	allocatedExperiment := ""

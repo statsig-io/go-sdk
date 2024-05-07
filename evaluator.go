@@ -23,7 +23,7 @@ type evalResult struct {
 	UndelegatedSecondaryExposures []map[string]string    `json:"undelegated_secondary_exposures"`
 	ConfigDelegate                string                 `json:"config_delegate"`
 	ExplicitParameters            map[string]bool        `json:"explicit_parameters"`
-	EvaluationDetails             *evaluationDetails     `json:"evaluation_details,omitempty"`
+	EvaluationDetails             *EvaluationDetails     `json:"evaluation_details,omitempty"`
 	IsExperimentGroup             *bool                  `json:"is_experiment_group,omitempty"`
 }
 
@@ -61,7 +61,7 @@ func (e *evalResult) toStickyValues() StickyValues {
 		RuleID:                        e.RuleID,
 		GroupName:                     e.GroupName,
 		SecondaryExposures:            e.SecondaryExposures,
-		Time:                          e.EvaluationDetails.configSyncTime,
+		Time:                          e.EvaluationDetails.ConfigSyncTime,
 		ConfigDelegate:                e.ConfigDelegate,
 		ExplicitParameters:            e.ExplicitParameters,
 		UndelegatedSecondaryExposures: e.UndelegatedSecondaryExposures,
@@ -116,7 +116,7 @@ func (e *evaluator) shutdown() {
 	e.store.stopPolling()
 }
 
-func (e *evaluator) createEvaluationDetails(reason evaluationReason) *evaluationDetails {
+func (e *evaluator) createEvaluationDetails(reason evaluationReason) *EvaluationDetails {
 	e.store.mu.RLock()
 	defer e.store.mu.RUnlock()
 	return newEvaluationDetails(reason, e.store.lastSyncTime, e.store.initialSyncTime)
