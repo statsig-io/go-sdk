@@ -252,11 +252,41 @@ func (e *evaluator) getGateOverride(name string) (bool, bool) {
 	return gate, ok
 }
 
+func (e *evaluator) getGateOverrideEval(name string) (*evalResult, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if gateOverride, hasOverride := e.getGateOverride(name); hasOverride {
+		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
+		return &evalResult{
+			Value:             gateOverride,
+			RuleID:            "override",
+			EvaluationDetails: evalDetails,
+		}, true
+	}
+
+	return &evalResult{}, false
+}
+
 func (e *evaluator) getConfigOverride(name string) (map[string]interface{}, bool) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	config, ok := e.configOverrides[name]
 	return config, ok
+}
+
+func (e *evaluator) getConfigOverrideEval(name string) (*evalResult, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if configOverride, hasOverride := e.getConfigOverride(name); hasOverride {
+		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
+		return &evalResult{
+			JsonValue:         configOverride,
+			RuleID:            "override",
+			EvaluationDetails: evalDetails,
+		}, true
+	}
+
+	return &evalResult{}, false
 }
 
 func (e *evaluator) getLayerOverride(name string) (map[string]interface{}, bool) {
@@ -289,8 +319,8 @@ func (e *evaluator) OverrideLayer(layer string, val map[string]interface{}) {
 
 // Gets all evaluated values for the given user.
 // These values can then be given to a Statsig Client SDK via bootstrapping.
-func (e *evaluator) getClientInitializeResponse(user User, clientKey string) ClientInitializeResponse {
-	return getClientInitializeResponse(user, e.store, e.eval, clientKey)
+func (e *evaluator) getClientInitializeResponse(user User, clientKey string, includeLocalOverrides bool) ClientInitializeResponse {
+	return getClientInitializeResponse(user, e, clientKey, includeLocalOverrides)
 }
 
 func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {

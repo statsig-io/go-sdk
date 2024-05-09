@@ -14,6 +14,13 @@ type ClientInitializeResponse struct {
 	Generator      string                              `json:"generator"`
 	EvaluatedKeys  map[string]interface{}              `json:"evaluated_keys"`
 	Time           int64                               `json:"time"`
+	SDKInfo        SDKInfo                             `json:"sdkInfo"`
+	User           User                                `json:"user"`
+}
+
+type SDKInfo struct {
+	SDKType    string `json:"sdkType"`
+	SDKVersion string `json:"sdkVersion"`
 }
 
 type baseSpecInitializeResponse struct {
@@ -71,9 +78,9 @@ func mergeMaps(a map[string]interface{}, b map[string]interface{}) {
 
 func getClientInitializeResponse(
 	user User,
-	store *store,
-	evalFunc func(user User, spec configSpec, depth int) *evalResult,
+	e *evaluator,
 	clientKey string,
+	includeLocalOverrides bool,
 ) ClientInitializeResponse {
 	evalResultToBaseResponse := func(name string, eval *evalResult) (string, baseSpecInitializeResponse) {
 		hashedName := getHashBase64StringEncoding(name)
@@ -85,27 +92,45 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 	gateToResponse := func(gateName string, spec configSpec) (string, GateInitializeResponse) {
-		evalResult := evalFunc(user, spec, 0)
-		hashedName, base := evalResultToBaseResponse(gateName, evalResult)
+		evalRes := &evalResult{}
+		if includeLocalOverrides {
+			if gateOverride, hasOverride := e.getGateOverrideEval(gateName); hasOverride {
+				evalRes = gateOverride
+			} else {
+				evalRes = e.eval(user, spec, 0)
+			}
+		} else {
+			evalRes = e.eval(user, spec, 0)
+		}
+		hashedName, base := evalResultToBaseResponse(gateName, evalRes)
 		result := GateInitializeResponse{
 			baseSpecInitializeResponse: base,
-			Value:                      evalResult.Value,
+			Value:                      evalRes.Value,
 		}
 		return hashedName, result
 	}
 	configToResponse := func(configName string, spec configSpec) (string, ConfigInitializeResponse) {
-		evalResult := evalFunc(user, spec, 0)
-		hashedName, base := evalResultToBaseResponse(configName, evalResult)
+		evalRes := &evalResult{}
+		if includeLocalOverrides {
+			if configOverride, hasOverride := e.getConfigOverrideEval(configName); hasOverride {
+				evalRes = configOverride
+			} else {
+				evalRes = e.eval(user, spec, 0)
+			}
+		} else {
+			evalRes = e.eval(user, spec, 0)
+		}
+		hashedName, base := evalResultToBaseResponse(configName, evalRes)
 		result := ConfigInitializeResponse{
 			baseSpecInitializeResponse: base,
-			Value:                      evalResult.JsonValue,
-			Group:                      evalResult.RuleID,
+			Value:                      evalRes.JsonValue,
+			Group:                      evalRes.RuleID,
 			IsDeviceBased:              strings.ToLower(spec.IDType) == "stableid",
 		}
 		entityType := strings.ToLower(spec.Entity)
 		if entityType == "experiment" {
 			result.IsUserInExperiment = new(bool)
-			*result.IsUserInExperiment = evalResult.IsExperimentGroup != nil && *evalResult.IsExperimentGroup
+			*result.IsUserInExperiment = evalRes.IsExperimentGroup != nil && *evalRes.IsExperimentGroup
 			result.IsExperimentActive = new(bool)
 			*result.IsExperimentActive = spec.IsActive != nil && *spec.IsActive
 			if spec.HasSharedParams != nil && *spec.HasSharedParams {
@@ -113,8 +138,8 @@ func getClientInitializeResponse(
 				*result.IsInLayer = true
 				result.ExplicitParameters = new([]string)
 				*result.ExplicitParameters = spec.ExplicitParameters
-				layerName, _ := store.getExperimentLayer(spec.Name)
-				layer, exists := store.getLayerConfig(layerName)
+				layerName, _ := e.store.getExperimentLayer(spec.Name)
+				layer, exists := e.store.getLayerConfig(layerName)
 				defaultValue := make(map[string]interface{})
 				if exists {
 					mergeMaps(defaultValue, layer.DefaultValueJSON)
@@ -126,7 +151,7 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 	layerToResponse := func(layerName string, spec configSpec) (string, LayerInitializeResponse) {
-		evalResult := evalFunc(user, spec, 0)
+		evalResult := e.eval(user, spec, 0)
 		hashedName, base := evalResultToBaseResponse(layerName, evalResult)
 		result := LayerInitializeResponse{
 			baseSpecInitializeResponse:    base,
@@ -145,8 +170,8 @@ func getClientInitializeResponse(
 			*result.ExplicitParameters = make([]string, 0)
 		}
 		if delegate != "" {
-			delegateSpec, exists := store.getDynamicConfig(delegate)
-			delegateResult := evalFunc(user, delegateSpec, 0)
+			delegateSpec, exists := e.store.getDynamicConfig(delegate)
+			delegateResult := e.eval(user, delegateSpec, 0)
 			if exists {
 				result.AllocatedExperimentName = getHashBase64StringEncoding(delegate)
 				result.IsUserInExperiment = new(bool)
@@ -161,11 +186,11 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 
-	appId, _ := store.getAppIDForSDKKey(clientKey)
+	appId, _ := e.store.getAppIDForSDKKey(clientKey)
 	featureGates := make(map[string]GateInitializeResponse)
 	dynamicConfigs := make(map[string]ConfigInitializeResponse)
 	layerConfigs := make(map[string]LayerInitializeResponse)
-	for name, spec := range store.featureGates {
+	for name, spec := range e.store.featureGates {
 		if !spec.hasTargetAppID(appId) {
 			continue
 		}
@@ -175,20 +200,22 @@ func getClientInitializeResponse(
 			featureGates[hashedName] = res
 		}
 	}
-	for name, spec := range store.dynamicConfigs {
+	for name, spec := range e.store.dynamicConfigs {
 		if !spec.hasTargetAppID(appId) {
 			continue
 		}
 		hashedName, res := configToResponse(name, spec)
 		dynamicConfigs[hashedName] = res
 	}
-	for name, spec := range store.layerConfigs {
+	for name, spec := range e.store.layerConfigs {
 		if !spec.hasTargetAppID(appId) {
 			continue
 		}
 		hashedName, res := layerToResponse(name, spec)
 		layerConfigs[hashedName] = res
 	}
+
+	meta := getStatsigMetadata()
 
 	response := ClientInitializeResponse{
 		FeatureGates:   featureGates,
@@ -198,7 +225,9 @@ func getClientInitializeResponse(
 		HasUpdates:     true,
 		Generator:      "statsig-go-sdk",
 		EvaluatedKeys:  map[string]interface{}{"userID": user.UserID, "customIDs": user.CustomIDs},
-		Time:           0,
+		Time:           e.store.lastSyncTime,
+		SDKInfo:        SDKInfo{SDKVersion: meta.SDKVersion, SDKType: meta.SDKType},
+		User:           user,
 	}
 	return response
 }

@@ -240,13 +240,31 @@ func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 	return c.transport.post("/log_event", input, nil, RequestOptions{})
 }
 
-func (c *Client) GetClientInitializeResponse(user User, clientKey string) ClientInitializeResponse {
+func (c *Client) GetClientInitializeResponse(user User, clientKey string, includeLocalOverrides bool) ClientInitializeResponse {
+	options := &GCIROptions{
+		IncludeLocalOverrides: includeLocalOverrides,
+		ClientKey:             clientKey,
+	}
+	return c.GetClientInitializeResponseImpl(user, options)
+}
+
+func (c *Client) GetClientInitializeResponseWithOptions(user User, options *GCIROptions) ClientInitializeResponse {
+	return c.GetClientInitializeResponseImpl(user, options)
+}
+
+func (c *Client) GetClientInitializeResponseImpl(user User, options *GCIROptions) ClientInitializeResponse {
 	return c.errorBoundary.captureGetClientInitializeResponse(func() ClientInitializeResponse {
 		if !c.verifyUser(user) {
 			return *new(ClientInitializeResponse)
 		}
 		user = normalizeUser(user, *c.options)
-		return c.evaluator.getClientInitializeResponse(user, clientKey)
+		includeLocalOverrides := options.IncludeLocalOverrides
+		clientKey := options.ClientKey
+		response := c.evaluator.getClientInitializeResponse(user, clientKey, includeLocalOverrides)
+		if response.Time == 0 {
+			c.errorBoundary.logException(errors.New("empty response from server"))
+		}
+		return response
 	})
 }
 

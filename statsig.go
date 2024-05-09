@@ -82,6 +82,12 @@ type Environment struct {
 	Params map[string]string `json:"params"`
 }
 
+// options for getClientInitializeResponse
+type GCIROptions struct {
+	IncludeLocalOverrides bool
+	ClientKey             string
+}
+
 // IsInitialized returns whether the global Statsig instance has already been initialized or not
 func IsInitialized() bool {
 	return instance != nil
@@ -302,14 +308,21 @@ func GetClientInitializeResponse(user User) ClientInitializeResponse {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetClientInitializeResponse"))
 	}
-	return instance.GetClientInitializeResponse(user, "")
+	return instance.GetClientInitializeResponse(user, "", false)
+}
+
+func GetClientInitializeResponseWithOptions(user User, options *GCIROptions) ClientInitializeResponse {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetClientInitializeResponseWithOptions"))
+	}
+	return instance.GetClientInitializeResponseWithOptions(user, options)
 }
 
 func GetClientInitializeResponseForTargetApp(user User, clientKey string) ClientInitializeResponse {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetClientInitializeResponseForTargetApp"))
 	}
-	return instance.GetClientInitializeResponse(user, clientKey)
+	return instance.GetClientInitializeResponse(user, clientKey, false)
 }
 
 // Cleans up Statsig, persisting any Event Logs and cleanup processes

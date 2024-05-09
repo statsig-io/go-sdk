@@ -71,8 +71,15 @@ func TestInitializeResponseConsistency(t *testing.T) {
 			filterClientInitializeResponse(&formattedResponse)
 			formattedResponseJson, _ := json.Marshal(formattedResponse)
 
+			formattedResponseWithOptions := GetClientInitializeResponseWithOptions(user, &GCIROptions{})
+			filterClientInitializeResponse(&formattedResponseWithOptions)
+			formattedResponseWithOptionsJson, _ := json.Marshal(formattedResponseWithOptions)
+
 			if string(actualResponseBody) != string(formattedResponseJson) {
 				t.Errorf("Inconsistent response from GetClientInitializeResponse vs %s", endpoint)
+			}
+			if string(actualResponseBody) != string(formattedResponseWithOptionsJson) {
+				t.Errorf("Inconsistent response from GetClientInitializeResponseWithOptions vs %s", endpoint)
 			}
 		})
 	}
@@ -115,4 +122,6 @@ func filterClientInitializeResponse(clientInitializeResponse *ClientInitializeRe
 	}
 	clientInitializeResponse.Generator = "__REMOVED_FOR_TEST__"
 	clientInitializeResponse.Time = 0
+	clientInitializeResponse.SDKInfo = SDKInfo{}
+	clientInitializeResponse.User = User{}
 }
