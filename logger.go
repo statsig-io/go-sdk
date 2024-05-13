@@ -262,9 +262,9 @@ func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
 	if d.isDisabled() {
 		return
 	}
-	serialized := d.serializeWithSampling()
+	serialized, shouldSample := d.serializeWithSampling()
 	markers, exists := serialized["markers"]
-	if !exists {
+	if !shouldSample || !exists {
 		return
 	}
 	markersTyped, ok := markers.([]marker)

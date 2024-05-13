@@ -393,6 +393,7 @@ func (s *store) parseTargetValueMapFromSpec(spec *configSpec) {
 func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 	s.diagnostics.initDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
 	s.diagnostics.syncDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
+	s.diagnostics.apiDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)
 
 	if specs.HashedSDKKeyUsed != "" && specs.HashedSDKKeyUsed != getDJB2Hash(s.sdkKey) {
 		s.errorBoundary.logException(fmt.Errorf("SDK key mismatch. Key used to generate response does not match key provided. Expected %s, got %s", getDJB2Hash(s.sdkKey), specs.HashedSDKKeyUsed))

@@ -468,6 +468,9 @@
   "diagnostics": {
     "download_config_specs": 5000,
     "get_id_list": 5000,
-    "get_id_list_sources": 5000
+    "get_id_list_sources": 5000,
+    "api_call": 5000,
+    "config_sync": 5000,
+    "initialize": 5000
   }
 }

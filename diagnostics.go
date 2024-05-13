@@ -81,22 +81,31 @@ type tags struct {
 	Name        *string `json:"name,omitempty"`
 }
 
+var DEFAULT_SAMPLING_RATES = map[string]int{
+	"initialize":  10000,
+	"config_sync": 0,
+	"api_call":    0,
+}
+
 func newDiagnostics(options *Options) *diagnostics {
 	return &diagnostics{
 		initDiagnostics: &diagnosticsBase{
-			context: InitializeContext,
-			markers: make([]marker, 0),
-			options: options,
+			context:       InitializeContext,
+			markers:       make([]marker, 0),
+			options:       options,
+			samplingRates: DEFAULT_SAMPLING_RATES,
 		},
 		syncDiagnostics: &diagnosticsBase{
-			context: ConfigSyncContext,
-			markers: make([]marker, 0),
-			options: options,
+			context:       ConfigSyncContext,
+			markers:       make([]marker, 0),
+			options:       options,
+			samplingRates: DEFAULT_SAMPLING_RATES,
 		},
 		apiDiagnostics: &diagnosticsBase{
-			context: ApiCallContext,
-			markers: make([]marker, 0),
-			options: options,
+			context:       ApiCallContext,
+			markers:       make([]marker, 0),
+			options:       options,
+			samplingRates: DEFAULT_SAMPLING_RATES,
 		},
 	}
 }
@@ -112,30 +121,23 @@ func (d *diagnosticsBase) logProcess(msg string) {
 	Logger().LogStep(process, msg)
 }
 
-func (d *diagnosticsBase) serializeWithSampling() map[string]interface{} {
+func (d *diagnosticsBase) serializeWithSampling() (map[string]interface{}, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	markers := make([]marker, 0)
-	sampledKeys := make(map[string]bool)
-	for _, marker := range d.markers {
-		markerKey := string(*marker.Key)
-		if _, exists := sampledKeys[markerKey]; !exists {
-			sampleRate, exists := d.samplingRates[markerKey]
-			if !exists {
-				sampledKeys[markerKey] = false
-			} else {
-				sampledKeys[markerKey] = sample(sampleRate)
-			}
-		}
-		if !sampledKeys[markerKey] {
-			markers = append(markers, marker)
-		}
+	samplingRate, hasSamplingRate := d.samplingRates[string(d.context)]
+	if !hasSamplingRate || len(d.markers) == 0 {
+		return map[string]interface{}{}, false
 	}
+	shouldSample := sample(samplingRate)
+	if !shouldSample {
+		return map[string]interface{}{}, false
+	}
+
 	return map[string]interface{}{
 		"context": d.context,
-		"markers": markers,
-	}
+		"markers": d.markers,
+	}, true
 }
 
 func (d *diagnosticsBase) updateSamplingRates(samplingRates map[string]int) {

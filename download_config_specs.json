@@ -467,5 +467,13 @@
   },
   "has_updates": true,
   "time": 1631638014811,
-  "id_lists": { "list_1": true, "list_2": true }
+  "id_lists": { "list_1": true, "list_2": true },
+  "diagnostics": {
+    "download_config_specs": 10000,
+    "get_id_list": 10000,
+    "get_id_list_sources": 10000,
+    "api_call": 10000,
+    "config_sync": 10000,
+    "initialize": 10000
+  }
 }
