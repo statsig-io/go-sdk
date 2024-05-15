@@ -22,9 +22,18 @@ type errorBoundary struct {
 }
 
 type logExceptionRequestBody struct {
-	Exception       string          `json:"exception"`
-	Info            string          `json:"info"`
-	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
+	Exception       string                  `json:"exception"`
+	Info            string                  `json:"info"`
+	StatsigMetadata statsigMetadata         `json:"statsigMetadata"`
+	Extra           *map[string]interface{} `json:"extra"`
+	Tag             string                  `json:"tag"`
+}
+
+type logExceptionOptions struct {
+	Tag          string
+	Extra        *map[string]interface{}
+	BypassDedupe bool
+	logToOutput  bool
 }
 
 type logExceptionResponse struct {
@@ -125,7 +134,7 @@ func (e *errorBoundary) ebRecover(recoverCallback func()) {
 	}
 }
 
-func (e *errorBoundary) logException(exception error) {
+func (e *errorBoundary) logExceptionWithOptions(exception error, options logExceptionOptions) {
 	if e.options.StatsigLoggerOptions.DisableAllLogging || e.options.LocalMode {
 		return
 	}
@@ -135,7 +144,11 @@ func (e *errorBoundary) logException(exception error) {
 	} else {
 		exceptionString = exception.Error()
 	}
-	if e.checkSeen(exceptionString) {
+
+	if options.logToOutput {
+		Logger().LogError(exception)
+	}
+	if !options.BypassDedupe && e.checkSeen(exceptionString) {
 		return
 	}
 	stack := make([]byte, 1024)
@@ -145,6 +158,8 @@ func (e *errorBoundary) logException(exception error) {
 		Exception:       exceptionString,
 		Info:            string(stack),
 		StatsigMetadata: metadata,
+		Extra:           options.Extra,
+		Tag:             options.Tag,
 	}
 	bodyString, err := json.Marshal(body)
 	if err != nil {
@@ -163,4 +178,8 @@ func (e *errorBoundary) logException(exception error) {
 	req.Header.Add("STATSIG-SERVER-SESSION-ID", metadata.SessionID)
 
 	_, _ = e.client.Do(req)
+}
+
+func (e *errorBoundary) logException(exception error) {
+	e.logExceptionWithOptions(exception, logExceptionOptions{})
 }

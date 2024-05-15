@@ -54,6 +54,7 @@ func newTransport(secret string, options *Options) *transport {
 type RequestOptions struct {
 	retries int
 	backoff time.Duration
+	header  map[string]string
 }
 
 func (opts *RequestOptions) fill_defaults() {
@@ -89,6 +90,19 @@ func (transport *transport) get_id_list(url string, headers map[string]string) (
 	return transport.client.Do(req)
 }
 
+func (transport *transport) log_event(event []interface{}, responseBody interface{}, options RequestOptions) (*http.Response, error) {
+	input := logEventInput{
+		Events:          event,
+		StatsigMetadata: transport.metadata,
+	}
+	if options.header == nil {
+		options.header = make(map[string]string)
+	}
+	options.header["statsig-event-count"] = strconv.Itoa(len(event))
+	return transport.post("/log_event", input, responseBody, options)
+
+}
+
 func (transport *transport) post(endpoint string, body interface{}, responseBody interface{}, options RequestOptions) (*http.Response, error) {
 	return transport.doRequest("POST", endpoint, body, responseBody, options)
 }
@@ -97,7 +111,7 @@ func (transport *transport) get(endpoint string, responseBody interface{}, optio
 	return transport.doRequest("GET", endpoint, nil, responseBody, options)
 }
 
-func (transport *transport) buildRequest(method, endpoint string, body interface{}) (*http.Request, error) {
+func (transport *transport) buildRequest(method, endpoint string, body interface{}, header map[string]string) (*http.Request, error) {
 	if transport.options.LocalMode {
 		return nil, nil
 	}
@@ -126,6 +140,10 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 	req.Header.Add("STATSIG-SDK-TYPE", transport.metadata.SDKType)
 	req.Header.Add("STATSIG-SDK-VERSION", transport.metadata.SDKVersion)
 	req.Header.Add("STATSIG-SDK-LANGUAGE-VERSION", transport.metadata.LanguageVersion)
+	for k, v := range header {
+		req.Header.Add(k, v)
+
+	}
 	return req, nil
 }
 
@@ -144,7 +162,7 @@ func (transport *transport) doRequest(
 	out interface{},
 	options RequestOptions,
 ) (*http.Response, error) {
-	request, err := transport.buildRequest(method, endpoint, in)
+	request, err := transport.buildRequest(method, endpoint, in, options.header)
 	if request == nil || err != nil {
 		return nil, err
 	}

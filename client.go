@@ -36,7 +36,7 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 		panic(err)
 	}
 	transport := newTransport(sdkKey, options)
-	logger := newLogger(transport, options, diagnostics)
+	logger := newLogger(transport, options, diagnostics, errorBoundary)
 	evaluator := newEvaluator(transport, errorBoundary, options, diagnostics, sdkKey)
 	diagnostics.initialize().overall().end().success(true).mark()
 	return &Client{
@@ -233,11 +233,7 @@ func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 		event.User = normalizeUser(event.User, *c.options)
 		events_processed = append(events_processed, event)
 	}
-	input := logEventInput{
-		Events:          events_processed,
-		StatsigMetadata: c.transport.metadata,
-	}
-	return c.transport.post("/log_event", input, nil, RequestOptions{})
+	return c.transport.log_event(events_processed, nil, RequestOptions{})
 }
 
 func (c *Client) GetClientInitializeResponse(user User, clientKey string, includeLocalOverrides bool) ClientInitializeResponse {

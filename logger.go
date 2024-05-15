@@ -44,17 +44,18 @@ type logContext struct {
 }
 
 type logger struct {
-	events      []interface{}
-	transport   *transport
-	tick        *time.Ticker
-	mu          sync.Mutex
-	maxEvents   int
-	disabled    bool
-	diagnostics *diagnostics
-	options     *Options
+	events        []interface{}
+	transport     *transport
+	tick          *time.Ticker
+	mu            sync.Mutex
+	maxEvents     int
+	disabled      bool
+	diagnostics   *diagnostics
+	options       *Options
+	errorBoundary *errorBoundary
 }
 
-func newLogger(transport *transport, options *Options, diagnostics *diagnostics) *logger {
+func newLogger(transport *transport, options *Options, diagnostics *diagnostics, errorBoundary *errorBoundary) *logger {
 	loggingInterval := time.Minute
 	maxEvents := 1000
 	if options.LoggingInterval > 0 {
@@ -65,13 +66,14 @@ func newLogger(transport *transport, options *Options, diagnostics *diagnostics)
 	}
 	disabled := options.StatsigLoggerOptions.DisableAllLogging
 	log := &logger{
-		events:      make([]interface{}, 0),
-		transport:   transport,
-		tick:        time.NewTicker(loggingInterval),
-		maxEvents:   maxEvents,
-		disabled:    disabled,
-		diagnostics: diagnostics,
-		options:     options,
+		events:        make([]interface{}, 0),
+		transport:     transport,
+		tick:          time.NewTicker(loggingInterval),
+		maxEvents:     maxEvents,
+		disabled:      disabled,
+		diagnostics:   diagnostics,
+		options:       options,
+		errorBoundary: errorBoundary,
 	}
 
 	go log.backgroundFlush()
@@ -244,12 +246,20 @@ func (l *logger) flushInternal(closing bool) {
 }
 
 func (l *logger) sendEvents(events []interface{}) {
-	input := &logEventInput{
-		Events:          events,
-		StatsigMetadata: l.transport.metadata,
-	}
 	var res logEventResponse
-	_, _ = l.transport.post("/log_event", input, &res, RequestOptions{retries: maxRetries})
+	_, err := l.transport.log_event(events, &res, RequestOptions{retries: maxRetries})
+	if err != nil {
+		message := fmt.Sprintf("Failed to log %d events afrer %d retries, dropping the request", len(events), maxRetries)
+		extra := map[string]interface{}{
+			"eventCount": len(events),
+		}
+		options := logExceptionOptions{
+			Tag:          "statsig::log_event_failed",
+			Extra:        &extra,
+			BypassDedupe: true,
+		}
+		l.errorBoundary.logExceptionWithOptions(toError(message), options)
+	}
 }
 
 func (l *logger) logDiagnosticsEvents(d *diagnostics) {
