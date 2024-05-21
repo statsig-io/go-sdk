@@ -2,8 +2,10 @@ package statsig
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -28,10 +30,17 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 			}
 			input := &requestInput{}
 			defer req.Body.Close()
-			buf := new(bytes.Buffer)
-			_, _ = buf.ReadFrom(req.Body)
+			if req.Header.Get("Content-Encoding") == "gzip" {
+				gz, _ := gzip.NewReader(req.Body)
+				bodyBytes, _ := io.ReadAll(gz)
+				_ = json.Unmarshal(bodyBytes, &input)
+				gz.Close()
+			} else {
+				buf := new(bytes.Buffer)
+				_, _ = buf.ReadFrom(req.Body)
 
-			_ = json.Unmarshal(buf.Bytes(), &input)
+				_ = json.Unmarshal(buf.Bytes(), &input)
+			}
 			atomic.AddInt32(&flushedEventCount, int32(len(input.Events)))
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
 			baseURL := "http://" + req.Host

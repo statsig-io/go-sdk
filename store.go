@@ -80,6 +80,7 @@ type downloadConfigSpecResponse struct {
 	SDKKeysToAppID         map[string]string   `json:"sdk_keys_to_app_ids,omitempty"`
 	HashedSDKKeysToAppID   map[string]string   `json:"hashed_sdk_keys_to_app_ids,omitempty"`
 	HashedSDKKeyUsed       string              `json:"hashed_sdk_key_used,omitempty"`
+	SDKFlags               map[string]bool     `json:"sdk_flags,omitempty"`
 }
 
 type idList struct {

@@ -1,8 +1,6 @@
 package statsig
 
 import (
-	"bytes"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -93,26 +91,13 @@ func TestRulesUpdatedCallback(t *testing.T) {
 
 func TestLogImmediate(t *testing.T) {
 	env := ""
-	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		if strings.Contains(req.URL.Path, "log_event") {
-			if req.Method != "POST" {
-				t.Errorf("Expected ‘POST’ request, got '%s'", req.Method)
-			}
-			type requestInput struct {
-				Events          []Event         `json:"events"`
-				StatsigMetadata statsigMetadata `json:"statsigMetadata"`
-			}
-			input := &requestInput{}
-			defer req.Body.Close()
-			buf := new(bytes.Buffer)
-			_, _ = buf.ReadFrom(req.Body)
-
-			_ = json.Unmarshal(buf.Bytes(), &input)
-			env = input.Events[0].User.StatsigEnvironment["tier"]
-		}
-
-		res.WriteHeader(http.StatusOK)
-	}))
+	testServer := getTestServer(testServerOptions{
+		dcsOnline: true,
+		onLogEvent: func(newEvents []map[string]interface{}) {
+			eventTyped := convertToExposureEvent(newEvents[0])
+			env = eventTyped.User.StatsigEnvironment["tier"]
+		},
+	})
 	defer testServer.Close()
 	opt := &Options{
 		API:                  testServer.URL,

@@ -1,37 +1,22 @@
 package statsig
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"strings"
 	"testing"
 )
 
 func TestLayerExposure(t *testing.T) {
 	events := []Event{}
 
-	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		res.WriteHeader(http.StatusOK)
-		if strings.Contains(req.URL.Path, "download_config_specs") {
-			bytes, _ := os.ReadFile("layer_exposure_download_config_specs.json")
-			_, _ = res.Write(bytes)
-		} else if strings.Contains(req.URL.Path, "log_event") {
-			type requestInput struct {
-				Events          []Event         `json:"events"`
-				StatsigMetadata statsigMetadata `json:"statsigMetadata"`
+	testServer := getTestServer(testServerOptions{
+		dcsOnline: true,
+		onLogEvent: func(newEvents []map[string]interface{}) {
+			for _, newEvent := range newEvents {
+				eventTyped := convertToExposureEvent(newEvent)
+				events = append(events, eventTyped)
 			}
-			input := &requestInput{}
-			defer req.Body.Close()
-			buf := new(bytes.Buffer)
-			_, _ = buf.ReadFrom(req.Body)
-
-			_ = json.Unmarshal(buf.Bytes(), &input)
-			events = input.Events
-		}
-	}))
+		},
+		isLayerExposure: true,
+	})
 
 	opt := &Options{
 		API:                  testServer.URL,

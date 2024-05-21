@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -123,6 +124,14 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 			return nil, err
 		}
 		bodyBuf = bytes.NewBuffer(bodyBytes)
+
+		if strings.Contains(endpoint, "log_event") {
+			var compressedBody bytes.Buffer
+			gz := gzip.NewWriter(&compressedBody)
+			_, _ = gz.Write(bodyBytes)
+			gz.Close()
+			bodyBuf = &compressedBody
+		}
 	} else {
 		if method == "POST" {
 			bodyBuf = bytes.NewBufferString("{}")
@@ -135,6 +144,9 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 
 	req.Header.Add("STATSIG-API-KEY", transport.sdkKey)
 	req.Header.Set("Content-Type", "application/json")
+	if strings.Contains(endpoint, "log_event") {
+		req.Header.Set("Content-Encoding", "gzip")
+	}
 	req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(getUnixMilli(), 10))
 	req.Header.Add("STATSIG-SERVER-SESSION-ID", transport.metadata.SessionID)
 	req.Header.Add("STATSIG-SDK-TYPE", transport.metadata.SDKType)

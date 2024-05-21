@@ -1,13 +1,7 @@
 package statsig
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -18,13 +12,14 @@ type Pair struct {
 	B interface{}
 }
 
-type Events []map[string]interface{}
-
 func TestInitDiagnostics(t *testing.T) {
-	var events Events
-	testServer := getTestServer(true, func(newEvents Events) {
-		events = newEvents
-	}, false)
+	var events events
+	testServer := getTestServer(testServerOptions{
+		dcsOnline: true,
+		onLogEvent: func(newEvents []map[string]interface{}) {
+			events = newEvents
+		},
+	})
 	defer testServer.Close()
 
 	options := &Options{
@@ -66,36 +61,40 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 	var mu sync.Mutex
 
 	count := 0
-	testServer := getTestServer(true, func(events Events) {
-		mu.Lock()
-		defer mu.Unlock()
-		count += 1
+	testServer := getTestServer(
+		testServerOptions{
+			dcsOnline: true,
+			onLogEvent: func(events []map[string]interface{}) {
+				mu.Lock()
+				defer mu.Unlock()
+				count += 1
 
-		if count == 1 {
-			if len(events) != 1 {
-				t.Errorf("Expected 1 diagnostics events, received %d", len(events))
-			}
+				if count == 1 {
+					if len(events) != 1 {
+						t.Errorf("Expected 1 diagnostics events, received %d", len(events))
+					}
 
-			markers := extractMarkers(events, 0)
+					markers := extractMarkers(events, 0)
 
-			if len(markers) != 12 {
-				t.Errorf("Expected %d markers but got %d", 12, len(markers))
-			}
+					if len(markers) != 12 {
+						t.Errorf("Expected %d markers but got %d", 12, len(markers))
+					}
 
-			assertMarkerEqual(t, markers[0], "download_config_specs", "network_request", "start")
-			assertMarkerEqual(t, markers[1], "download_config_specs", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
-			assertMarkerEqual(t, markers[2], "download_config_specs", "process", "start")
-			assertMarkerEqual(t, markers[3], "download_config_specs", "process", "end", Pair{"success", true})
-			assertMarkerEqual(t, markers[4], "get_id_list_sources", "network_request", "start")
-			assertMarkerEqual(t, markers[5], "get_id_list_sources", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
-			assertMarkerEqual(t, markers[6], "get_id_list_sources", "process", "start", Pair{"idListCount", float64(1)})
-			assertMarkerEqual(t, markers[7], "get_id_list", "network_request", "start")
-			assertMarkerEqual(t, markers[8], "get_id_list", "network_request", "end", Pair{"statusCode", float64(200)})
-			assertMarkerEqual(t, markers[9], "get_id_list", "process", "start")
-			assertMarkerEqual(t, markers[10], "get_id_list", "process", "end", Pair{"success", false})
-			assertMarkerEqual(t, markers[11], "get_id_list_sources", "process", "end", Pair{"success", true}, Pair{"idListCount", float64(1)})
-		}
-	}, false)
+					assertMarkerEqual(t, markers[0], "download_config_specs", "network_request", "start")
+					assertMarkerEqual(t, markers[1], "download_config_specs", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
+					assertMarkerEqual(t, markers[2], "download_config_specs", "process", "start")
+					assertMarkerEqual(t, markers[3], "download_config_specs", "process", "end", Pair{"success", true})
+					assertMarkerEqual(t, markers[4], "get_id_list_sources", "network_request", "start")
+					assertMarkerEqual(t, markers[5], "get_id_list_sources", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
+					assertMarkerEqual(t, markers[6], "get_id_list_sources", "process", "start", Pair{"idListCount", float64(1)})
+					assertMarkerEqual(t, markers[7], "get_id_list", "network_request", "start")
+					assertMarkerEqual(t, markers[8], "get_id_list", "network_request", "end", Pair{"statusCode", float64(200)})
+					assertMarkerEqual(t, markers[9], "get_id_list", "process", "start")
+					assertMarkerEqual(t, markers[10], "get_id_list", "process", "end", Pair{"success", false})
+					assertMarkerEqual(t, markers[11], "get_id_list_sources", "process", "end", Pair{"success", true}, Pair{"idListCount", float64(1)})
+				}
+			},
+		})
 	defer testServer.Close()
 
 	options := &Options{
@@ -122,10 +121,15 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 }
 
 func TestApiCallDiagnostics(t *testing.T) {
-	var events Events
-	testServer := getTestServer(true, func(newEvents Events) {
-		events = newEvents
-	}, false)
+	var events events
+	testServer := getTestServer(
+		testServerOptions{
+			dcsOnline: true,
+			onLogEvent: func(newEvents []map[string]interface{}) {
+				events = newEvents
+			},
+		})
+
 	defer testServer.Close()
 
 	options := &Options{
@@ -163,10 +167,15 @@ func TestApiCallDiagnostics(t *testing.T) {
 }
 
 func TestBootstrapDiagnostics(t *testing.T) {
-	var events Events
-	testServer := getTestServer(true, func(newEvents Events) {
-		events = newEvents
-	}, false)
+	var events events
+	testServer := getTestServer(
+		testServerOptions{
+			dcsOnline: true,
+			onLogEvent: func(newEvents []map[string]interface{}) {
+				events = newEvents
+			},
+		})
+
 	defer testServer.Close()
 
 	bytes, _ := os.ReadFile("download_config_specs.json")
@@ -212,50 +221,52 @@ func TestBootstrapDiagnostics(t *testing.T) {
 func TestDiagnosticsGetCleared(t *testing.T) {
 	var mu sync.Mutex
 	count := 0
-	testServer := getTestServer(true, func(events Events) {
-		mu.Lock()
-		defer mu.Unlock()
-		count += 1
+	testServer := getTestServer(testServerOptions{
+		dcsOnline: true,
+		onLogEvent: func(events []map[string]interface{}) {
+			mu.Lock()
+			defer mu.Unlock()
+			count += 1
 
-		if count == 1 {
-			if len(events) != 2 { // initialize & config_sync
-				t.Errorf("Expected 2 diagnostics events, received %d", len(events))
-			}
+			if count == 1 {
+				if len(events) != 2 { // initialize & config_sync
+					t.Errorf("Expected 2 diagnostics events, received %d", len(events))
+				}
 
-			metadata, ok := events[1]["metadata"].(map[string]interface{})
-			if !ok {
-				t.Error("Expected metadata to be of type map[string]interface{}")
-			}
-			if metadata["context"] != "config_sync" {
-				t.Errorf("Expected marker context to be 'config_sync' but got %s", metadata["context"])
-			}
-			markers := extractMarkers(events, 1)
+				metadata, ok := events[1]["metadata"].(map[string]interface{})
+				if !ok {
+					t.Error("Expected metadata to be of type map[string]interface{}")
+				}
+				if metadata["context"] != "config_sync" {
+					t.Errorf("Expected marker context to be 'config_sync' but got %s", metadata["context"])
+				}
+				markers := extractMarkers(events, 1)
 
-			if len(markers) != 12 {
-				t.Errorf("Expected %d markers but got %d", 12, len(markers))
-			}
-		}
-
-		if count == 2 {
-			if len(events) != 1 {
-				t.Errorf("Expected 1 diagnostics events, received %d", len(events))
+				if len(markers) != 12 {
+					t.Errorf("Expected %d markers but got %d", 12, len(markers))
+				}
 			}
 
-			metadata, ok := events[0]["metadata"].(map[string]interface{})
-			if !ok {
-				t.Error("Expected metadata to be of type map[string]interface{}")
-			}
-			markers := extractMarkers(events, 0)
+			if count == 2 {
+				if len(events) != 1 {
+					t.Errorf("Expected 1 diagnostics events, received %d", len(events))
+				}
 
-			if metadata["context"] != "config_sync" {
-				t.Errorf("Expected marker context to be 'config_sync' but got %s", metadata["context"])
-			}
+				metadata, ok := events[0]["metadata"].(map[string]interface{})
+				if !ok {
+					t.Error("Expected metadata to be of type map[string]interface{}")
+				}
+				markers := extractMarkers(events, 0)
 
-			if len(markers) != 12 {
-				t.Errorf("Expected %d markers but got %d", 12, len(markers))
+				if metadata["context"] != "config_sync" {
+					t.Errorf("Expected marker context to be 'config_sync' but got %s", metadata["context"])
+				}
+
+				if len(markers) != 12 {
+					t.Errorf("Expected %d markers but got %d", 12, len(markers))
+				}
 			}
-		}
-	}, false)
+		}})
 	defer testServer.Close()
 
 	options := &Options{
@@ -282,14 +293,19 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 }
 
 func TestDiagnosticsSampling(t *testing.T) {
-	var events Events
+	var events events
 	var mu sync.RWMutex
 
-	testServer := getTestServer(true, func(newEvents Events) {
-		mu.Lock()
-		events = append(events, newEvents...)
-		mu.Unlock()
-	}, true)
+	testServer := getTestServer(testServerOptions{
+		dcsOnline: true,
+		onLogEvent: func(newEvents []map[string]interface{}) {
+			mu.Lock()
+			events = append(events, newEvents...)
+			mu.Unlock()
+		},
+		withSampling: true,
+	})
+
 	defer testServer.Close()
 
 	options := &Options{
@@ -330,11 +346,15 @@ func TestDiagnosticsSampling(t *testing.T) {
 }
 
 func TestDiagnosticsClearMarkers(t *testing.T) {
-	var events Events
-
-	testServer := getTestServer(true, func(newEvents Events) {
-		events = append(events, newEvents...)
-	}, true)
+	var events events
+	testServer := getTestServer(
+		testServerOptions{
+			dcsOnline: true,
+			onLogEvent: func(newEvents []map[string]interface{}) {
+				events = append(events, newEvents...)
+			},
+			withSampling: true,
+		})
 	defer testServer.Close()
 
 	options := &Options{
@@ -369,10 +389,14 @@ func TestDiagnosticsClearMarkers(t *testing.T) {
 }
 
 func TestDiagnosticsMaxMarkers(t *testing.T) {
-	var events Events
-	testServer := getTestServer(true, func(newEvents Events) {
-		events = newEvents
-	}, false)
+	var events events
+	testServer := getTestServer(
+		testServerOptions{
+			dcsOnline: true,
+			onLogEvent: func(newEvents []map[string]interface{}) {
+				events = newEvents
+			},
+		})
 	defer testServer.Close()
 
 	options := &Options{
@@ -405,11 +429,15 @@ func TestDiagnosticsMaxMarkers(t *testing.T) {
 }
 
 func TestDisableDiagnostics(t *testing.T) {
-	var events Events
+	var events events
+	testServer := getTestServer(testServerOptions{
+		dcsOnline: true,
+		onLogEvent: func(newEvents []map[string]interface{}) {
+			events = newEvents
 
-	testServer := getTestServer(true, func(newEvents Events) {
-		events = newEvents
-	}, false)
+		},
+	})
+
 	defer testServer.Close()
 	user := User{UserID: "123"}
 	options := &Options{
@@ -450,63 +478,6 @@ func TestDisableDiagnostics(t *testing.T) {
 	}
 }
 
-func getTestIDListServer() *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		if strings.Contains(req.URL.Path, "my_id_list") {
-			res.WriteHeader(http.StatusOK)
-			response, _ := json.Marshal("+asdfcd")
-			_, _ = res.Write(response)
-		}
-	}))
-}
-
-func getTestServer(dcsOnline bool, onLog func(events Events), withSampling bool) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		res.Header().Add("x-statsig-region", "az-westus-2")
-		if strings.Contains(req.URL.Path, "download_config_specs") {
-			if !dcsOnline {
-				res.WriteHeader(http.StatusInternalServerError)
-			} else {
-				dcsFile := "download_config_specs.json"
-				if withSampling {
-					dcsFile = "download_config_specs_with_diagnostics_sampling.json"
-				}
-				bytes, _ := os.ReadFile(dcsFile)
-				res.WriteHeader(http.StatusOK)
-				_, _ = res.Write(bytes)
-			}
-		} else if strings.Contains(req.URL.Path, "log_event") {
-			res.WriteHeader(http.StatusOK)
-			type requestInput struct {
-				Events          []map[string]interface{} `json:"events"`
-				StatsigMetadata statsigMetadata          `json:"statsigMetadata"`
-			}
-			input := &requestInput{}
-			defer req.Body.Close()
-			buf := new(bytes.Buffer)
-			_, _ = buf.ReadFrom(req.Body)
-
-			_ = json.Unmarshal(buf.Bytes(), &input)
-
-			if onLog != nil {
-				onLog(input.Events)
-			}
-		} else if strings.Contains(req.URL.Path, "get_id_lists") {
-			res.WriteHeader(http.StatusOK)
-			response, _ := json.Marshal(map[string]map[string]interface{}{
-				"my_id_list": {
-					"name":         "my_id_list",
-					"size":         1,
-					"url":          fmt.Sprintf("%s/my_id_list", getTestIDListServer().URL),
-					"creationTime": 1,
-					"fileID":       "a_file_id",
-				},
-			})
-			_, _ = res.Write(response)
-		}
-	}))
-}
-
 func assertMarkerEqual(t *testing.T, marker map[string]interface{}, key string, step string, action string, tags ...Pair) {
 	if marker["key"] != key && !(marker["key"] == nil && key == "") {
 		t.Errorf("Expected key to be %s but got %s", key, marker["key"])
@@ -527,7 +498,7 @@ func assertMarkerEqual(t *testing.T, marker map[string]interface{}, key string, 
 	}
 }
 
-func extractMarkers(events []map[string]interface{}, index int) []map[string]interface{} {
+func extractMarkers(events events, index int) []map[string]interface{} {
 	initializeDiagnostics, ok := events[index]["metadata"].(map[string]interface{})
 	if !ok {
 		initializeDiagnostics = make(map[string]interface{})
