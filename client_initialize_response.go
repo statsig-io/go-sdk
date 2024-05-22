@@ -1,7 +1,6 @@
 package statsig
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -57,19 +56,6 @@ type LayerInitializeResponse struct {
 	UndelegatedSecondaryExposures []map[string]string    `json:"undelegated_secondary_exposures"`
 }
 
-func cleanExposures(exposures []map[string]string) []map[string]string {
-	seen := make(map[string]bool)
-	result := make([]map[string]string, 0)
-	for _, exposure := range exposures {
-		key := fmt.Sprintf("%s|%s|%s", exposure["gate"], exposure["gateValue"], exposure["ruleID"])
-		if _, exists := seen[key]; !exists {
-			seen[key] = true
-			result = append(result, exposure)
-		}
-	}
-	return result
-}
-
 func mergeMaps(a map[string]interface{}, b map[string]interface{}) {
 	for k, v := range b {
 		a[k] = v
@@ -87,7 +73,7 @@ func getClientInitializeResponse(
 		result := baseSpecInitializeResponse{
 			Name:               hashedName,
 			RuleID:             eval.RuleID,
-			SecondaryExposures: cleanExposures(eval.SecondaryExposures),
+			SecondaryExposures: eval.SecondaryExposures,
 		}
 		return hashedName, result
 	}
@@ -158,7 +144,7 @@ func getClientInitializeResponse(
 			Value:                         evalResult.JsonValue,
 			Group:                         evalResult.RuleID,
 			IsDeviceBased:                 strings.ToLower(spec.IDType) == "stableid",
-			UndelegatedSecondaryExposures: cleanExposures(evalResult.UndelegatedSecondaryExposures),
+			UndelegatedSecondaryExposures: evalResult.UndelegatedSecondaryExposures,
 		}
 		delegate := evalResult.ConfigDelegate
 		result.ExplicitParameters = new([]string)

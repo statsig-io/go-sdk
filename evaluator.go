@@ -137,7 +137,7 @@ func (e *evaluator) evalGateImpl(user User, gateName string, depth int) *evalRes
 		}
 	}
 	if gate, hasGate := e.store.getGate(gateName); hasGate {
-		return e.eval(user, gate, depth+1)
+		return e.eval(user, gate, depth)
 	}
 	emptyEvalResult := new(evalResult)
 	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
@@ -169,7 +169,7 @@ func (e *evaluator) evalConfigImpl(user User, configName string, persistedValues
 	}
 
 	if persistedValues == nil || config.IsActive == nil || !*config.IsActive {
-		return e.evalAndSDeleteFromPersistentStorage(user, config, depth)
+		return e.evalAndDeleteFromPersistentStorage(user, config, depth)
 	}
 
 	stickyResult := newEvalResultFromUserPersistedValues(configName, persistedValues)
@@ -204,7 +204,7 @@ func (e *evaluator) evalLayerImpl(user User, name string, persistedValues UserPe
 	}
 
 	if persistedValues == nil {
-		return e.evalAndSDeleteFromPersistentStorage(user, config, depth)
+		return e.evalAndDeleteFromPersistentStorage(user, config, depth)
 	}
 
 	stickyResult := newEvalResultFromUserPersistedValues(name, persistedValues)
@@ -212,7 +212,7 @@ func (e *evaluator) evalLayerImpl(user User, name string, persistedValues UserPe
 		if e.allocatedExperimentExistsAndIsActive(stickyResult) {
 			return stickyResult
 		} else {
-			return e.evalAndSDeleteFromPersistentStorage(user, config, depth)
+			return e.evalAndDeleteFromPersistentStorage(user, config, depth)
 		}
 	} else {
 		evaluation := e.eval(user, config, depth)
@@ -240,7 +240,7 @@ func (e *evaluator) evalAndSaveToPersistentStorage(user User, config configSpec,
 	return evaluation
 }
 
-func (e *evaluator) evalAndSDeleteFromPersistentStorage(user User, config configSpec, depth int) *evalResult {
+func (e *evaluator) evalAndDeleteFromPersistentStorage(user User, config configSpec, depth int) *evalResult {
 	e.persistentStorageUtils.delete(user, config.IDType, config.Name)
 	return e.eval(user, config, depth)
 }
@@ -323,6 +323,22 @@ func (e *evaluator) getClientInitializeResponse(user User, clientKey string, inc
 	return getClientInitializeResponse(user, e, clientKey, includeLocalOverrides)
 }
 
+func (e *evaluator) cleanExposures(exposures []map[string]string) []map[string]string {
+	seen := make(map[string]bool)
+	result := make([]map[string]string, 0)
+	for _, exposure := range exposures {
+		if strings.HasPrefix(exposure["gate"], "segment:") {
+			continue
+		}
+		key := fmt.Sprintf("%s|%s|%s", exposure["gate"], exposure["gateValue"], exposure["ruleID"])
+		if _, exists := seen[key]; !exists {
+			seen[key] = true
+			result = append(result, exposure)
+		}
+	}
+	return result
+}
+
 func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 	if depth > maxRecursiveDepth {
 		panic(errors.New("Statsig Evaluation Depth Exceeded"))
@@ -345,7 +361,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 			if r.FetchFromServer {
 				return r
 			}
-			exposures = append(exposures, r.SecondaryExposures...)
+			exposures = e.cleanExposures(append(exposures, r.SecondaryExposures...))
 			if r.Value {
 
 				delegatedResult := e.evalDelegate(user, rule, exposures, depth+1)
@@ -407,7 +423,7 @@ func (e *evaluator) evalDelegate(user User, rule configRule, exposures []map[str
 
 	result := e.eval(user, config, depth+1)
 	result.ConfigDelegate = rule.ConfigDelegate
-	result.SecondaryExposures = append(exposures, result.SecondaryExposures...)
+	result.SecondaryExposures = e.cleanExposures(append(exposures, result.SecondaryExposures...))
 	result.UndelegatedSecondaryExposures = exposures
 
 	explicitParams := map[string]bool{}
