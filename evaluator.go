@@ -127,14 +127,8 @@ func (e *evaluator) evalGate(user User, gateName string) *evalResult {
 }
 
 func (e *evaluator) evalGateImpl(user User, gateName string, depth int) *evalResult {
-	if gateOverride, hasOverride := e.getGateOverride(gateName); hasOverride {
-		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
-		return &evalResult{
-			Value:              gateOverride,
-			RuleID:             "override",
-			EvaluationDetails:  evalDetails,
-			SecondaryExposures: make([]map[string]string, 0),
-		}
+	if gateOverrideEval, hasOverride := e.getGateOverrideEval(gateName); hasOverride {
+		return gateOverrideEval
 	}
 	if gate, hasGate := e.store.getGate(gateName); hasGate {
 		return e.eval(user, gate, depth)
@@ -150,15 +144,8 @@ func (e *evaluator) evalConfig(user User, configName string, persistedValues Use
 }
 
 func (e *evaluator) evalConfigImpl(user User, configName string, persistedValues UserPersistedValues, depth int) *evalResult {
-	if configOverride, hasOverride := e.getConfigOverride(configName); hasOverride {
-		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
-		return &evalResult{
-			Value:              true,
-			JsonValue:          configOverride,
-			RuleID:             "override",
-			EvaluationDetails:  evalDetails,
-			SecondaryExposures: make([]map[string]string, 0),
-		}
+	if configOverrideEval, hasOverride := e.getConfigOverrideEval(configName); hasOverride {
+		return configOverrideEval
 	}
 	config, hasConfig := e.store.getDynamicConfig(configName)
 	if !hasConfig {
@@ -185,15 +172,8 @@ func (e *evaluator) evalLayer(user User, name string, persistedValues UserPersis
 }
 
 func (e *evaluator) evalLayerImpl(user User, name string, persistedValues UserPersistedValues, depth int) *evalResult {
-	if layerOverride, hasOverride := e.getLayerOverride(name); hasOverride {
-		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
-		return &evalResult{
-			Value:              true,
-			JsonValue:          layerOverride,
-			RuleID:             "override",
-			EvaluationDetails:  evalDetails,
-			SecondaryExposures: make([]map[string]string, 0),
-		}
+	if layerOverrideEval, hasOverride := e.getLayerOverrideEval(name); hasOverride {
+		return layerOverrideEval
 	}
 	config, hasConfig := e.store.getLayerConfig(name)
 	if !hasConfig {
@@ -253,14 +233,13 @@ func (e *evaluator) getGateOverride(name string) (bool, bool) {
 }
 
 func (e *evaluator) getGateOverrideEval(name string) (*evalResult, bool) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	if gateOverride, hasOverride := e.getGateOverride(name); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			Value:             gateOverride,
-			RuleID:            "override",
-			EvaluationDetails: evalDetails,
+			Value:              gateOverride,
+			RuleID:             "override",
+			EvaluationDetails:  evalDetails,
+			SecondaryExposures: make([]map[string]string, 0),
 		}, true
 	}
 
@@ -275,14 +254,14 @@ func (e *evaluator) getConfigOverride(name string) (map[string]interface{}, bool
 }
 
 func (e *evaluator) getConfigOverrideEval(name string) (*evalResult, bool) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	if configOverride, hasOverride := e.getConfigOverride(name); hasOverride {
 		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
 		return &evalResult{
-			JsonValue:         configOverride,
-			RuleID:            "override",
-			EvaluationDetails: evalDetails,
+			Value:              true,
+			JsonValue:          configOverride,
+			RuleID:             "override",
+			EvaluationDetails:  evalDetails,
+			SecondaryExposures: make([]map[string]string, 0),
 		}, true
 	}
 
@@ -294,6 +273,21 @@ func (e *evaluator) getLayerOverride(name string) (map[string]interface{}, bool)
 	defer e.mu.RUnlock()
 	layer, ok := e.layerOverrides[name]
 	return layer, ok
+}
+
+func (e *evaluator) getLayerOverrideEval(name string) (*evalResult, bool) {
+	if layerOverride, hasOverride := e.getLayerOverride(name); hasOverride {
+		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
+		return &evalResult{
+			Value:              true,
+			JsonValue:          layerOverride,
+			RuleID:             "override",
+			EvaluationDetails:  evalDetails,
+			SecondaryExposures: make([]map[string]string, 0),
+		}, true
+	}
+
+	return &evalResult{}, false
 }
 
 // Override the value of a Feature Gate for the given user
