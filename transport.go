@@ -64,7 +64,7 @@ func (opts *RequestOptions) fill_defaults() {
 	}
 }
 
-func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}) (*http.Response, error) {
+func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}) (*http.Response, *TransportError) {
 	var endpoint string
 	if transport.options.DisableCDN {
 		endpoint = fmt.Sprintf("/download_config_specs?sinceTime=%d", sinceTime)
@@ -74,24 +74,36 @@ func (transport *transport) download_config_specs(sinceTime int64, responseBody 
 	return transport.get(endpoint, responseBody, RequestOptions{})
 }
 
-func (transport *transport) get_id_lists(responseBody interface{}) (*http.Response, error) {
+func (transport *transport) get_id_lists(responseBody interface{}) (*http.Response, *TransportError) {
 	return transport.post("/get_id_lists", nil, responseBody, RequestOptions{})
 }
 
-func (transport *transport) get_id_list(url string, headers map[string]string) (*http.Response, error) {
+func (transport *transport) get_id_list(url string, headers map[string]string) (*http.Response, *TransportError) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, &TransportError{Err: err}
 	}
 
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
 
-	return transport.client.Do(req)
+	res, err := transport.client.Do(req)
+
+	if err != nil {
+		return res, &TransportError{
+			RequestMetadata: &RequestMetadata{
+				StatusCode: res.StatusCode,
+				Endpoint:   url,
+				Retries:    0,
+			},
+			Err: err}
+	}
+
+	return res, nil
 }
 
-func (transport *transport) log_event(event []interface{}, responseBody interface{}, options RequestOptions) (*http.Response, error) {
+func (transport *transport) log_event(event []interface{}, responseBody interface{}, options RequestOptions) (*http.Response, *TransportError) {
 	input := logEventInput{
 		Events:          event,
 		StatsigMetadata: transport.metadata,
@@ -104,11 +116,11 @@ func (transport *transport) log_event(event []interface{}, responseBody interfac
 
 }
 
-func (transport *transport) post(endpoint string, body interface{}, responseBody interface{}, options RequestOptions) (*http.Response, error) {
+func (transport *transport) post(endpoint string, body interface{}, responseBody interface{}, options RequestOptions) (*http.Response, *TransportError) {
 	return transport.doRequest("POST", endpoint, body, responseBody, options)
 }
 
-func (transport *transport) get(endpoint string, responseBody interface{}, options RequestOptions) (*http.Response, error) {
+func (transport *transport) get(endpoint string, responseBody interface{}, options RequestOptions) (*http.Response, *TransportError) {
 	return transport.doRequest("GET", endpoint, nil, responseBody, options)
 }
 
@@ -173,13 +185,13 @@ func (transport *transport) doRequest(
 	in interface{},
 	out interface{},
 	options RequestOptions,
-) (*http.Response, error) {
+) (*http.Response, *TransportError) {
 	request, err := transport.buildRequest(method, endpoint, in, options.header)
 	if request == nil || err != nil {
-		return nil, err
+		return nil, &TransportError{Err: err}
 	}
 	options.fill_defaults()
-	return retry(options.retries, time.Duration(options.backoff), func() (*http.Response, bool, error) {
+	response, err, retried := retry(options.retries, time.Duration(options.backoff), func() (*http.Response, bool, error) {
 		response, err := transport.client.Do(request)
 		if err != nil {
 			return response, response != nil, err
@@ -197,8 +209,21 @@ func (transport *transport) doRequest(
 			return response, false, transport.parseResponse(response, out)
 		}
 
-		return response, retryableStatusCode(response.StatusCode), fmt.Errorf("http response error code: %d", response.StatusCode)
+		return response, retryableStatusCode(response.StatusCode), fmt.Errorf(response.Status)
 	})
+
+	if err != nil {
+		return response, &TransportError{
+			RequestMetadata: &RequestMetadata{
+				StatusCode: response.StatusCode,
+				Endpoint:   endpoint,
+				Retries:    retried,
+			},
+			Err: err,
+		}
+	}
+
+	return response, nil
 }
 
 func (transport *transport) parseResponse(response *http.Response, out interface{}) error {
@@ -208,18 +233,20 @@ func (transport *transport) parseResponse(response *http.Response, out interface
 	return json.NewDecoder(response.Body).Decode(&out)
 }
 
-func retry(retries int, backoff time.Duration, fn func() (*http.Response, bool, error)) (*http.Response, error) {
+func retry(retries int, backoff time.Duration, fn func() (*http.Response, bool, error)) (*http.Response, error, int) {
+	retried := 0
 	for {
 		if response, retry, err := fn(); retry {
 			if retries <= 0 {
-				return response, err
+				return response, err, retried
 			}
 
 			retries--
+			retried++
 			time.Sleep(backoff)
 			backoff = backoff * backoffMultiplier
 		} else {
-			return response, err
+			return response, err, retried
 		}
 	}
 }

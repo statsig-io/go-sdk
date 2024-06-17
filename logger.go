@@ -249,17 +249,20 @@ func (l *logger) sendEvents(events []interface{}) {
 	var res logEventResponse
 	_, err := l.transport.log_event(events, &res, RequestOptions{retries: maxRetries})
 	if err != nil {
-		message := fmt.Sprintf("Failed to log %d events afrer %d retries, dropping the request", len(events), maxRetries)
 		extra := map[string]interface{}{
 			"eventCount": len(events),
 		}
 		options := logExceptionOptions{
 			Tag:          "statsig::log_event_failed",
-			Extra:        &extra,
+			Extra:        extra,
 			BypassDedupe: true,
 			LogToOutput:  true,
 		}
-		l.errorBoundary.logExceptionWithOptions(toError(message), options)
+		err := &LogEventError{
+			Events: len(events),
+			Err:    err,
+		}
+		l.errorBoundary.logExceptionWithOptions(err, options)
 	}
 }
 

@@ -22,16 +22,16 @@ type errorBoundary struct {
 }
 
 type logExceptionRequestBody struct {
-	Exception       string                  `json:"exception"`
-	Info            string                  `json:"info"`
-	StatsigMetadata statsigMetadata         `json:"statsigMetadata"`
-	Extra           *map[string]interface{} `json:"extra"`
-	Tag             string                  `json:"tag"`
+	Exception       string                 `json:"exception"`
+	Info            string                 `json:"info"`
+	StatsigMetadata statsigMetadata        `json:"statsigMetadata"`
+	Extra           map[string]interface{} `json:"extra"`
+	Tag             string                 `json:"tag"`
 }
 
 type logExceptionOptions struct {
 	Tag          string
-	Extra        *map[string]interface{}
+	Extra        map[string]interface{}
 	BypassDedupe bool
 	LogToOutput  bool
 }

@@ -3,6 +3,7 @@ package statsig
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -21,15 +22,14 @@ func (o *OutputLogger) Log(msg string, err error) {
 	if o.isInitialized() && o.options.LogCallback != nil {
 		o.options.LogCallback(msg, err)
 	} else {
-		formatted := msg
+		timestamp := time.Now().Format(time.RFC3339)
+
+		formatted := fmt.Sprintf("[%s][Statsig] %s", timestamp, msg)
 		if err != nil {
-			if formatted != "" {
-				formatted += "\n"
-			}
 			formatted += err.Error()
-		}
-		if formatted != "" {
-			fmt.Print(formatted)
+			fmt.Fprintln(os.Stderr, formatted)
+		} else if msg != "" {
+			fmt.Println(formatted)
 		}
 	}
 }
@@ -50,8 +50,7 @@ func (o *OutputLogger) LogStep(process StatsigProcess, msg string) {
 	if o.options.DisableSyncDiagnostics && process == StatsigProcessSync {
 		return
 	}
-	timestamp := time.Now().Format(time.RFC3339)
-	o.Log(fmt.Sprintf("[%s][Statsig] %s: %s\n", timestamp, process, msg), nil)
+	o.Log(fmt.Sprintf("%s: %s", process, msg), nil)
 }
 
 func (o *OutputLogger) LogError(err interface{}) {
@@ -61,7 +60,7 @@ func (o *OutputLogger) LogError(err interface{}) {
 	case error:
 		o.Log("", errTyped)
 	default:
-		fmt.Print(err)
+		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
