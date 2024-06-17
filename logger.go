@@ -257,6 +257,7 @@ func (l *logger) sendEvents(events []interface{}) {
 			Tag:          "statsig::log_event_failed",
 			Extra:        &extra,
 			BypassDedupe: true,
+			LogToOutput:  true,
 		}
 		l.errorBoundary.logExceptionWithOptions(toError(message), options)
 	}

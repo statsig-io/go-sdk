@@ -33,7 +33,7 @@ type logExceptionOptions struct {
 	Tag          string
 	Extra        *map[string]interface{}
 	BypassDedupe bool
-	logToOutput  bool
+	LogToOutput  bool
 }
 
 type logExceptionResponse struct {
@@ -145,7 +145,7 @@ func (e *errorBoundary) logExceptionWithOptions(exception error, options logExce
 		exceptionString = exception.Error()
 	}
 
-	if options.logToOutput {
+	if options.LogToOutput {
 		Logger().LogError(exception)
 	}
 	if !options.BypassDedupe && e.checkSeen(exceptionString) {
