@@ -191,7 +191,7 @@ func (transport *transport) doRequest(
 		return nil, &TransportError{Err: err}
 	}
 	options.fill_defaults()
-	response, err, retried := retry(options.retries, time.Duration(options.backoff), func() (*http.Response, bool, error) {
+	response, err, attempts := retry(options.retries, time.Duration(options.backoff), func() (*http.Response, bool, error) {
 		response, err := transport.client.Do(request)
 		if err != nil {
 			return response, response != nil, err
@@ -213,11 +213,14 @@ func (transport *transport) doRequest(
 	})
 
 	if err != nil {
+		if response == nil {
+			return response, &TransportError{Err: err}
+		}
 		return response, &TransportError{
 			RequestMetadata: &RequestMetadata{
 				StatusCode: response.StatusCode,
 				Endpoint:   endpoint,
-				Retries:    retried,
+				Retries:    attempts,
 			},
 			Err: err,
 		}
@@ -234,19 +237,19 @@ func (transport *transport) parseResponse(response *http.Response, out interface
 }
 
 func retry(retries int, backoff time.Duration, fn func() (*http.Response, bool, error)) (*http.Response, error, int) {
-	retried := 0
+	attempts := 0
 	for {
 		if response, retry, err := fn(); retry {
 			if retries <= 0 {
-				return response, err, retried
+				return response, err, attempts
 			}
 
 			retries--
-			retried++
+			attempts++
 			time.Sleep(backoff)
 			backoff = backoff * backoffMultiplier
 		} else {
-			return response, err, retried
+			return response, err, attempts
 		}
 	}
 }
