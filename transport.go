@@ -64,7 +64,7 @@ func (opts *RequestOptions) fill_defaults() {
 	}
 }
 
-func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}) (*http.Response, *TransportError) {
+func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}) (*http.Response, error) {
 	var endpoint string
 	if transport.options.DisableCDN {
 		endpoint = fmt.Sprintf("/download_config_specs?sinceTime=%d", sinceTime)
@@ -74,11 +74,11 @@ func (transport *transport) download_config_specs(sinceTime int64, responseBody 
 	return transport.get(endpoint, responseBody, RequestOptions{})
 }
 
-func (transport *transport) get_id_lists(responseBody interface{}) (*http.Response, *TransportError) {
+func (transport *transport) get_id_lists(responseBody interface{}) (*http.Response, error) {
 	return transport.post("/get_id_lists", nil, responseBody, RequestOptions{})
 }
 
-func (transport *transport) get_id_list(url string, headers map[string]string) (*http.Response, *TransportError) {
+func (transport *transport) get_id_list(url string, headers map[string]string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, &TransportError{Err: err}
@@ -103,7 +103,7 @@ func (transport *transport) get_id_list(url string, headers map[string]string) (
 	return res, nil
 }
 
-func (transport *transport) log_event(event []interface{}, responseBody interface{}, options RequestOptions) (*http.Response, *TransportError) {
+func (transport *transport) log_event(event []interface{}, responseBody interface{}, options RequestOptions) (*http.Response, error) {
 	input := logEventInput{
 		Events:          event,
 		StatsigMetadata: transport.metadata,
@@ -116,11 +116,11 @@ func (transport *transport) log_event(event []interface{}, responseBody interfac
 
 }
 
-func (transport *transport) post(endpoint string, body interface{}, responseBody interface{}, options RequestOptions) (*http.Response, *TransportError) {
+func (transport *transport) post(endpoint string, body interface{}, responseBody interface{}, options RequestOptions) (*http.Response, error) {
 	return transport.doRequest("POST", endpoint, body, responseBody, options)
 }
 
-func (transport *transport) get(endpoint string, responseBody interface{}, options RequestOptions) (*http.Response, *TransportError) {
+func (transport *transport) get(endpoint string, responseBody interface{}, options RequestOptions) (*http.Response, error) {
 	return transport.doRequest("GET", endpoint, nil, responseBody, options)
 }
 
@@ -185,10 +185,13 @@ func (transport *transport) doRequest(
 	in interface{},
 	out interface{},
 	options RequestOptions,
-) (*http.Response, *TransportError) {
+) (*http.Response, error) {
 	request, err := transport.buildRequest(method, endpoint, in, options.header)
 	if request == nil || err != nil {
-		return nil, &TransportError{Err: err}
+		if err != nil {
+			return nil, &TransportError{Err: err}
+		}
+		return nil, nil
 	}
 	options.fill_defaults()
 	response, err, attempts := retry(options.retries, time.Duration(options.backoff), func() (*http.Response, bool, error) {

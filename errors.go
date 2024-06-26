@@ -34,7 +34,7 @@ func (e *TransportError) Error() string {
 func (e *TransportError) Unwrap() error { return e.Err }
 
 type LogEventError struct {
-	Err    *TransportError
+	Err    error
 	Events int
 }
 
