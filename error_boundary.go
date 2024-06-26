@@ -3,9 +3,11 @@ package statsig
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -146,7 +148,8 @@ func (e *errorBoundary) logExceptionWithOptions(exception error, options logExce
 	}
 
 	if options.LogToOutput {
-		Logger().LogError(exception)
+		filteredError := strings.Replace(exceptionString, e.sdkKey, "******", -1)
+		Logger().LogError(errors.New(filteredError))
 	}
 	if !options.BypassDedupe && e.checkSeen(exceptionString) {
 		return
