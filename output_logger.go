@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 )
 
@@ -20,16 +21,20 @@ type OutputLogger struct {
 
 func (o *OutputLogger) Log(msg string, err error) {
 	if o.isInitialized() && o.options.LogCallback != nil {
-		o.options.LogCallback(msg, err)
+		o.options.LogCallback(sanitize(msg), err)
 	} else {
 		timestamp := time.Now().Format(time.RFC3339)
 
 		formatted := fmt.Sprintf("[%s][Statsig] %s", timestamp, msg)
+
+		sanitized := ""
 		if err != nil {
 			formatted += err.Error()
-			fmt.Fprintln(os.Stderr, formatted)
+			sanitized = sanitize(formatted)
+			fmt.Fprintln(os.Stderr, sanitized)
 		} else if msg != "" {
-			fmt.Println(formatted)
+			sanitized = sanitize(formatted)
+			fmt.Println(sanitized)
 		}
 	}
 }
@@ -60,10 +65,16 @@ func (o *OutputLogger) LogError(err interface{}) {
 	case error:
 		o.Log("", errTyped)
 	default:
-		fmt.Fprintln(os.Stderr, err)
+		sanitized := sanitize(fmt.Sprintf("%+v", err))
+		fmt.Fprintln(os.Stderr, sanitized)
 	}
 }
 
 func (o *OutputLogger) isInitialized() bool {
 	return o != nil
+}
+
+func sanitize(string string) string {
+	keyPattern := regexp.MustCompile(`secret-[a-zA-Z0-9]+`)
+	return keyPattern.ReplaceAllString(string, "secret-****")
 }
