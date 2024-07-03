@@ -91,7 +91,7 @@ func TestLayerExposure(t *testing.T) {
 			"parameterName":       "an_int",
 			"isExplicitParameter": "false",
 			"reason":              "Network",
-		}, 0)
+		}, 1631638014811)
 	})
 
 	//
@@ -114,7 +114,7 @@ func TestLayerExposure(t *testing.T) {
 			"parameterName":       "an_int",
 			"isExplicitParameter": "true",
 			"reason":              "Network",
-		}, 0)
+		}, 1631638014811)
 
 		compareMetadata(t, events[1].Metadata, map[string]string{
 			"config":              "explicit_vs_implicit_parameter_layer",
@@ -123,7 +123,7 @@ func TestLayerExposure(t *testing.T) {
 			"parameterName":       "a_string",
 			"isExplicitParameter": "false",
 			"reason":              "Network",
-		}, 0)
+		}, 1631638014811)
 	})
 
 	//

@@ -73,5 +73,5 @@ func (d *dataAdapterWithPollingExample) ShouldBeUsedForQueryingUpdates(key strin
 	return true
 }
 func (d *dataAdapterWithPollingExample) clearStore(key string) {
-	d.Set(key, "{\"feature_gates\":[],\"dynamic_configs\":[],\"layer_configs\":[],\"layers\":{},\"id_lists\":{},\"has_updates\":true,\"time\":1}")
+	d.Set(key, "{\"feature_gates\":[],\"dynamic_configs\":[],\"layer_configs\":[],\"layers\":{},\"id_lists\":{},\"has_updates\":true,\"time\":1631638014812}")
 }
