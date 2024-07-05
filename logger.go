@@ -20,7 +20,7 @@ type ExposureEvent struct {
 	User               User                `json:"user"`
 	Value              string              `json:"value"`
 	Metadata           map[string]string   `json:"metadata"`
-	SecondaryExposures []map[string]string `json:"secondaryExposures"`
+	SecondaryExposures []SecondaryExposure `json:"secondaryExposures"`
 	Time               int64               `json:"time"`
 }
 
@@ -95,20 +95,6 @@ func (l *logger) logCustom(evt Event) {
 	l.logInternal(evt)
 }
 
-func (l *logger) logExposureWithEvaluationDetails(
-	evt *ExposureEvent,
-	evalDetails *EvaluationDetails,
-) {
-	if evalDetails != nil {
-		evt.Metadata["reason"] = string(evalDetails.Reason)
-		evt.Metadata["configSyncTime"] = fmt.Sprint(evalDetails.ConfigSyncTime)
-		evt.Metadata["initTime"] = fmt.Sprint(evalDetails.InitTime)
-		evt.Metadata["serverTime"] = fmt.Sprint(evalDetails.ServerTime)
-	}
-	l.logExposure(*evt)
-
-}
-
 func (l *logger) logExposure(evt ExposureEvent) {
 	evt.User.PrivateAttributes = nil
 	if evt.Time == 0 {
@@ -136,7 +122,21 @@ func (l *logger) logGateExposure(
 	gateName string,
 	value bool,
 	ruleID string,
-	exposures []map[string]string,
+	exposures []SecondaryExposure,
+	evalDetails *EvaluationDetails,
+	context *logContext,
+) *ExposureEvent {
+	evt := l.getGateExposureWithEvaluationDetails(user, gateName, value, ruleID, exposures, evalDetails, context)
+	l.logExposure(*evt)
+	return evt
+}
+
+func (l *logger) getGateExposureWithEvaluationDetails(
+	user User,
+	gateName string,
+	value bool,
+	ruleID string,
+	exposures []SecondaryExposure,
 	evalDetails *EvaluationDetails,
 	context *logContext,
 ) *ExposureEvent {
@@ -154,15 +154,40 @@ func (l *logger) logGateExposure(
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
-	l.logExposureWithEvaluationDetails(evt, evalDetails)
+	l.addEvaluationDetailsToExposureEvent(evt, evalDetails)
 	return evt
+}
+
+func (l *logger) addEvaluationDetailsToExposureEvent(
+	evt *ExposureEvent,
+	evalDetails *EvaluationDetails,
+) {
+	if evalDetails != nil {
+		evt.Metadata["reason"] = string(evalDetails.Reason)
+		evt.Metadata["configSyncTime"] = fmt.Sprint(evalDetails.ConfigSyncTime)
+		evt.Metadata["initTime"] = fmt.Sprint(evalDetails.InitTime)
+		evt.Metadata["serverTime"] = fmt.Sprint(evalDetails.ServerTime)
+	}
 }
 
 func (l *logger) logConfigExposure(
 	user User,
 	configName string,
 	ruleID string,
-	exposures []map[string]string,
+	exposures []SecondaryExposure,
+	evalDetails *EvaluationDetails,
+	context *logContext,
+) *ExposureEvent {
+	evt := l.getConfigExposureWithEvaluationDetails(user, configName, ruleID, exposures, evalDetails, context)
+	l.logExposure(*evt)
+	return evt
+}
+
+func (l *logger) getConfigExposureWithEvaluationDetails(
+	user User,
+	configName string,
+	ruleID string,
+	exposures []SecondaryExposure,
 	evalDetails *EvaluationDetails,
 	context *logContext,
 ) *ExposureEvent {
@@ -179,7 +204,7 @@ func (l *logger) logConfigExposure(
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
-	l.logExposureWithEvaluationDetails(evt, evalDetails)
+	l.addEvaluationDetailsToExposureEvent(evt, evalDetails)
 	return evt
 }
 
@@ -191,6 +216,18 @@ func (l *logger) logLayerExposure(
 	evalDetails *EvaluationDetails,
 	context *logContext,
 ) *ExposureEvent {
+	evt := l.getLayerExposureWithEvaluationDetails(user, config, parameterName, evalResult, evalDetails, context)
+	l.logExposure(*evt)
+	return evt
+}
+
+func (l *logger) getLayerExposureWithEvaluationDetails(
+	user User,
+	config Layer,
+	parameterName string,
+	evalResult evalResult,
+	evalDetails *EvaluationDetails,
+	context *logContext) *ExposureEvent {
 	allocatedExperiment := ""
 	exposures := evalResult.UndelegatedSecondaryExposures
 	isExplicit := evalResult.ExplicitParameters[parameterName]
@@ -216,7 +253,7 @@ func (l *logger) logLayerExposure(
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
-	l.logExposureWithEvaluationDetails(evt, evalDetails)
+	l.addEvaluationDetailsToExposureEvent(evt, evalDetails)
 	return evt
 }
 

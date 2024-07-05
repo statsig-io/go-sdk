@@ -25,7 +25,7 @@ type gateTestData struct {
 	Name               string              `json:"name"`
 	Value              bool                `json:"value"`
 	RuleID             string              `json:"rule_id"`
-	SecondaryExposures []map[string]string `json:"secondary_exposures"`
+	SecondaryExposures []SecondaryExposure `json:"secondary_exposures"`
 }
 
 type configTestData struct {
@@ -33,7 +33,7 @@ type configTestData struct {
 	Value              map[string]interface{} `json:"value"`
 	RuleID             string                 `json:"rule_id"`
 	GroupName          string                 `json:"group_name"`
-	SecondaryExposures []map[string]string    `json:"secondary_exposures"`
+	SecondaryExposures []SecondaryExposure    `json:"secondary_exposures"`
 }
 
 type layerTestData struct {
@@ -41,8 +41,8 @@ type layerTestData struct {
 	Value                         map[string]interface{} `json:"value"`
 	RuleID                        string                 `json:"rule_id"`
 	GroupName                     string                 `json:"group_name"`
-	SecondaryExposures            []map[string]string    `json:"secondary_exposures"`
-	UndelegatedSecondaryExposures []map[string]string    `json:"undelegated_secondary_exposures"`
+	SecondaryExposures            []SecondaryExposure    `json:"secondary_exposures"`
+	UndelegatedSecondaryExposures []SecondaryExposure    `json:"undelegated_secondary_exposures"`
 }
 
 var secret string
@@ -232,15 +232,15 @@ func TestStatsigLocalMode(t *testing.T) {
 	}
 }
 
-func compare_secondary_exp(t *testing.T, v1 []map[string]string, v2 []map[string]string) bool {
+func compare_secondary_exp(t *testing.T, v1 []SecondaryExposure, v2 []SecondaryExposure) bool {
 	if (v1 == nil && v2 != nil) || (v2 == nil && v1 != nil) {
 		return false
 	}
 	if v1 == nil {
-		v1 = []map[string]string{}
+		v1 = []SecondaryExposure{}
 	}
 	if v2 == nil {
-		v2 = []map[string]string{}
+		v2 = []SecondaryExposure{}
 	}
 	return reflect.DeepEqual(v1, v2)
 }

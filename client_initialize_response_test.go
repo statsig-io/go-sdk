@@ -102,22 +102,22 @@ func filterHttpResponseAndReadBody(httpResponse *http.Response) ([]byte, error) 
 }
 
 func filterClientInitializeResponse(clientInitializeResponse *ClientInitializeResponse) {
-	for _, response := range clientInitializeResponse.FeatureGates {
-		for _, se := range response.SecondaryExposures {
-			se["gate"] = "__REMOVED_FOR_TEST__"
+	for i := range clientInitializeResponse.FeatureGates {
+		for j := range clientInitializeResponse.FeatureGates[i].SecondaryExposures {
+			clientInitializeResponse.FeatureGates[i].SecondaryExposures[j].Gate = "__REMOVED_FOR_TEST__"
 		}
 	}
-	for _, response := range clientInitializeResponse.DynamicConfigs {
-		for _, se := range response.SecondaryExposures {
-			se["gate"] = "__REMOVED_FOR_TEST__"
+	for i := range clientInitializeResponse.DynamicConfigs {
+		for j := range clientInitializeResponse.DynamicConfigs[i].SecondaryExposures {
+			clientInitializeResponse.DynamicConfigs[i].SecondaryExposures[j].Gate = "__REMOVED_FOR_TEST__"
 		}
 	}
-	for _, response := range clientInitializeResponse.LayerConfigs {
-		for _, se := range response.SecondaryExposures {
-			se["gate"] = "__REMOVED_FOR_TEST__"
+	for i := range clientInitializeResponse.LayerConfigs {
+		for j := range clientInitializeResponse.LayerConfigs[i].SecondaryExposures {
+			clientInitializeResponse.LayerConfigs[i].SecondaryExposures[j].Gate = "__REMOVED_FOR_TEST__"
 		}
-		for _, se := range response.UndelegatedSecondaryExposures {
-			se["gate"] = "__REMOVED_FOR_TEST__"
+		for j := range clientInitializeResponse.LayerConfigs[i].UndelegatedSecondaryExposures {
+			clientInitializeResponse.LayerConfigs[i].UndelegatedSecondaryExposures[j].Gate = "__REMOVED_FOR_TEST__"
 		}
 	}
 	clientInitializeResponse.Generator = "__REMOVED_FOR_TEST__"

@@ -335,13 +335,26 @@ func (c *Client) checkGateImpl(user User, name string, options checkGateOptions)
 			serverRes := fetchGate(user, name, c.transport)
 			res = &evalResult{Value: serverRes.Value, RuleID: serverRes.RuleID}
 		} else {
-			var exposure *ExposureEvent = nil
+			context := &logContext{isManualExposure: false}
+			exposure := c.logger.getGateExposureWithEvaluationDetails(user, name, res.Value, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 			if !options.disableLogExposures {
-				context := &logContext{isManualExposure: false}
-				exposure = c.logger.logGateExposure(user, name, res.Value, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
+				c.logger.logExposure(*exposure)
 			}
+
 			if c.options.EvaluationCallbacks.GateEvaluationCallback != nil {
-				c.options.EvaluationCallbacks.GateEvaluationCallback(name, res.Value, exposure)
+				if c.options.EvaluationCallbacks.IncludeDisabledExposures || !options.disableLogExposures {
+					c.options.EvaluationCallbacks.GateEvaluationCallback(name, res.Value, exposure)
+				} else {
+					c.options.EvaluationCallbacks.GateEvaluationCallback(name, res.Value, nil)
+				}
+			}
+
+			if c.options.EvaluationCallbacks.ExposureCallback != nil {
+				if c.options.EvaluationCallbacks.IncludeDisabledExposures || !options.disableLogExposures {
+					c.options.EvaluationCallbacks.ExposureCallback(name, exposure)
+				} else {
+					c.options.EvaluationCallbacks.ExposureCallback(name, nil)
+				}
 			}
 		}
 		return *NewGate(name, res.Value, res.RuleID, res.GroupName, res.EvaluationDetails)
@@ -370,21 +383,38 @@ func (c *Client) getConfigImpl(user User, name string, context getConfigImplCont
 			res = c.fetchConfigFromServer(user, name)
 			config = *NewConfig(name, res.JsonValue, res.RuleID, res.GroupName, res.EvaluationDetails)
 		} else {
-			var exposure *ExposureEvent = nil
 			var logExposure bool
 			if isExperiment {
 				logExposure = !context.experimentOptions.DisableLogExposures
 			} else {
 				logExposure = !context.configOptions.disableLogExposures
 			}
+			context := &logContext{isManualExposure: false}
+			exposure := c.logger.getConfigExposureWithEvaluationDetails(user, name, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 			if logExposure {
-				context := &logContext{isManualExposure: false}
-				exposure = c.logger.logConfigExposure(user, name, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
+				c.logger.logExposure(*exposure)
 			}
+
 			if isExperiment && c.options.EvaluationCallbacks.ExperimentEvaluationCallback != nil {
-				c.options.EvaluationCallbacks.ExperimentEvaluationCallback(name, config, exposure)
+				if c.options.EvaluationCallbacks.IncludeDisabledExposures || logExposure {
+					c.options.EvaluationCallbacks.ExperimentEvaluationCallback(name, config, exposure)
+				} else {
+					c.options.EvaluationCallbacks.ExperimentEvaluationCallback(name, config, nil)
+				}
 			} else if c.options.EvaluationCallbacks.ConfigEvaluationCallback != nil {
-				c.options.EvaluationCallbacks.ConfigEvaluationCallback(name, config, exposure)
+				if c.options.EvaluationCallbacks.IncludeDisabledExposures || logExposure {
+					c.options.EvaluationCallbacks.ConfigEvaluationCallback(name, config, exposure)
+				} else {
+					c.options.EvaluationCallbacks.ConfigEvaluationCallback(name, config, nil)
+				}
+			}
+
+			if c.options.EvaluationCallbacks.ExposureCallback != nil {
+				if c.options.EvaluationCallbacks.IncludeDisabledExposures || logExposure {
+					c.options.EvaluationCallbacks.ExposureCallback(name, exposure)
+				} else {
+					c.options.EvaluationCallbacks.ExposureCallback(name, nil)
+				}
 			}
 		}
 		return config
@@ -405,13 +435,24 @@ func (c *Client) getLayerImpl(user User, name string, options *GetLayerOptions) 
 		}
 
 		logFunc := func(layer Layer, parameterName string) {
-			var exposure *ExposureEvent = nil
+			context := &logContext{isManualExposure: false}
+			exposure := c.logger.getLayerExposureWithEvaluationDetails(user, layer, parameterName, *res, res.EvaluationDetails, context)
 			if !options.DisableLogExposures {
-				context := &logContext{isManualExposure: false}
-				exposure = c.logger.logLayerExposure(user, layer, parameterName, *res, res.EvaluationDetails, context)
+				c.logger.logExposure(*exposure)
 			}
 			if c.options.EvaluationCallbacks.LayerEvaluationCallback != nil {
-				c.options.EvaluationCallbacks.LayerEvaluationCallback(name, parameterName, DynamicConfig{layer.configBase}, exposure)
+				if c.options.EvaluationCallbacks.IncludeDisabledExposures || !options.DisableLogExposures {
+					c.options.EvaluationCallbacks.LayerEvaluationCallback(name, parameterName, DynamicConfig{layer.configBase}, exposure)
+				} else {
+					c.options.EvaluationCallbacks.LayerEvaluationCallback(name, parameterName, DynamicConfig{layer.configBase}, nil)
+				}
+			}
+			if c.options.EvaluationCallbacks.ExposureCallback != nil {
+				if c.options.EvaluationCallbacks.IncludeDisabledExposures || !options.DisableLogExposures {
+					c.options.EvaluationCallbacks.ExposureCallback(name, exposure)
+				} else {
+					c.options.EvaluationCallbacks.ExposureCallback(name, nil)
+				}
 			}
 		}
 

@@ -25,7 +25,7 @@ type SDKInfo struct {
 type baseSpecInitializeResponse struct {
 	Name               string              `json:"name"`
 	RuleID             string              `json:"rule_id"`
-	SecondaryExposures []map[string]string `json:"secondary_exposures"`
+	SecondaryExposures []SecondaryExposure `json:"secondary_exposures"`
 }
 
 type GateInitializeResponse struct {
@@ -53,7 +53,7 @@ type LayerInitializeResponse struct {
 	IsUserInExperiment            *bool                  `json:"is_user_in_experiment,omitempty"`
 	ExplicitParameters            *[]string              `json:"explicit_parameters,omitempty"`
 	AllocatedExperimentName       string                 `json:"allocated_experiment_name,omitempty"`
-	UndelegatedSecondaryExposures []map[string]string    `json:"undelegated_secondary_exposures"`
+	UndelegatedSecondaryExposures []SecondaryExposure    `json:"undelegated_secondary_exposures"`
 }
 
 func mergeMaps(a map[string]interface{}, b map[string]interface{}) {

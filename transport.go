@@ -91,9 +91,13 @@ func (transport *transport) get_id_list(url string, headers map[string]string) (
 	res, err := transport.client.Do(req)
 
 	if err != nil {
+		var statusCode int
+		if res != nil {
+			statusCode = res.StatusCode
+		}
 		return res, &TransportError{
 			RequestMetadata: &RequestMetadata{
-				StatusCode: res.StatusCode,
+				StatusCode: statusCode,
 				Endpoint:   url,
 				Retries:    0,
 			},

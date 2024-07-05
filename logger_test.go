@@ -54,7 +54,7 @@ func TestLog(t *testing.T) {
 	}
 
 	// Test gate exposures
-	exposures := []map[string]string{{"gate": "another_gate", "gateValue": "true", "ruleID": "default"}}
+	exposures := []SecondaryExposure{{Gate: "another_gate", GateValue: "true", RuleID: "default"}}
 	logger.logGateExposure(user, "test_gate", true, "rule_id", exposures, nil, nil)
 	evt2, ok := logger.events[1].(ExposureEvent)
 	if !ok {
@@ -75,7 +75,7 @@ func TestLog(t *testing.T) {
 	}
 
 	// Test config exposures
-	exposures = append(exposures, map[string]string{"gate": "yet_another_gate", "gateValue": "false", "ruleID": ""})
+	exposures = append(exposures, SecondaryExposure{Gate: "yet_another_gate", GateValue: "false", RuleID: ""})
 	logger.logConfigExposure(user, "test_config", "rule_id_config", exposures, nil, nil)
 	evt3, ok := logger.events[2].(ExposureEvent)
 	if !ok {

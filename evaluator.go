@@ -19,12 +19,18 @@ type evalResult struct {
 	FetchFromServer               bool                   `json:"fetch_from_server"`
 	RuleID                        string                 `json:"rule_id"`
 	GroupName                     string                 `json:"group_name"`
-	SecondaryExposures            []map[string]string    `json:"secondary_exposures"`
-	UndelegatedSecondaryExposures []map[string]string    `json:"undelegated_secondary_exposures"`
+	SecondaryExposures            []SecondaryExposure    `json:"secondary_exposures"`
+	UndelegatedSecondaryExposures []SecondaryExposure    `json:"undelegated_secondary_exposures"`
 	ConfigDelegate                string                 `json:"config_delegate"`
 	ExplicitParameters            map[string]bool        `json:"explicit_parameters"`
 	EvaluationDetails             *EvaluationDetails     `json:"evaluation_details,omitempty"`
 	IsExperimentGroup             *bool                  `json:"is_experiment_group,omitempty"`
+}
+
+type SecondaryExposure struct {
+	Gate      string `json:"gate"`
+	GateValue string `json:"gateValue"`
+	RuleID    string `json:"ruleID"`
 }
 
 func newEvalResultFromUserPersistedValues(configName string, persitedValues UserPersistedValues) *evalResult {
@@ -135,7 +141,7 @@ func (e *evaluator) evalGateImpl(user User, gateName string, depth int) *evalRes
 	}
 	emptyEvalResult := new(evalResult)
 	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
-	emptyEvalResult.SecondaryExposures = make([]map[string]string, 0)
+	emptyEvalResult.SecondaryExposures = make([]SecondaryExposure, 0)
 	return emptyEvalResult
 }
 
@@ -151,7 +157,7 @@ func (e *evaluator) evalConfigImpl(user User, configName string, persistedValues
 	if !hasConfig {
 		emptyEvalResult := new(evalResult)
 		emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
-		emptyEvalResult.SecondaryExposures = make([]map[string]string, 0)
+		emptyEvalResult.SecondaryExposures = make([]SecondaryExposure, 0)
 		return emptyEvalResult
 	}
 
@@ -179,7 +185,7 @@ func (e *evaluator) evalLayerImpl(user User, name string, persistedValues UserPe
 	if !hasConfig {
 		emptyEvalResult := new(evalResult)
 		emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
-		emptyEvalResult.SecondaryExposures = make([]map[string]string, 0)
+		emptyEvalResult.SecondaryExposures = make([]SecondaryExposure, 0)
 		return emptyEvalResult
 	}
 
@@ -239,7 +245,7 @@ func (e *evaluator) getGateOverrideEval(name string) (*evalResult, bool) {
 			Value:              gateOverride,
 			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
-			SecondaryExposures: make([]map[string]string, 0),
+			SecondaryExposures: make([]SecondaryExposure, 0),
 		}, true
 	}
 
@@ -261,7 +267,7 @@ func (e *evaluator) getConfigOverrideEval(name string) (*evalResult, bool) {
 			JsonValue:          configOverride,
 			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
-			SecondaryExposures: make([]map[string]string, 0),
+			SecondaryExposures: make([]SecondaryExposure, 0),
 		}, true
 	}
 
@@ -283,7 +289,7 @@ func (e *evaluator) getLayerOverrideEval(name string) (*evalResult, bool) {
 			JsonValue:          layerOverride,
 			RuleID:             "override",
 			EvaluationDetails:  evalDetails,
-			SecondaryExposures: make([]map[string]string, 0),
+			SecondaryExposures: make([]SecondaryExposure, 0),
 		}, true
 	}
 
@@ -317,14 +323,14 @@ func (e *evaluator) getClientInitializeResponse(user User, clientKey string, inc
 	return getClientInitializeResponse(user, e, clientKey, includeLocalOverrides)
 }
 
-func (e *evaluator) cleanExposures(exposures []map[string]string) []map[string]string {
+func (e *evaluator) cleanExposures(exposures []SecondaryExposure) []SecondaryExposure {
 	seen := make(map[string]bool)
-	result := make([]map[string]string, 0)
+	result := make([]SecondaryExposure, 0)
 	for _, exposure := range exposures {
-		if strings.HasPrefix(exposure["gate"], "segment:") {
+		if strings.HasPrefix(exposure.Gate, "segment:") {
 			continue
 		}
-		key := fmt.Sprintf("%s|%s|%s", exposure["gate"], exposure["gateValue"], exposure["ruleID"])
+		key := fmt.Sprintf("%s|%s|%s", exposure.Gate, exposure.GateValue, exposure.RuleID)
 		if _, exists := seen[key]; !exists {
 			seen[key] = true
 			result = append(result, exposure)
@@ -347,7 +353,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 		configValue = spec.DefaultValueJSON
 	}
 
-	var exposures = make([]map[string]string, 0)
+	var exposures = make([]SecondaryExposure, 0)
 	defaultRuleID := "default"
 	if spec.Enabled {
 		for _, rule := range spec.Rules {
@@ -409,7 +415,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int) *evalResult {
 	return &evalResult{Value: false, RuleID: defaultRuleID, SecondaryExposures: exposures}
 }
 
-func (e *evaluator) evalDelegate(user User, rule configRule, exposures []map[string]string, depth int) *evalResult {
+func (e *evaluator) evalDelegate(user User, rule configRule, exposures []SecondaryExposure, depth int) *evalResult {
 	config, hasConfig := e.store.getDynamicConfig(rule.ConfigDelegate)
 	if !hasConfig {
 		return nil
@@ -452,7 +458,7 @@ func getUnitID(user User, idType string) string {
 }
 
 func (e *evaluator) evalRule(user User, rule configRule, depth int) *evalResult {
-	var exposures = make([]map[string]string, 0)
+	var exposures = make([]SecondaryExposure, 0)
 	var finalResult = &evalResult{Value: true, FetchFromServer: false}
 	for _, cond := range rule.Conditions {
 		res := e.evalCondition(user, cond, depth+1)
@@ -484,10 +490,10 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int) *e
 		if result.FetchFromServer {
 			return &evalResult{FetchFromServer: true}
 		}
-		newExposure := map[string]string{
-			"gate":      dependentGateName,
-			"gateValue": strconv.FormatBool(result.Value),
-			"ruleID":    result.RuleID,
+		newExposure := SecondaryExposure{
+			Gate:      dependentGateName,
+			GateValue: strconv.FormatBool(result.Value),
+			RuleID:    result.RuleID,
 		}
 		allExposures := append(result.SecondaryExposures, newExposure)
 		if condType == "pass_gate" {
