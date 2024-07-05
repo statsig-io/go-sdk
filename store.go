@@ -392,7 +392,7 @@ func (s *store) parseTargetValueMapFromSpec(spec *configSpec) {
 
 // Returns a tuple of booleans indicating 1. parsed, 2. updated
 func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
-	if specs.Time <= s.lastSyncTime {
+	if specs.Time < s.lastSyncTime {
 		return false, false
 	}
 	s.diagnostics.initDiagnostics.updateSamplingRates(specs.DiagnosticsSampleRates)

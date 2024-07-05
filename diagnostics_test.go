@@ -83,7 +83,7 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 					assertMarkerEqual(t, markers[0], "download_config_specs", "network_request", "start")
 					assertMarkerEqual(t, markers[1], "download_config_specs", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
 					assertMarkerEqual(t, markers[2], "download_config_specs", "process", "start")
-					assertMarkerEqual(t, markers[3], "download_config_specs", "process", "end", Pair{"success", false})
+					assertMarkerEqual(t, markers[3], "download_config_specs", "process", "end", Pair{"success", true})
 					assertMarkerEqual(t, markers[4], "get_id_list_sources", "network_request", "start")
 					assertMarkerEqual(t, markers[5], "get_id_list_sources", "network_request", "end", Pair{"success", true}, Pair{"statusCode", float64(200)}, Pair{"sdkRegion", "az-westus-2"})
 					assertMarkerEqual(t, markers[6], "get_id_list_sources", "process", "start", Pair{"idListCount", float64(1)})
