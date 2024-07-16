@@ -328,7 +328,9 @@ func TestDiagnosticsSampling(t *testing.T) {
 		instance.evaluator.store.fetchConfigSpecsFromServer(false)
 		instance.logger.flush(false)
 	}
+	mu.RLock()
 	numEvents := len(events)
+	mu.RUnlock()
 	if !(numEvents > 0 && numEvents < 10) {
 		t.Errorf("Expected between %d and %d events, received %d", 0, 10, numEvents)
 	}
@@ -339,7 +341,9 @@ func TestDiagnosticsSampling(t *testing.T) {
 		instance.evaluator.store.fetchIDListsFromServer()
 		instance.logger.flush(false)
 	}
+	mu.RLock()
 	numEvents = len(events)
+	mu.RUnlock()
 	if !(numEvents > 0 && numEvents < 10) {
 		t.Errorf("Expected between %d and %d events, received %d", 0, 10, numEvents)
 	}
