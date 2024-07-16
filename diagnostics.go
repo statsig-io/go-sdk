@@ -79,6 +79,7 @@ type tags struct {
 	IDListCount *int    `json:"idListCount,omitempty"`
 	URL         *string `json:"url,omitempty"`
 	Name        *string `json:"name,omitempty"`
+	Reason      *string `json:"reason,omitempty"`
 }
 
 var DEFAULT_SAMPLING_RATES = map[string]int{
@@ -310,6 +311,12 @@ func (m *marker) url(val string) *marker {
 func (m *marker) name(val string) *marker {
 	m.Name = new(string)
 	*m.Name = val
+	return m
+}
+
+func (m *marker) reason(reason string) *marker {
+	m.Reason = new(string)
+	*m.Reason = reason
 	return m
 }
 

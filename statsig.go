@@ -104,23 +104,7 @@ func InitializeWithOptions(sdkKey string, options *Options) {
 		return
 	}
 
-	if options.InitTimeout > 0 {
-		channel := make(chan *Client, 1)
-		go func() {
-			client := NewClientWithOptions(sdkKey, options)
-			channel <- client
-		}()
-
-		select {
-		case res := <-channel:
-			instance = res
-		case <-time.After(options.InitTimeout):
-			Logger().LogStep(StatsigProcessInitialize, "Timed out")
-			return
-		}
-	} else {
-		instance = NewClientWithOptions(sdkKey, options)
-	}
+	instance = NewClientWithOptions(sdkKey, options)
 }
 
 // Checks the value of a Feature Gate for the given user

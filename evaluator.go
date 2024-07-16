@@ -103,16 +103,32 @@ func newEvaluator(
 		}
 	}()
 	persistentStorageUtils := newUserPersistentStorageUtils(options)
+	countryLookup := newCountryLookup(options.IPCountryOptions)
+	countryLookup.init(true)
+	uaParser := newUAParser(options.UAParserOptions)
+	uaParser.init(true)
 
 	return &evaluator{
 		store:                  store,
-		countryLookup:          newCountryLookup(options.IPCountryOptions),
-		uaParser:               newUAParser(options.UAParserOptions),
+		countryLookup:          countryLookup,
+		uaParser:               uaParser,
 		gateOverrides:          make(map[string]bool),
 		configOverrides:        make(map[string]map[string]interface{}),
 		layerOverrides:         make(map[string]map[string]interface{}),
 		persistentStorageUtils: persistentStorageUtils,
 	}
+}
+
+func (e *evaluator) initialize(options *Options) {
+	e.store.initialize()
+	e.initializeHeavyEvaluatorFields(options)
+}
+
+func (e *evaluator) initializeHeavyEvaluatorFields(options *Options) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.uaParser.init(false)
+	e.countryLookup.init(false)
 }
 
 func (e *evaluator) shutdown() {

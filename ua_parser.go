@@ -19,7 +19,6 @@ func newUAParser(options UAParserOptions) *uaParser {
 		wg:      sync.WaitGroup{},
 		options: options,
 	}
-	uaParser.init()
 	return uaParser
 }
 
@@ -29,7 +28,7 @@ func (u *uaParser) isReady() bool {
 	return u.parser != nil
 }
 
-func (u *uaParser) init() {
+func (u *uaParser) init(lazyLoadOverride bool) {
 	if u.options.Disabled {
 		return
 	}
@@ -40,7 +39,13 @@ func (u *uaParser) init() {
 		u.parser = uaparser.NewFromSaved()
 		u.mu.Unlock()
 	}()
-	if !u.options.LazyLoad {
+	u.mu.Lock()
+	lazyLoad := u.options.LazyLoad
+	if lazyLoadOverride {
+		lazyLoad = lazyLoadOverride
+	}
+	u.mu.Unlock()
+	if !lazyLoad {
 		u.wg.Wait()
 	}
 }

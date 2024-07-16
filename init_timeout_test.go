@@ -79,12 +79,10 @@ func TestInitTimeout(t *testing.T) {
 		if elapsed > (options.InitTimeout + initTimeBuffer) {
 			t.Errorf("Initalize exceeded timeout %s", elapsed)
 		}
-		defer func() {
-			if err := recover(); err == nil {
-				t.Errorf("Expected initialize to fail")
-			}
-		}()
-		CheckGate(user, "nonexistent-gate")
+		gate := CheckGate(user, "always_on_gate")
+		if gate != false {
+			t.Errorf("Expected gate to be default off")
+		}
 		ShutdownAndDangerouslyClearInstance()
 	})
 }

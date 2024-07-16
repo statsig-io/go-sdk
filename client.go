@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // An instance of a StatsigClient for interfacing with Statsig Feature Gates, Dynamic Configs, Experiments, and Event Logging
@@ -38,8 +39,7 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	transport := newTransport(sdkKey, options)
 	logger := newLogger(transport, options, diagnostics, errorBoundary)
 	evaluator := newEvaluator(transport, errorBoundary, options, diagnostics, sdkKey)
-	diagnostics.initialize().overall().end().success(true).mark()
-	return &Client{
+	client := &Client{
 		sdkKey:        sdkKey,
 		evaluator:     evaluator,
 		logger:        logger,
@@ -48,6 +48,38 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 		options:       options,
 		diagnostics:   diagnostics,
 	}
+
+	if options.InitTimeout > 0 {
+		channel := make(chan *Client, 1)
+		go func() {
+			client.init()
+			channel <- client
+		}()
+
+		select {
+		case res := <-channel:
+			diagnostics.initialize().overall().end().success(true).mark()
+			return res
+		case <-time.After(options.InitTimeout):
+			Logger().LogStep(StatsigProcessInitialize, "Timed out")
+			diagnostics.initialize().overall().end().success(false).reason("timeout").mark()
+			client.initInBackground()
+			return client
+		}
+	} else {
+		client.init()
+	}
+
+	diagnostics.initialize().overall().end().success(true).mark()
+	return client
+}
+
+func (c *Client) init() {
+	c.evaluator.initialize(c.options)
+}
+
+func (c *Client) initInBackground() {
+	c.evaluator.store.startPolling()
 }
 
 // Checks the value of a Feature Gate for the given user

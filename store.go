@@ -123,6 +123,8 @@ type store struct {
 	diagnostics          *diagnostics
 	mu                   sync.RWMutex
 	sdkKey               string
+	isPolling            bool
+	bootstrapValues      string
 }
 
 var syncOutdatedMax = 2 * time.Minute
@@ -146,12 +148,12 @@ func newStore(
 		transport,
 		configSyncInterval,
 		idListSyncInterval,
-		options.BootstrapValues,
 		options.RulesUpdatedCallback,
 		errorBoundary,
 		options.DataAdapter,
 		diagnostics,
 		sdkKey,
+		options.BootstrapValues,
 	)
 }
 
@@ -159,12 +161,12 @@ func newStoreInternal(
 	transport *transport,
 	configSyncInterval time.Duration,
 	idListSyncInterval time.Duration,
-	bootstrapValues string,
 	rulesUpdatedCallback func(rules string, time int64),
 	errorBoundary *errorBoundary,
 	dataAdapter IDataAdapter,
 	diagnostics *diagnostics,
 	sdkKey string,
+	bootstrapValues string,
 ) *store {
 	store := &store{
 		featureGates:         make(map[string]configSpec),
@@ -181,40 +183,54 @@ func newStoreInternal(
 		syncFailureCount:     0,
 		diagnostics:          diagnostics,
 		sdkKey:               sdkKey,
+		isPolling:            false,
+		bootstrapValues:      bootstrapValues,
 	}
-	firstAttempt := true
-	if dataAdapter != nil {
-		firstAttempt = false
-		dataAdapter.Initialize()
-		store.fetchConfigSpecsFromAdapter()
-	} else if bootstrapValues != "" {
-		firstAttempt = false
-		if _, updated := store.processConfigSpecs(bootstrapValues, store.addDiagnostics().bootstrap()); updated {
-			store.mu.Lock()
-			store.initReason = reasonBootstrap
-			store.mu.Unlock()
-		}
-	}
-	if store.lastSyncTime == 0 {
-		if !firstAttempt {
-			store.diagnostics.initDiagnostics.logProcess("Retrying with network...")
-		}
-		store.fetchConfigSpecsFromServer(true)
-	}
-	store.mu.Lock()
-	store.initialSyncTime = store.lastSyncTime
-	store.mu.Unlock()
-	if store.dataAdapter != nil {
-		store.fetchIDListsFromAdapter()
-	} else {
-		store.fetchIDListsFromServer()
-	}
-	store.mu.Lock()
-	store.initializedIDLists = true
-	store.mu.Unlock()
-	go store.pollForRulesetChanges()
-	go store.pollForIDListChanges()
 	return store
+}
+
+func (s *store) startPolling() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.isPolling {
+		go s.pollForRulesetChanges()
+		go s.pollForIDListChanges()
+		s.isPolling = true
+	}
+}
+
+func (s *store) initialize() {
+	firstAttempt := true
+	if s.dataAdapter != nil {
+		firstAttempt = false
+		s.dataAdapter.Initialize()
+		s.fetchConfigSpecsFromAdapter()
+	} else if s.bootstrapValues != "" {
+		firstAttempt = false
+		if _, updated := s.processConfigSpecs(s.bootstrapValues, s.addDiagnostics().bootstrap()); updated {
+			s.mu.Lock()
+			s.initReason = reasonBootstrap
+			s.mu.Unlock()
+		}
+	}
+	if s.lastSyncTime == 0 {
+		if !firstAttempt {
+			s.diagnostics.initDiagnostics.logProcess("Retrying with network...")
+		}
+		s.fetchConfigSpecsFromServer(true)
+	}
+	s.mu.Lock()
+	s.initialSyncTime = s.lastSyncTime
+	s.mu.Unlock()
+	if s.dataAdapter != nil {
+		s.fetchIDListsFromAdapter()
+	} else {
+		s.fetchIDListsFromServer()
+	}
+	s.mu.Lock()
+	s.initializedIDLists = true
+	s.mu.Unlock()
+	s.startPolling()
 }
 
 func (s *store) getGate(name string) (configSpec, bool) {
@@ -725,6 +741,7 @@ func (s *store) stopPolling() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.shutdown = true
+	s.isPolling = false
 }
 
 func (s *store) addDiagnostics() *marker {

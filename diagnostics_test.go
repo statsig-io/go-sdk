@@ -57,6 +57,41 @@ func TestInitDiagnostics(t *testing.T) {
 	assertMarkerEqual(t, markers[13], "overall", "", "end", Pair{"success", true})
 }
 
+func TestInitTimeoutDiagnostics(t *testing.T) {
+	var events events
+	testServer := getTestServer(testServerOptions{
+		dcsOnline: true,
+		onLogEvent: func(newEvents []map[string]interface{}) {
+			events = newEvents
+		},
+	})
+	defer testServer.Close()
+
+	options := &Options{
+		API:                 testServer.URL,
+		Environment:         Environment{Tier: "test"},
+		OutputLoggerOptions: getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DisableInitDiagnostics: false,
+			DisableSyncDiagnostics: true,
+			DisableApiDiagnostics:  true,
+		},
+		InitTimeout: 1 * time.Millisecond,
+	}
+	InitializeWithOptions("secret-key", options)
+	ShutdownAndDangerouslyClearInstance()
+
+	markers := extractMarkers(events, 0)
+
+	if len(markers) != 3 {
+		t.Errorf("Expected %d markers but got %d", 14, len(markers))
+	}
+
+	assertMarkerEqual(t, markers[0], "overall", "", "start")
+	assertMarkerEqual(t, markers[1], "download_config_specs", "network_request", "start")
+	assertMarkerEqual(t, markers[2], "overall", "", "end", Pair{"success", false}, Pair{"reason", "timeout"})
+}
+
 func TestConfigSyncDiagnostics(t *testing.T) {
 	var mu sync.Mutex
 
