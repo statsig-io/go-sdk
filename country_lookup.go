@@ -19,6 +19,7 @@ func newCountryLookup(options IPCountryOptions) *countryLookup {
 		wg:      sync.WaitGroup{},
 		options: options,
 	}
+	countryLookup.delayedSetup()
 	return countryLookup
 }
 
@@ -28,7 +29,7 @@ func (c *countryLookup) isReady() bool {
 	return c.lookup != nil
 }
 
-func (c *countryLookup) init(lazyLoadOverride bool) {
+func (c *countryLookup) delayedSetup() {
 	if c.options.Disabled {
 		return
 	}
@@ -39,15 +40,19 @@ func (c *countryLookup) init(lazyLoadOverride bool) {
 		c.lookup = countrylookup.New()
 		c.mu.Unlock()
 	}()
-	c.mu.Lock()
-	lazyLoad := c.options.LazyLoad
-	if lazyLoadOverride {
-		lazyLoad = lazyLoadOverride
+}
+
+func (c *countryLookup) init() {
+	if !c.options.LazyLoad {
+		c.ensureLoaded()
 	}
-	c.mu.Unlock()
-	if !lazyLoad {
-		c.wg.Wait()
+}
+
+func (c *countryLookup) ensureLoaded() {
+	if c.options.Disabled {
+		return
 	}
+	c.wg.Wait()
 }
 
 func (c *countryLookup) lookupIp(ip string) (string, bool) {

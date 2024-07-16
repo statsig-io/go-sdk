@@ -75,7 +75,7 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 }
 
 func (c *Client) init() {
-	c.evaluator.initialize(c.options)
+	c.evaluator.initialize()
 }
 
 func (c *Client) initInBackground() {
