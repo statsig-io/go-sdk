@@ -23,9 +23,10 @@ func Initialize(sdkKey string) {
 
 // Advanced options for configuring the Statsig SDK
 type Options struct {
-	API                   string      `json:"api"`
-	Environment           Environment `json:"environment"`
-	LocalMode             bool        `json:"localMode"`
+	API                   string       `json:"api"`
+	APIOverrides          APIOverrides `json:"api_overrides"`
+	Environment           Environment  `json:"environment"`
+	LocalMode             bool         `json:"localMode"`
 	ConfigSyncInterval    time.Duration
 	IDListSyncInterval    time.Duration
 	LoggingInterval       time.Duration
@@ -41,6 +42,12 @@ type Options struct {
 	UserPersistentStorage IUserPersistentStorage
 	IPCountryOptions      IPCountryOptions
 	UAParserOptions       UAParserOptions
+}
+
+type APIOverrides struct {
+	DownloadConfigSpecs string `json:"download_config_specs"`
+	GetIDLists          string `json:"get_id_lists"`
+	LogEvent            string `json:"log_event"`
 }
 
 type EvaluationCallbacks struct {

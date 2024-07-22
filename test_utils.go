@@ -17,6 +17,8 @@ type events []map[string]interface{}
 type testServerOptions struct {
 	dcsOnline       bool
 	onLogEvent      func(events []map[string]interface{})
+	onDCS           func()
+	onGetIDLists    func()
 	withSampling    bool
 	isLayerExposure bool
 }
@@ -38,6 +40,9 @@ func getTestServer(opts testServerOptions) *httptest.Server {
 				bytes, _ := os.ReadFile(dcsFile)
 				res.WriteHeader(http.StatusOK)
 				_, _ = res.Write(bytes)
+			}
+			if opts.onDCS != nil {
+				opts.onDCS()
 			}
 		} else if strings.Contains(req.URL.Path, "log_event") {
 			res.WriteHeader(http.StatusOK)
@@ -74,6 +79,9 @@ func getTestServer(opts testServerOptions) *httptest.Server {
 				},
 			})
 			_, _ = res.Write(response)
+			if opts.onGetIDLists != nil {
+				opts.onGetIDLists()
+			}
 		}
 	}))
 }

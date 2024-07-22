@@ -23,19 +23,35 @@ const (
 	backoffMultiplier = 10
 )
 
+type apis struct {
+	downloadConfigSpecs string
+	getIDLists          string
+	logEvent            string
+}
+
 type transport struct {
-	api                       string
-	apiForDownloadConfigSpecs string
-	sdkKey                    string
-	metadata                  statsigMetadata // Safe to read from but not thread safe to write into. If value needs to change, please ensure thread safety.
-	client                    *http.Client
-	options                   *Options
+	api      apis
+	sdkKey   string
+	metadata statsigMetadata // Safe to read from but not thread safe to write into. If value needs to change, please ensure thread safety.
+	client   *http.Client
+	options  *Options
 }
 
 func newTransport(secret string, options *Options) *transport {
-	api := defaultString(options.API, StatsigAPI)
-	apiForDownloadConfigSpecs := defaultString(options.API, StatsigCDN)
-	api = strings.TrimSuffix(api, "/")
+	api := apis{
+		downloadConfigSpecs: strings.TrimSuffix(defaultString(
+			options.APIOverrides.DownloadConfigSpecs,
+			defaultString(options.API, StatsigCDN),
+		), "/"),
+		getIDLists: strings.TrimSuffix(defaultString(
+			options.APIOverrides.GetIDLists,
+			defaultString(options.API, StatsigAPI),
+		), "/"),
+		logEvent: strings.TrimSuffix(defaultString(
+			options.APIOverrides.LogEvent,
+			defaultString(options.API, StatsigAPI),
+		), "/"),
+	}
 	defer func() {
 		if err := recover(); err != nil {
 			Logger().LogError(err)
@@ -43,12 +59,11 @@ func newTransport(secret string, options *Options) *transport {
 	}()
 
 	return &transport{
-		api:                       api,
-		apiForDownloadConfigSpecs: apiForDownloadConfigSpecs,
-		metadata:                  getStatsigMetadata(),
-		sdkKey:                    secret,
-		client:                    &http.Client{Timeout: time.Second * 3},
-		options:                   options,
+		api:      api,
+		metadata: getStatsigMetadata(),
+		sdkKey:   secret,
+		client:   &http.Client{Timeout: time.Second * 3},
+		options:  options,
 	}
 }
 
@@ -177,9 +192,13 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 
 func (transport *transport) buildURL(endpoint string) string {
 	if strings.Contains(endpoint, "download_config_specs") {
-		return transport.apiForDownloadConfigSpecs + endpoint
+		return transport.api.downloadConfigSpecs + endpoint
+	} else if strings.Contains(endpoint, "get_id_list") {
+		return transport.api.getIDLists + endpoint
+	} else if strings.Contains(endpoint, "log_event") {
+		return transport.api.logEvent + endpoint
 	} else {
-		return transport.api + endpoint
+		return defaultString(transport.options.API, StatsigAPI) + endpoint
 	}
 }
 
