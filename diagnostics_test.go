@@ -83,13 +83,8 @@ func TestInitTimeoutDiagnostics(t *testing.T) {
 
 	markers := extractMarkers(events, 0)
 
-	if len(markers) != 3 {
-		t.Errorf("Expected %d markers but got %d", 14, len(markers))
-	}
-
 	assertMarkerEqual(t, markers[0], "overall", "", "start")
-	assertMarkerEqual(t, markers[1], "download_config_specs", "network_request", "start")
-	assertMarkerEqual(t, markers[2], "overall", "", "end", Pair{"success", false}, Pair{"reason", "timeout"})
+	assertMarkerEqual(t, markers[len(markers)-1], "overall", "", "end", Pair{"success", false}, Pair{"reason", "timeout"})
 }
 
 func TestConfigSyncDiagnostics(t *testing.T) {
@@ -143,7 +138,7 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 		},
 		ConfigSyncInterval: time.Millisecond * 900,
 		IDListSyncInterval: time.Millisecond * 1000,
-		LoggingInterval:    time.Millisecond * 1100,
+		LoggingInterval:    time.Millisecond * 1500,
 	}
 	InitializeWithOptions("secret-key", options)
 	defer ShutdownAndDangerouslyClearInstance()

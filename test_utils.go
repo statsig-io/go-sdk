@@ -40,6 +40,9 @@ func getTestServer(opts testServerOptions) *httptest.Server {
 				bytes, _ := os.ReadFile(dcsFile)
 				res.WriteHeader(http.StatusOK)
 				_, _ = res.Write(bytes)
+				if opts.onDCS != nil {
+					opts.onDCS()
+				}
 			}
 			if opts.onDCS != nil {
 				opts.onDCS()
