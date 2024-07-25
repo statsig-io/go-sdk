@@ -7,15 +7,15 @@ package statsig
 // experiments and etc; they are omitted in logs.
 type User struct {
 	UserID             string                 `json:"userID"`
-	Email              string                 `json:"email"`
-	IpAddress          string                 `json:"ip"`
-	UserAgent          string                 `json:"userAgent"`
-	Country            string                 `json:"country"`
-	Locale             string                 `json:"locale"`
-	AppVersion         string                 `json:"appVersion"`
-	Custom             map[string]interface{} `json:"custom"`
-	PrivateAttributes  map[string]interface{} `json:"privateAttributes"`
-	StatsigEnvironment map[string]string      `json:"statsigEnvironment"`
+	Email              string                 `json:"email,omitempty"`
+	IpAddress          string                 `json:"ip,omitempty"`
+	UserAgent          string                 `json:"userAgent,omitempty"`
+	Country            string                 `json:"country,omitempty"`
+	Locale             string                 `json:"locale,omitempty"`
+	AppVersion         string                 `json:"appVersion,omitempty"`
+	Custom             map[string]interface{} `json:"custom,omitempty"`
+	PrivateAttributes  map[string]interface{} `json:"privateAttributes,omitempty"`
+	StatsigEnvironment map[string]string      `json:"statsigEnvironment,omitempty"`
 	CustomIDs          map[string]string      `json:"customIDs"`
 }
 
