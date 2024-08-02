@@ -29,13 +29,6 @@ type logExceptionRequestBody struct {
 	Tag             string                 `json:"tag"`
 }
 
-type logExceptionOptions struct {
-	Tag          string
-	Extra        map[string]interface{}
-	BypassDedupe bool
-	LogToOutput  bool
-}
-
 type logExceptionResponse struct {
 	Success bool
 }
@@ -134,7 +127,7 @@ func (e *errorBoundary) ebRecover(recoverCallback func()) {
 	}
 }
 
-func (e *errorBoundary) logExceptionWithOptions(exception error, options logExceptionOptions) {
+func (e *errorBoundary) logExceptionWithContext(exception error, context StatsigContext) {
 	if e.options.StatsigLoggerOptions.DisableAllLogging || e.options.LocalMode {
 		return
 	}
@@ -145,10 +138,10 @@ func (e *errorBoundary) logExceptionWithOptions(exception error, options logExce
 		exceptionString = exception.Error()
 	}
 
-	if options.LogToOutput {
+	if context.LogToOutput {
 		Logger().LogError(exception)
 	}
-	if !options.BypassDedupe && e.checkSeen(exceptionString) {
+	if !context.BypassDedupe && e.checkSeen(exceptionString) {
 		return
 	}
 	stack := make([]byte, 1024)
@@ -158,8 +151,8 @@ func (e *errorBoundary) logExceptionWithOptions(exception error, options logExce
 		Exception:       exceptionString,
 		Info:            string(stack),
 		StatsigMetadata: metadata,
-		Extra:           options.Extra,
-		Tag:             options.Tag,
+		Extra:           context.getContextForLogging(),
+		Tag:             context.Caller,
 	}
 	bodyString, err := json.Marshal(body)
 	if err != nil {
@@ -181,5 +174,5 @@ func (e *errorBoundary) logExceptionWithOptions(exception error, options logExce
 }
 
 func (e *errorBoundary) logException(exception error) {
-	e.logExceptionWithOptions(exception, logExceptionOptions{})
+	e.logExceptionWithContext(exception, StatsigContext{})
 }

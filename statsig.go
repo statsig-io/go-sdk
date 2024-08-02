@@ -95,6 +95,7 @@ type Environment struct {
 type GCIROptions struct {
 	IncludeLocalOverrides bool
 	ClientKey             string
+	HashAlgorithm         string
 }
 
 // IsInitialized returns whether the global Statsig instance has already been initialized or not
@@ -270,7 +271,7 @@ func GetLayerWithOptions(user User, layer string, options *GetLayerOptions) Laye
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetLayerWithOptions"))
 	}
-	return instance.getLayerImpl(user, layer, options)
+	return instance.getLayerImpl(user, layer, options, StatsigContext{Caller: "GetLayerWithOptions", ConfigName: layer})
 }
 
 // Logs an exposure event for the parameter in the given layer

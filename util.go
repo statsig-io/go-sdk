@@ -115,3 +115,14 @@ func getUnixMilli() int64 {
 	unixNano := time.Now().UnixNano()
 	return unixNano / int64(time.Millisecond)
 }
+
+func hashName(hashAlgorithm string, name string) string {
+	switch hashAlgorithm {
+	case "sha256":
+		return getHashBase64StringEncoding(name)
+	case "djb2":
+		return getDJB2Hash(name)
+	default:
+		return name
+	}
+}

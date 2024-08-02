@@ -67,9 +67,12 @@ func getClientInitializeResponse(
 	e *evaluator,
 	clientKey string,
 	includeLocalOverrides bool,
+	hashAlgorithm string,
 ) ClientInitializeResponse {
+	context := StatsigContext{Caller: "getClientInitializeResponse", Hash: hashAlgorithm}
+
 	evalResultToBaseResponse := func(name string, eval *evalResult) (string, baseSpecInitializeResponse) {
-		hashedName := getHashBase64StringEncoding(name)
+		hashedName := hashName(hashAlgorithm, name)
 		result := baseSpecInitializeResponse{
 			Name:               hashedName,
 			RuleID:             eval.RuleID,
@@ -83,10 +86,10 @@ func getClientInitializeResponse(
 			if gateOverride, hasOverride := e.getGateOverrideEval(gateName); hasOverride {
 				evalRes = gateOverride
 			} else {
-				evalRes = e.eval(user, spec, 0)
+				evalRes = e.eval(user, spec, 0, context)
 			}
 		} else {
-			evalRes = e.eval(user, spec, 0)
+			evalRes = e.eval(user, spec, 0, context)
 		}
 		hashedName, base := evalResultToBaseResponse(gateName, evalRes)
 		result := GateInitializeResponse{
@@ -101,10 +104,10 @@ func getClientInitializeResponse(
 			if configOverride, hasOverride := e.getConfigOverrideEval(configName); hasOverride {
 				evalRes = configOverride
 			} else {
-				evalRes = e.eval(user, spec, 0)
+				evalRes = e.eval(user, spec, 0, context)
 			}
 		} else {
-			evalRes = e.eval(user, spec, 0)
+			evalRes = e.eval(user, spec, 0, context)
 		}
 		hashedName, base := evalResultToBaseResponse(configName, evalRes)
 		result := ConfigInitializeResponse{
@@ -137,7 +140,7 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 	layerToResponse := func(layerName string, spec configSpec) (string, LayerInitializeResponse) {
-		evalResult := e.eval(user, spec, 0)
+		evalResult := e.eval(user, spec, 0, StatsigContext{Hash: hashAlgorithm})
 		hashedName, base := evalResultToBaseResponse(layerName, evalResult)
 		result := LayerInitializeResponse{
 			baseSpecInitializeResponse:    base,
@@ -157,9 +160,9 @@ func getClientInitializeResponse(
 		}
 		if delegate != "" {
 			delegateSpec, exists := e.store.getDynamicConfig(delegate)
-			delegateResult := e.eval(user, delegateSpec, 0)
+			delegateResult := e.eval(user, delegateSpec, 0, context)
 			if exists {
-				result.AllocatedExperimentName = getHashBase64StringEncoding(delegate)
+				result.AllocatedExperimentName = hashName(hashAlgorithm, delegate)
 				result.IsUserInExperiment = new(bool)
 				*result.IsUserInExperiment = delegateResult.IsExperimentGroup != nil && *delegateResult.IsExperimentGroup
 				result.IsExperimentActive = new(bool)

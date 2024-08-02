@@ -286,12 +286,9 @@ func (l *logger) sendEvents(events []interface{}) {
 	var res logEventResponse
 	_, err := l.transport.log_event(events, &res, RequestOptions{retries: maxRetries})
 	if err != nil {
-		extra := map[string]interface{}{
-			"eventCount": len(events),
-		}
-		options := logExceptionOptions{
-			Tag:          "statsig::log_event_failed",
-			Extra:        extra,
+		context := StatsigContext{
+			Caller:       "statsig::log_event_failed",
+			EventCount:   len(events),
 			BypassDedupe: true,
 			LogToOutput:  true,
 		}
@@ -299,7 +296,7 @@ func (l *logger) sendEvents(events []interface{}) {
 			Events: len(events),
 			Err:    err,
 		}
-		l.errorBoundary.logExceptionWithOptions(err, options)
+		l.errorBoundary.logExceptionWithContext(err, context)
 	}
 }
 

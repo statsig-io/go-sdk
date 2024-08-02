@@ -85,25 +85,29 @@ func (c *Client) initInBackground() {
 // Checks the value of a Feature Gate for the given user
 func (c *Client) CheckGate(user User, gate string) bool {
 	options := checkGateOptions{disableLogExposures: false}
-	return c.checkGateImpl(user, gate, options).Value
+	context := StatsigContext{Caller: "checkGate", ConfigName: gate}
+	return c.checkGateImpl(user, gate, options, context).Value
 }
 
 // Checks the value of a Feature Gate for the given user without logging an exposure event
 func (c *Client) CheckGateWithExposureLoggingDisabled(user User, gate string) bool {
 	options := checkGateOptions{disableLogExposures: true}
-	return c.checkGateImpl(user, gate, options).Value
+	context := StatsigContext{Caller: "checkGateWithExposureLoggingDisabled", ConfigName: gate}
+	return c.checkGateImpl(user, gate, options, context).Value
 }
 
 // Get the Feature Gate for the given user
 func (c *Client) GetGate(user User, gate string) FeatureGate {
 	options := checkGateOptions{disableLogExposures: false}
-	return c.checkGateImpl(user, gate, options)
+	context := StatsigContext{Caller: "getGate", ConfigName: gate}
+	return c.checkGateImpl(user, gate, options, context)
 }
 
 // Checks the value of a Feature Gate for the given user without logging an exposure event
 func (c *Client) GetGateWithExposureLoggingDisabled(user User, gate string) FeatureGate {
 	options := checkGateOptions{disableLogExposures: true}
-	return c.checkGateImpl(user, gate, options)
+	context := StatsigContext{Caller: "getGateWithExposureLoggingDisabled", ConfigName: gate}
+	return c.checkGateImpl(user, gate, options, context)
 }
 
 // Logs an exposure event for the dynamic config
@@ -113,7 +117,7 @@ func (c *Client) ManuallyLogGateExposure(user User, gate string) {
 			return
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.evalGate(user, gate)
+		res := c.evaluator.evalGate(user, gate, StatsigContext{Caller: "logGateExposure", ConfigName: gate})
 		context := &logContext{isManualExposure: true}
 		c.logger.logGateExposure(user, gate, res.Value, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 	})
@@ -123,14 +127,16 @@ func (c *Client) ManuallyLogGateExposure(user User, gate string) {
 func (c *Client) GetConfig(user User, config string) DynamicConfig {
 	options := &getConfigOptions{disableLogExposures: false}
 	context := getConfigImplContext{configOptions: options}
-	return c.getConfigImpl(user, config, context)
+	statsigContext := StatsigContext{Caller: "getConfig", ConfigName: config}
+	return c.getConfigImpl(user, config, context, statsigContext)
 }
 
 // Gets the DynamicConfig value for the given user without logging an exposure event
 func (c *Client) GetConfigWithExposureLoggingDisabled(user User, config string) DynamicConfig {
 	options := &getConfigOptions{disableLogExposures: true}
 	context := getConfigImplContext{configOptions: options}
-	return c.getConfigImpl(user, config, context)
+	statsigContext := StatsigContext{Caller: "getConfigWithExposureLoggingDisabled", ConfigName: config}
+	return c.getConfigImpl(user, config, context, statsigContext)
 }
 
 // Logs an exposure event for the config
@@ -140,7 +146,7 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 			return
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.evalConfig(user, config, nil)
+		res := c.evaluator.evalConfig(user, config, nil, StatsigContext{Caller: "logConfigExposure", ConfigName: config})
 		context := &logContext{isManualExposure: true}
 		c.logger.logConfigExposure(user, config, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
 	})
@@ -160,7 +166,8 @@ func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 	}
 	options := &GetExperimentOptions{DisableLogExposures: false}
 	context := getConfigImplContext{experimentOptions: options}
-	return c.getConfigImpl(user, experiment, context)
+	statsigContext := StatsigContext{Caller: "getExperiment", ConfigName: experiment}
+	return c.getConfigImpl(user, experiment, context, statsigContext)
 }
 
 // Gets the DynamicConfig value of an Experiment for the given user without logging an exposure event
@@ -170,7 +177,8 @@ func (c *Client) GetExperimentWithExposureLoggingDisabled(user User, experiment 
 	}
 	options := &GetExperimentOptions{DisableLogExposures: true}
 	context := getConfigImplContext{experimentOptions: options}
-	return c.getConfigImpl(user, experiment, context)
+	statsigContext := StatsigContext{Caller: "getExperimentWithExposureLoggingDisabled", ConfigName: experiment}
+	return c.getConfigImpl(user, experiment, context, statsigContext)
 }
 
 // Gets the DynamicConfig value of an Experiment for the given user with configurable options
@@ -179,7 +187,8 @@ func (c *Client) GetExperimentWithOptions(user User, experiment string, options 
 		return *NewConfig(experiment, nil, "", "", nil)
 	}
 	context := getConfigImplContext{experimentOptions: options}
-	return c.getConfigImpl(user, experiment, context)
+	statsigContext := StatsigContext{Caller: "getExperimentWithOptions", ConfigName: experiment}
+	return c.getConfigImpl(user, experiment, context, statsigContext)
 }
 
 // Logs an exposure event for the experiment
@@ -201,18 +210,21 @@ func (c *Client) GetUserPersistedValues(user User, idType string) UserPersistedV
 // Gets the Layer object for the given user
 func (c *Client) GetLayer(user User, layer string) Layer {
 	options := &GetLayerOptions{DisableLogExposures: false, PersistedValues: nil}
-	return c.getLayerImpl(user, layer, options)
+	context := StatsigContext{Caller: "getLayer", ConfigName: layer}
+	return c.getLayerImpl(user, layer, options, context)
 }
 
 // Gets the Layer object for the given user without logging an exposure event
 func (c *Client) GetLayerWithExposureLoggingDisabled(user User, layer string) Layer {
 	options := &GetLayerOptions{DisableLogExposures: true, PersistedValues: nil}
-	return c.getLayerImpl(user, layer, options)
+	context := StatsigContext{Caller: "getLayerWithExposureLoggingDisabled", ConfigName: layer}
+	return c.getLayerImpl(user, layer, options, context)
 }
 
 // Gets the Layer object for the given user with configurable options
 func (c *Client) GetLayerWithOptions(user User, layer string, options *GetLayerOptions) Layer {
-	return c.getLayerImpl(user, layer, options)
+	context := StatsigContext{Caller: "getLayerWithOptions", ConfigName: layer}
+	return c.getLayerImpl(user, layer, options, context)
 }
 
 // Logs an exposure event for the parameter in the given layer
@@ -222,7 +234,7 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 			return
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.evalLayer(user, layer, nil)
+		res := c.evaluator.evalLayer(user, layer, nil, StatsigContext{Caller: "logLayerParameterExposure", ConfigName: layer})
 		config := NewLayer(layer, res.JsonValue, res.RuleID, res.GroupName, nil, res.ConfigDelegate)
 		context := &logContext{isManualExposure: true}
 		c.logger.logLayerExposure(user, *config, parameter, *res, res.EvaluationDetails, context)
@@ -272,6 +284,7 @@ func (c *Client) GetClientInitializeResponse(user User, clientKey string, includ
 	options := &GCIROptions{
 		IncludeLocalOverrides: includeLocalOverrides,
 		ClientKey:             clientKey,
+		HashAlgorithm:         "sha256",
 	}
 	return c.GetClientInitializeResponseImpl(user, options)
 }
@@ -288,7 +301,11 @@ func (c *Client) GetClientInitializeResponseImpl(user User, options *GCIROptions
 		user = normalizeUser(user, *c.options)
 		includeLocalOverrides := options.IncludeLocalOverrides
 		clientKey := options.ClientKey
-		response := c.evaluator.getClientInitializeResponse(user, clientKey, includeLocalOverrides)
+		hashAlgorithm := options.HashAlgorithm
+		if hashAlgorithm != "none" && hashAlgorithm != "djb2" {
+			hashAlgorithm = "sha256"
+		}
+		response := c.evaluator.getClientInitializeResponse(user, clientKey, includeLocalOverrides, hashAlgorithm)
 		if response.Time == 0 {
 			c.errorBoundary.logException(errors.New("empty response from server"))
 		}
@@ -356,13 +373,13 @@ type getConfigInput struct {
 	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 }
 
-func (c *Client) checkGateImpl(user User, name string, options checkGateOptions) FeatureGate {
+func (c *Client) checkGateImpl(user User, name string, options checkGateOptions, context StatsigContext) FeatureGate {
 	return c.errorBoundary.captureCheckGate(func() FeatureGate {
 		if !c.verifyUser(user) {
 			return *NewGate(name, false, "", "", nil)
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.evalGate(user, name)
+		res := c.evaluator.evalGate(user, name, context)
 		if res.FetchFromServer {
 			serverRes := fetchGate(user, name, c.transport)
 			res = &evalResult{Value: serverRes.Value, RuleID: serverRes.RuleID}
@@ -398,7 +415,7 @@ type getConfigImplContext struct {
 	experimentOptions *GetExperimentOptions
 }
 
-func (c *Client) getConfigImpl(user User, name string, context getConfigImplContext) DynamicConfig {
+func (c *Client) getConfigImpl(user User, name string, context getConfigImplContext, statsigContext StatsigContext) DynamicConfig {
 	return c.errorBoundary.captureGetConfig(func() DynamicConfig {
 		if !c.verifyUser(user) {
 			return *NewConfig(name, nil, "", "", nil)
@@ -409,7 +426,7 @@ func (c *Client) getConfigImpl(user User, name string, context getConfigImplCont
 			persistedValues = context.experimentOptions.PersistedValues
 		}
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.evalConfig(user, name, persistedValues)
+		res := c.evaluator.evalConfig(user, name, persistedValues, statsigContext)
 		config := *NewConfig(name, res.JsonValue, res.RuleID, res.GroupName, res.EvaluationDetails)
 		if res.FetchFromServer {
 			res = c.fetchConfigFromServer(user, name)
@@ -453,14 +470,14 @@ func (c *Client) getConfigImpl(user User, name string, context getConfigImplCont
 	})
 }
 
-func (c *Client) getLayerImpl(user User, name string, options *GetLayerOptions) Layer {
+func (c *Client) getLayerImpl(user User, name string, options *GetLayerOptions, context StatsigContext) Layer {
 	return c.errorBoundary.captureGetLayer(func() Layer {
 		if !c.verifyUser(user) {
 			return *NewLayer(name, nil, "", "", nil, "")
 		}
 
 		user = normalizeUser(user, *c.options)
-		res := c.evaluator.evalLayer(user, name, options.PersistedValues)
+		res := c.evaluator.evalLayer(user, name, options.PersistedValues, context)
 
 		if res.FetchFromServer {
 			res = c.fetchConfigFromServer(user, name)
