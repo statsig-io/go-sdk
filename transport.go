@@ -62,8 +62,11 @@ func newTransport(secret string, options *Options) *transport {
 		api:      api,
 		metadata: getStatsigMetadata(),
 		sdkKey:   secret,
-		client:   &http.Client{Timeout: time.Second * 3},
-		options:  options,
+		client: &http.Client{
+			Timeout:   time.Second * 3,
+			Transport: options.Transport,
+		},
+		options: options,
 	}
 }
 

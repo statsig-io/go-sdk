@@ -25,8 +25,9 @@ func Initialize(sdkKey string) {
 type Options struct {
 	API                   string       `json:"api"`
 	APIOverrides          APIOverrides `json:"api_overrides"`
-	Environment           Environment  `json:"environment"`
-	LocalMode             bool         `json:"localMode"`
+	Transport             http.RoundTripper
+	Environment           Environment `json:"environment"`
+	LocalMode             bool        `json:"localMode"`
 	ConfigSyncInterval    time.Duration
 	IDListSyncInterval    time.Duration
 	LoggingInterval       time.Duration
