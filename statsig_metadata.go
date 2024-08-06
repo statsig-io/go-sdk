@@ -14,7 +14,7 @@ type statsigMetadata struct {
 func getStatsigMetadata() statsigMetadata {
 	return statsigMetadata{
 		SDKType:         "go-sdk",
-		SDKVersion:      "v1.27.0",
+		SDKVersion:      "v1.27.1",
 		LanguageVersion: runtime.Version()[2:],
 		SessionID:       SessionID(),
 	}
