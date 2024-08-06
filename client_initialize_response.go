@@ -216,7 +216,7 @@ func getClientInitializeResponse(
 		EvaluatedKeys:  map[string]interface{}{"userID": user.UserID, "customIDs": user.CustomIDs},
 		Time:           e.store.lastSyncTime,
 		SDKInfo:        SDKInfo{SDKVersion: meta.SDKVersion, SDKType: meta.SDKType},
-		User:           user,
+		User:           *user.getCopyForLogging(),
 	}
 	return response
 }

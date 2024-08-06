@@ -19,6 +19,12 @@ type User struct {
 	CustomIDs          map[string]string      `json:"customIDs"`
 }
 
+func (user *User) getCopyForLogging() *User {
+	copy := *user
+	copy.PrivateAttributes = make(map[string]interface{})
+	return &copy
+}
+
 // an event to be sent to Statsig for logging and analysis
 type Event struct {
 	EventName string            `json:"eventName"`
