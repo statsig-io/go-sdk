@@ -22,7 +22,7 @@ type evalResult struct {
 	SecondaryExposures            []SecondaryExposure    `json:"secondary_exposures"`
 	UndelegatedSecondaryExposures []SecondaryExposure    `json:"undelegated_secondary_exposures"`
 	ConfigDelegate                string                 `json:"config_delegate"`
-	ExplicitParameters            map[string]bool        `json:"explicit_parameters"`
+	ExplicitParameters            []string               `json:"explicit_parameters"`
 	EvaluationDetails             *EvaluationDetails     `json:"evaluation_details,omitempty"`
 	IsExperimentGroup             *bool                  `json:"is_experiment_group,omitempty"`
 }
@@ -429,12 +429,7 @@ func (e *evaluator) evalDelegate(user User, rule configRule, exposures []Seconda
 	result.ConfigDelegate = rule.ConfigDelegate
 	result.SecondaryExposures = e.cleanExposures(append(exposures, result.SecondaryExposures...), context.Hash)
 	result.UndelegatedSecondaryExposures = exposures
-
-	explicitParams := map[string]bool{}
-	for _, s := range config.ExplicitParameters {
-		explicitParams[s] = true
-	}
-	result.ExplicitParameters = explicitParams
+	result.ExplicitParameters = config.ExplicitParameters
 	return result
 }
 

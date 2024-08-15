@@ -10,7 +10,7 @@ type StickyValues struct {
 	SecondaryExposures            []SecondaryExposure    `json:"secondary_exposures"`
 	Time                          int64                  `json:"time"`
 	ConfigDelegate                string                 `json:"config_delegate,omitempty"`
-	ExplicitParameters            map[string]bool        `json:"explicit_parameters,omitempty"`
+	ExplicitParameters            []string               `json:"explicit_parameters,omitempty"`
 	UndelegatedSecondaryExposures []SecondaryExposure    `json:"undelegated_secondary_exposures"`
 }
 
