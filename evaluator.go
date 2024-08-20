@@ -748,21 +748,19 @@ func removeEmptyStrings(s []string) []string {
 }
 
 func getNumericValue(a interface{}) (float64, bool) {
-	switch a := a.(type) {
-	case int:
-		return float64(a), true
-	case int32:
-		return float64(a), true
-	case int64:
-		return float64(a), true
-	case uint64:
-		return float64(a), true
-	case float32:
-		return float64(a), true
-	case float64:
-		return a, true
-	case string:
-		f, err := strconv.ParseFloat(a, 64)
+	if a == nil {
+		return 0, false
+	}
+	aVal := reflect.ValueOf(a)
+	switch reflect.TypeOf(a).Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return float64(aVal.Int()), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return float64(aVal.Uint()), true
+	case reflect.Float32, reflect.Float64:
+		return float64(aVal.Float()), true
+	case reflect.String:
+		f, err := strconv.ParseFloat(aVal.String(), 64)
 		if err == nil {
 			return f, true
 		}
@@ -779,20 +777,24 @@ func castToString(a interface{}) string {
 }
 
 func convertToString(a interface{}) string {
+	if a == nil {
+		return ""
+	}
 	if asString, ok := a.(string); ok {
 		return asString
 	}
-	if asInt, ok := a.(int); ok {
-		return strconv.Itoa(asInt)
-	}
-	if asInt64, ok := a.(int64); ok {
-		return strconv.FormatInt(asInt64, 10)
-	}
-	if asFloat, ok := a.(float64); ok {
-		return strconv.FormatFloat(asFloat, 'f', -1, 64)
-	}
-	if asBool, ok := a.(bool); ok {
-		return strconv.FormatBool(asBool)
+	aVal := reflect.ValueOf(a)
+	switch aVal.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(aVal.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(aVal.Uint(), 10)
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(aVal.Float(), 'f', -1, 64)
+	case reflect.Bool:
+		return strconv.FormatBool(aVal.Bool())
+	case reflect.String:
+		return fmt.Sprintf("%v", a)
 	}
 	return ""
 }
