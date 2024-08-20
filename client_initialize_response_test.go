@@ -44,6 +44,7 @@ func TestInitializeResponseConsistency(t *testing.T) {
 			req.Header.Add("STATSIG-CLIENT-TIME", strconv.FormatInt(getUnixMilli(), 10))
 			req.Header.Add("STATSIG-SDK-TYPE", getStatsigMetadata().SDKType)
 			req.Header.Add("STATSIG-SDK-VERSION", getStatsigMetadata().SDKVersion)
+			req.Header.Set("User-Agent", "")
 			client := http.Client{}
 			response, err := client.Do(req)
 			if err != nil {
