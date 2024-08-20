@@ -109,7 +109,7 @@ func TestEvaluation(t *testing.T) {
 }
 
 func test_helper(apiOverride string, t *testing.T) {
-	t.Logf("Testing for " + apiOverride)
+	t.Logf("Testing for %s", apiOverride)
 	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
 	c := NewClientWithOptions(secret, &Options{API: apiOverride})
 	var d data

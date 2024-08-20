@@ -235,7 +235,7 @@ func (transport *transport) doRequest(
 			return response, false, transport.parseResponse(response, out)
 		}
 
-		return response, retryableStatusCode(response.StatusCode), fmt.Errorf(response.Status)
+		return response, retryableStatusCode(response.StatusCode), fmt.Errorf("%s", response.Status)
 	})
 
 	if err != nil {

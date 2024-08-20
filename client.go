@@ -2,7 +2,6 @@ package statsig
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -270,7 +269,7 @@ func (c *Client) OverrideLayer(layer string, val map[string]interface{}) {
 func (c *Client) LogImmediate(events []Event) (*http.Response, error) {
 	if len(events) > 500 {
 		err := errors.New(EventBatchSizeError)
-		return nil, fmt.Errorf(err.Error())
+		return nil, err
 	}
 	events_processed := make([]interface{}, 0)
 	for _, event := range events {

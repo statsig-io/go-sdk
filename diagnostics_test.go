@@ -568,5 +568,5 @@ func waitForConditionWithMessage(t *testing.T, condition func() bool, errorMsg s
 		time.Sleep(10 * time.Millisecond) // Adjust the polling interval as needed
 	}
 
-	t.Errorf(errorMsg)
+	t.Errorf("%s", errorMsg)
 }
