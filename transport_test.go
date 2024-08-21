@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -83,5 +84,25 @@ func TestRetries(t *testing.T) {
 	_, err := n.post("/123", in, out, RequestOptions{retries: 2})
 	if err != nil {
 		t.Errorf("Expected successful request but got error")
+	}
+}
+
+func TestProxy(t *testing.T) {
+	testServerHit := false
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		testServerHit = true
+	}))
+	defer testServer.Close()
+	in := Empty{}
+	var out ServerResponse
+	url, _ := url.Parse(testServer.URL)
+	opt := &Options{
+		Transport: &http.Transport{Proxy: http.ProxyURL(url)},
+	}
+	n := newTransport("secret-123", opt)
+	_, _ = n.post("/123", in, &out, RequestOptions{})
+	if !testServerHit {
+		t.Errorf("Expected request to hit proxy server")
 	}
 }
