@@ -327,8 +327,11 @@ func (e *evaluator) OverrideLayer(layer string, val map[string]interface{}) {
 
 // Gets all evaluated values for the given user.
 // These values can then be given to a Statsig Client SDK via bootstrapping.
-func (e *evaluator) getClientInitializeResponse(user User, clientKey string, includeLocalOverrides bool, hashAlgorithm string) ClientInitializeResponse {
-	return getClientInitializeResponse(user, e, clientKey, includeLocalOverrides, hashAlgorithm)
+func (e *evaluator) getClientInitializeResponse(
+	user User,
+	options *GCIROptions,
+) ClientInitializeResponse {
+	return getClientInitializeResponse(user, e, options)
 }
 
 func (e *evaluator) cleanExposures(exposures []SecondaryExposure, hashAlgorithm string) []SecondaryExposure {

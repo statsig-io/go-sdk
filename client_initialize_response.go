@@ -65,10 +65,12 @@ func mergeMaps(a map[string]interface{}, b map[string]interface{}) {
 func getClientInitializeResponse(
 	user User,
 	e *evaluator,
-	clientKey string,
-	includeLocalOverrides bool,
-	hashAlgorithm string,
+	options *GCIROptions,
 ) ClientInitializeResponse {
+	hashAlgorithm := options.HashAlgorithm
+	if hashAlgorithm != "none" && hashAlgorithm != "djb2" {
+		hashAlgorithm = "sha256"
+	}
 	context := StatsigContext{Caller: "getClientInitializeResponse", Hash: hashAlgorithm}
 
 	evalResultToBaseResponse := func(name string, eval *evalResult) (string, baseSpecInitializeResponse) {
@@ -82,7 +84,7 @@ func getClientInitializeResponse(
 	}
 	gateToResponse := func(gateName string, spec configSpec) (string, GateInitializeResponse) {
 		evalRes := &evalResult{}
-		if includeLocalOverrides {
+		if options.IncludeLocalOverrides {
 			if gateOverride, hasOverride := e.getGateOverrideEval(gateName); hasOverride {
 				evalRes = gateOverride
 			} else {
@@ -100,7 +102,7 @@ func getClientInitializeResponse(
 	}
 	configToResponse := func(configName string, spec configSpec) (string, ConfigInitializeResponse) {
 		evalRes := &evalResult{}
-		if includeLocalOverrides {
+		if options.IncludeLocalOverrides {
 			if configOverride, hasOverride := e.getConfigOverrideEval(configName); hasOverride {
 				evalRes = configOverride
 			} else {
@@ -175,7 +177,12 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 
-	appId, _ := e.store.getAppIDForSDKKey(clientKey)
+	var appId string
+	if options.TargetAppID != "" {
+		appId = options.TargetAppID
+	} else {
+		appId, _ = e.store.getAppIDForSDKKey(options.ClientKey)
+	}
 	featureGates := make(map[string]GateInitializeResponse)
 	dynamicConfigs := make(map[string]ConfigInitializeResponse)
 	layerConfigs := make(map[string]LayerInitializeResponse)

@@ -96,6 +96,7 @@ type Environment struct {
 type GCIROptions struct {
 	IncludeLocalOverrides bool
 	ClientKey             string
+	TargetAppID           string
 	HashAlgorithm         string
 }
 

@@ -298,13 +298,7 @@ func (c *Client) GetClientInitializeResponseImpl(user User, options *GCIROptions
 			return *new(ClientInitializeResponse)
 		}
 		user = normalizeUser(user, *c.options)
-		includeLocalOverrides := options.IncludeLocalOverrides
-		clientKey := options.ClientKey
-		hashAlgorithm := options.HashAlgorithm
-		if hashAlgorithm != "none" && hashAlgorithm != "djb2" {
-			hashAlgorithm = "sha256"
-		}
-		response := c.evaluator.getClientInitializeResponse(user, clientKey, includeLocalOverrides, hashAlgorithm)
+		response := c.evaluator.getClientInitializeResponse(user, options)
 		if response.Time == 0 {
 			c.errorBoundary.logException(errors.New("empty response from server"))
 		}
