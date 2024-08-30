@@ -356,7 +356,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context StatsigC
 	reason := e.store.initReason
 	e.store.mu.RUnlock()
 	evalDetails := e.createEvaluationDetails(reason)
-	isDynamicConfig := strings.ToLower(spec.Type) == dynamicConfigType
+	isDynamicConfig := strings.EqualFold(spec.Type, dynamicConfigType)
 	if isDynamicConfig {
 		configValue = spec.DefaultValueJSON
 	}
@@ -447,7 +447,7 @@ func evalPassPercent(user User, rule configRule, spec configSpec) bool {
 }
 
 func getUnitID(user User, idType string) string {
-	if idType != "" && strings.ToLower(idType) != "userid" {
+	if idType != "" && !strings.EqualFold(idType, "userid") {
 		if val, ok := user.CustomIDs[idType]; ok {
 			return val
 		}
@@ -478,12 +478,13 @@ func (e *evaluator) evalRule(user User, rule configRule, depth int, context Stat
 
 func (e *evaluator) evalCondition(user User, cond configCondition, depth int, context StatsigContext) *evalResult {
 	var value interface{}
-	condType := strings.ToLower(cond.Type)
-	op := strings.ToLower(cond.Operator)
-	switch condType {
-	case "public":
+	condType := cond.Type
+	op := cond.Operator
+	switch {
+	case strings.EqualFold(condType, "public"):
 		return &evalResult{Value: true}
-	case "fail_gate", "pass_gate":
+
+	case strings.EqualFold(condType, "fail_gate") || strings.EqualFold(condType, "pass_gate"):
 		dependentGateName, ok := cond.TargetValue.(string)
 		if !ok {
 			return &evalResult{Value: false}
@@ -502,32 +503,32 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 			allExposures = append(result.SecondaryExposures, newExposure)
 		}
 
-		if condType == "pass_gate" {
+		if strings.EqualFold(condType, "pass_gate") {
 			return &evalResult{Value: result.Value, SecondaryExposures: allExposures}
 		} else {
 			return &evalResult{Value: !result.Value, SecondaryExposures: allExposures}
 		}
-	case "ip_based":
+	case strings.EqualFold(condType, "ip_based"):
 		value = getFromUser(user, cond.Field)
 		if value == nil || value == "" {
 			value = getFromIP(user, cond.Field, e.countryLookup)
 		}
-	case "ua_based":
+	case strings.EqualFold(condType, "ua_based"):
 		value = getFromUser(user, cond.Field)
 		if value == nil || value == "" {
 			value = getFromUserAgent(user, cond.Field, e.uaParser)
 		}
-	case "user_field":
+	case strings.EqualFold(condType, "user_field"):
 		value = getFromUser(user, cond.Field)
-	case "environment_field":
+	case strings.EqualFold(condType, "environment_field"):
 		value = getFromEnvironment(user, cond.Field)
-	case "current_time":
+	case strings.EqualFold(condType, "current_time"):
 		value = time.Now().Unix() // time in seconds
-	case "user_bucket":
+	case strings.EqualFold(condType, "user_bucket"):
 		if salt, ok := cond.AdditionalValues["salt"]; ok {
 			value = int64(getHashUint64Encoding(fmt.Sprintf("%s.%s", salt, getUnitID(user, cond.IDType))) % 1000)
 		}
-	case "unit_id":
+	case strings.EqualFold(condType, "unit_id"):
 		value = getUnitID(user, cond.IDType)
 	default:
 		return &evalResult{FetchFromServer: true}
@@ -535,72 +536,72 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 
 	pass := false
 	server := false
-	switch op {
-	case "gt":
+	switch {
+	case strings.EqualFold(op, "gt"):
 		pass = compareNumbers(value, cond.TargetValue, func(x, y float64) bool { return x > y })
-	case "gte":
+	case strings.EqualFold(op, "gte"):
 		pass = compareNumbers(value, cond.TargetValue, func(x, y float64) bool { return x >= y })
-	case "lt":
+	case strings.EqualFold(op, "lt"):
 		pass = compareNumbers(value, cond.TargetValue, func(x, y float64) bool { return x < y })
-	case "lte":
+	case strings.EqualFold(op, "lte"):
 		pass = compareNumbers(value, cond.TargetValue, func(x, y float64) bool { return x <= y })
-	case "version_gt":
+	case strings.EqualFold(op, "version_gt"):
 		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) > 0 })
-	case "version_gte":
+	case strings.EqualFold(op, "version_gte"):
 		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) >= 0 })
-	case "version_lt":
+	case strings.EqualFold(op, "version_lt"):
 		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) < 0 })
-	case "version_lte":
+	case strings.EqualFold(op, "version_lte"):
 		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) <= 0 })
-	case "version_eq":
+	case strings.EqualFold(op, "version_eq"):
 		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) == 0 })
-	case "version_neq":
+	case strings.EqualFold(op, "version_neq"):
 		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) != 0 })
 
 	// array operations
-	case "any":
+	case strings.EqualFold(op, "any"):
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			if cond.UserBucket != nil {
 				return lookupUserBucket(value, cond.UserBucket)
 			} else {
-				return compareStrings(x, y, true, func(s1, s2 string) bool { return s1 == s2 })
+				return compareStrings(x, y, false, func(s1, s2 string) bool { return strings.EqualFold(s1, s2) })
 			}
 		})
-	case "none":
+	case strings.EqualFold(op, "none"):
 		pass = !arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			if cond.UserBucket != nil {
 				return lookupUserBucket(value, cond.UserBucket)
 			} else {
-				return compareStrings(x, y, true, func(s1, s2 string) bool { return s1 == s2 })
+				return compareStrings(x, y, false, func(s1, s2 string) bool { return strings.EqualFold(s1, s2) })
 			}
 		})
-	case "any_case_sensitive":
+	case strings.EqualFold(op, "any_case_sensitive"):
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			return compareStrings(x, y, false, func(s1, s2 string) bool { return s1 == s2 })
 		})
-	case "none_case_sensitive":
+	case strings.EqualFold(op, "none_case_sensitive"):
 		pass = !arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			return compareStrings(x, y, false, func(s1, s2 string) bool { return s1 == s2 })
 		})
 
 	// string operations
-	case "str_starts_with_any":
+	case strings.EqualFold(op, "str_starts_with_any"):
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			return compareStrings(x, y, true, func(s1, s2 string) bool { return strings.HasPrefix(s1, s2) })
 		})
-	case "str_ends_with_any":
+	case strings.EqualFold(op, "str_ends_with_any"):
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			return compareStrings(x, y, true, func(s1, s2 string) bool { return strings.HasSuffix(s1, s2) })
 		})
-	case "str_contains_any":
+	case strings.EqualFold(op, "str_contains_any"):
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			return compareStrings(x, y, true, func(s1, s2 string) bool { return strings.Contains(s1, s2) })
 		})
-	case "str_contains_none":
+	case strings.EqualFold(op, "str_contains_none"):
 		pass = !arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			return compareStrings(x, y, true, func(s1, s2 string) bool { return strings.Contains(s1, s2) })
 		})
-	case "str_matches":
+	case strings.EqualFold(op, "str_matches"):
 		if cond.TargetValue == nil || value == nil {
 			pass = cond.TargetValue == nil && value == nil
 		} else {
@@ -609,7 +610,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		}
 
 	// strict equality
-	case "eq", "neq":
+	case strings.EqualFold(op, "eq") || strings.EqualFold(op, "neq"):
 		equal := false
 		// because certain user values are of string type, which cannot be nil, we should check for both nil and empty string
 		if cond.TargetValue == nil {
@@ -617,22 +618,22 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		} else {
 			equal = reflect.DeepEqual(value, cond.TargetValue)
 		}
-		if op == "eq" {
+		if strings.EqualFold(op, "eq") {
 			pass = equal
 		} else {
 			pass = !equal
 		}
 
 	// time
-	case "before":
+	case strings.EqualFold(op, "before"):
 		pass = getTime(value).Before(getTime(cond.TargetValue))
-	case "after":
+	case strings.EqualFold(op, "after"):
 		pass = getTime(value).After(getTime(cond.TargetValue))
-	case "on":
+	case strings.EqualFold(op, "on"):
 		y1, m1, d1 := getTime(value).Date()
 		y2, m2, d2 := getTime(cond.TargetValue).Date()
 		pass = (y1 == y2 && m1 == m2 && d1 == d2)
-	case "in_segment_list", "not_in_segment_list":
+	case strings.EqualFold(op, "in_segment_list") || strings.EqualFold(op, "not_in_segment_list"):
 		inlist := false
 		if reflect.TypeOf(cond.TargetValue).String() == "string" && reflect.TypeOf(value).String() == "string" {
 			list := e.store.getIDList(castToString(cond.TargetValue))
@@ -641,7 +642,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 				_, inlist = list.ids.Load(base64.StdEncoding.EncodeToString(h[:])[:8])
 			}
 		}
-		if op == "in_segment_list" {
+		if strings.EqualFold(op, "in_segment_list") {
 			pass = inlist
 		} else {
 			pass = !inlist
@@ -656,22 +657,22 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 func getFromUser(user User, field string) interface{} {
 	var value interface{}
 	// 1. Try to get from top level user field first
-	switch strings.ToLower(field) {
-	case "userid", "user_id":
+	switch {
+	case strings.EqualFold(field, "userid") || strings.EqualFold(field, "user_id"):
 		value = user.UserID
-	case "email":
+	case strings.EqualFold(field, "email"):
 		value = user.Email
-	case "ip", "ipaddress", "ip_address":
+	case strings.EqualFold(field, "ip") || strings.EqualFold(field, "ipaddress") || strings.EqualFold(field, "ip_address"):
 		value = user.IpAddress
-	case "useragent", "user_agent":
+	case strings.EqualFold(field, "useragent") || strings.EqualFold(field, "user_agent"):
 		if user.UserAgent != "" { // UserAgent cannot be empty string
 			value = user.UserAgent
 		}
-	case "country":
+	case strings.EqualFold(field, "country"):
 		value = user.Country
-	case "locale":
+	case strings.EqualFold(field, "locale"):
 		value = user.Locale
-	case "appversion", "app_version":
+	case strings.EqualFold(field, "appversion") || strings.EqualFold(field, "app_version"):
 		value = user.AppVersion
 	}
 
@@ -712,21 +713,21 @@ func getFromUserAgent(user User, field string, parser *uaParser) string {
 	if client == nil {
 		return ""
 	}
-	switch strings.ToLower(field) {
-	case "os_name", "osname":
+	switch {
+	case strings.EqualFold(field, "os_name") || strings.EqualFold(field, "osname"):
 		return client.Os.Family
-	case "os_version", "osversion":
+	case strings.EqualFold(field, "os_version") || strings.EqualFold(field, "osversion"):
 		return strings.Join(removeEmptyStrings([]string{client.Os.Major, client.Os.Minor, client.Os.Patch, client.Os.PatchMinor}), ".")
-	case "browser_name", "browsername":
+	case strings.EqualFold(field, "browser_name") || strings.EqualFold(field, "browsername"):
 		return client.UserAgent.Family
-	case "browser_version", "browserversion":
+	case strings.EqualFold(field, "browser_version") || strings.EqualFold(field, "browserversion"):
 		return strings.Join(removeEmptyStrings([]string{client.UserAgent.Major, client.UserAgent.Minor, client.UserAgent.Patch}), ".")
 	}
 	return ""
 }
 
 func getFromIP(user User, field string, lookup *countryLookup) string {
-	if strings.ToLower(field) != "country" {
+	if !strings.EqualFold(field, "country") {
 		return ""
 	}
 

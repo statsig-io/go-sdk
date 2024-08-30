@@ -116,10 +116,9 @@ func getClientInitializeResponse(
 			baseSpecInitializeResponse: base,
 			Value:                      evalRes.JsonValue,
 			Group:                      evalRes.RuleID,
-			IsDeviceBased:              strings.ToLower(spec.IDType) == "stableid",
+			IsDeviceBased:              strings.EqualFold(spec.IDType, "stableid"),
 		}
-		entityType := strings.ToLower(spec.Entity)
-		if entityType == "experiment" {
+		if strings.EqualFold(spec.Entity, "experiment") {
 			result.IsUserInExperiment = new(bool)
 			*result.IsUserInExperiment = evalRes.IsExperimentGroup != nil && *evalRes.IsExperimentGroup
 			result.IsExperimentActive = new(bool)
@@ -148,7 +147,7 @@ func getClientInitializeResponse(
 			baseSpecInitializeResponse:    base,
 			Value:                         evalResult.JsonValue,
 			Group:                         evalResult.RuleID,
-			IsDeviceBased:                 strings.ToLower(spec.IDType) == "stableid",
+			IsDeviceBased:                 strings.EqualFold(spec.IDType, "stableid"),
 			UndelegatedSecondaryExposures: evalResult.UndelegatedSecondaryExposures,
 		}
 		delegate := evalResult.ConfigDelegate
@@ -190,8 +189,7 @@ func getClientInitializeResponse(
 		if !spec.hasTargetAppID(appId) {
 			continue
 		}
-		entityType := strings.ToLower(spec.Entity)
-		if entityType != "segment" && entityType != "holdout" {
+		if !strings.EqualFold(spec.Entity, "segment") && !strings.EqualFold(spec.Entity, "holdout") {
 			hashedName, res := gateToResponse(name, spec)
 			featureGates[hashedName] = res
 		}
