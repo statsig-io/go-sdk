@@ -334,7 +334,7 @@ func (e *evaluator) getClientInitializeResponse(
 	return getClientInitializeResponse(user, e, options)
 }
 
-func (e *evaluator) cleanExposures(exposures []SecondaryExposure, hashAlgorithm string) []SecondaryExposure {
+func (e *evaluator) cleanExposures(exposures []SecondaryExposure) []SecondaryExposure {
 	seen := make(map[string]bool)
 	result := make([]SecondaryExposure, 0)
 	for _, exposure := range exposures {
@@ -369,7 +369,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context StatsigC
 			if r.FetchFromServer {
 				return r
 			}
-			exposures = e.cleanExposures(append(exposures, r.SecondaryExposures...), context.Hash)
+			exposures = e.cleanExposures(append(exposures, r.SecondaryExposures...))
 			if r.Value {
 				delegatedResult := e.evalDelegate(user, rule, exposures, depth+1, context)
 				if delegatedResult != nil {
@@ -430,7 +430,7 @@ func (e *evaluator) evalDelegate(user User, rule configRule, exposures []Seconda
 
 	result := e.eval(user, config, depth+1, context)
 	result.ConfigDelegate = rule.ConfigDelegate
-	result.SecondaryExposures = e.cleanExposures(append(exposures, result.SecondaryExposures...), context.Hash)
+	result.SecondaryExposures = e.cleanExposures(append(exposures, result.SecondaryExposures...))
 	result.UndelegatedSecondaryExposures = exposures
 	result.ExplicitParameters = config.ExplicitParameters
 	return result
