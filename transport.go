@@ -60,7 +60,8 @@ func (opts *RequestOptions) fill_defaults() {
 	}
 }
 
-func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}) (*http.Response, error) {
+func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}, diagnostics *marker) (*http.Response, error) {
+	diagnostics.downloadConfigSpecs().networkRequest().start().mark()
 	var endpoint string
 	if transport.options.DisableCDN {
 		endpoint = fmt.Sprintf("/download_config_specs?sinceTime=%d", sinceTime)
@@ -71,15 +72,16 @@ func (transport *transport) download_config_specs(sinceTime int64, responseBody 
 	if transport.options.FallbackToStatsigAPI {
 		options.retries = 1
 	}
-	return transport.get(endpoint, responseBody, options)
+	return transport.get(endpoint, responseBody, options, diagnostics)
 }
 
-func (transport *transport) get_id_lists(responseBody interface{}) (*http.Response, error) {
+func (transport *transport) get_id_lists(responseBody interface{}, diagnostics *marker) (*http.Response, error) {
+	diagnostics.getIdListSources().networkRequest().start().mark()
 	options := RequestOptions{}
 	if transport.options.FallbackToStatsigAPI {
 		options.retries = 1
 	}
-	return transport.post("/get_id_lists", nil, responseBody, options)
+	return transport.post("/get_id_lists", nil, responseBody, options, diagnostics)
 }
 
 func (transport *transport) get_id_list(url string, headers map[string]string) (*http.Response, error) {
@@ -111,7 +113,11 @@ func (transport *transport) get_id_list(url string, headers map[string]string) (
 	return res, nil
 }
 
-func (transport *transport) log_event(event []interface{}, responseBody interface{}, options RequestOptions) (*http.Response, error) {
+func (transport *transport) log_event(
+	event []interface{},
+	responseBody interface{},
+	options RequestOptions,
+) (*http.Response, error) {
 	input := logEventInput{
 		Events:          event,
 		StatsigMetadata: transport.metadata,
@@ -120,16 +126,27 @@ func (transport *transport) log_event(event []interface{}, responseBody interfac
 		options.header = make(map[string]string)
 	}
 	options.header["statsig-event-count"] = strconv.Itoa(len(event))
-	return transport.post("/log_event", input, responseBody, options)
+	return transport.post("/log_event", input, responseBody, options, nil)
 
 }
 
-func (transport *transport) post(endpoint string, body interface{}, responseBody interface{}, options RequestOptions) (*http.Response, error) {
-	return transport.doRequest("POST", endpoint, body, responseBody, options)
+func (transport *transport) post(
+	endpoint string,
+	body interface{},
+	responseBody interface{},
+	options RequestOptions,
+	diagnostics *marker,
+) (*http.Response, error) {
+	return transport.doRequest("POST", endpoint, body, responseBody, options, diagnostics)
 }
 
-func (transport *transport) get(endpoint string, responseBody interface{}, options RequestOptions) (*http.Response, error) {
-	return transport.doRequest("GET", endpoint, nil, responseBody, options)
+func (transport *transport) get(
+	endpoint string,
+	responseBody interface{},
+	options RequestOptions,
+	diagnostics *marker,
+) (*http.Response, error) {
+	return transport.doRequest("GET", endpoint, nil, responseBody, options, diagnostics)
 }
 
 func (transport *transport) buildRequest(method, endpoint string, body interface{}, header map[string]string) (*http.Request, error) {
@@ -232,6 +249,7 @@ func (transport *transport) doRequest(
 	in interface{},
 	out interface{},
 	options RequestOptions,
+	diagnostics *marker,
 ) (*http.Response, error) {
 	request, err := transport.buildRequest(method, endpoint, in, options.header)
 	if request == nil || err != nil {
@@ -243,6 +261,20 @@ func (transport *transport) doRequest(
 	options.fill_defaults()
 	response, err, attempts := retry(options.retries, time.Duration(options.backoff), func() (*http.Response, bool, error) {
 		response, err := transport.client.Do(request)
+
+		if diagnostics != nil {
+			diagnostics.end()
+
+			if response != nil {
+				diagnostics.success(successfulStatusCode(response.StatusCode))
+				diagnostics.statusCode(response.StatusCode)
+				diagnostics.sdkRegion(safeGetFirst(response.Header["X-Statsig-Region"]))
+			} else {
+				diagnostics.success(false)
+			}
+			diagnostics.mark()
+		}
+
 		if err != nil {
 			return response, response != nil, err
 		}
@@ -261,7 +293,7 @@ func (transport *transport) doRequest(
 		}
 		defer drainAndCloseBody()
 
-		if response.StatusCode >= 200 && response.StatusCode < 300 {
+		if successfulStatusCode(response.StatusCode) {
 			return response, false, transport.parseResponse(response, out)
 		}
 
@@ -317,4 +349,8 @@ func retryableStatusCode(code int) bool {
 	default:
 		return false
 	}
+}
+
+func successfulStatusCode(code int) bool {
+	return code >= 200 && code < 300
 }

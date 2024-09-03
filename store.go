@@ -322,20 +322,12 @@ func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 	if s.transport.options.LocalMode {
 		return
 	}
-	s.addDiagnostics().downloadConfigSpecs().networkRequest().start().mark()
 	var specs downloadConfigSpecResponse
-	res, err := s.transport.download_config_specs(s.lastSyncTime, &specs)
+	res, err := s.transport.download_config_specs(s.lastSyncTime, &specs, s.addDiagnostics())
 	if res == nil || err != nil {
-		marker := s.addDiagnostics().downloadConfigSpecs().networkRequest().end().success(false)
-		if res != nil {
-			marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
-		}
-		marker.mark()
 		s.handleSyncError(err, isColdStart)
 		return
 	}
-	s.addDiagnostics().downloadConfigSpecs().networkRequest().end().
-		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
 	parsed, updated := s.processConfigSpecs(specs, s.addDiagnostics().downloadConfigSpecs())
 	if parsed {
 		s.mu.Lock()
@@ -489,19 +481,11 @@ func (s *store) fetchIDListsFromServer() {
 		return
 	}
 	var serverLists map[string]idList
-	s.addDiagnostics().getIdListSources().networkRequest().start().mark()
-	res, err := s.transport.get_id_lists(&serverLists)
+	res, err := s.transport.get_id_lists(&serverLists, s.addDiagnostics())
 	if res == nil || err != nil {
-		marker := s.addDiagnostics().getIdListSources().networkRequest().end().success(false)
-		if res != nil {
-			marker.statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"]))
-		}
-		marker.mark()
 		s.errorBoundary.logException(err)
 		return
 	}
-	s.addDiagnostics().getIdListSources().networkRequest().end().
-		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
 	s.processIDListsFromNetwork(serverLists)
 	s.saveIDListsToAdapter(s.idLists)
 }

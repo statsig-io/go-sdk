@@ -29,7 +29,7 @@ func TestNonRetryable(t *testing.T) {
 		API: testServer.URL,
 	}
 	n := newTransport("secret-123", opt)
-	_, err := n.post("/123", in, &out, RequestOptions{retries: 2})
+	_, err := n.post("/123", in, &out, RequestOptions{retries: 2}, nil)
 	if err == nil {
 		t.Errorf("Expected error for network request but got nil")
 	}
@@ -49,7 +49,7 @@ func TestLocalMode(t *testing.T) {
 		LocalMode: true,
 	}
 	n := newTransport("secret-123", opt)
-	_, err := n.post("/123", in, &out, RequestOptions{retries: 2})
+	_, err := n.post("/123", in, &out, RequestOptions{retries: 2}, nil)
 	if err != nil {
 		t.Errorf("Expected no error for network request")
 	}
@@ -81,7 +81,7 @@ func TestRetries(t *testing.T) {
 		API: testServer.URL,
 	}
 	n := newTransport("secret-123", opt)
-	_, err := n.post("/123", in, out, RequestOptions{retries: 2})
+	_, err := n.post("/123", in, out, RequestOptions{retries: 2}, nil)
 	if err != nil {
 		t.Errorf("Expected successful request but got error")
 	}
@@ -101,7 +101,7 @@ func TestProxy(t *testing.T) {
 		Transport: &http.Transport{Proxy: http.ProxyURL(url)},
 	}
 	n := newTransport("secret-123", opt)
-	_, _ = n.post("/123", in, &out, RequestOptions{})
+	_, _ = n.post("/123", in, &out, RequestOptions{}, nil)
 	if !testServerHit {
 		t.Errorf("Expected request to hit proxy server")
 	}

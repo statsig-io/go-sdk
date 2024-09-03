@@ -509,7 +509,7 @@ func fetchGate(user User, gateName string, t *transport) gateResponse {
 		StatsigMetadata: t.metadata,
 	}
 	var res gateResponse
-	_, err := t.post("/check_gate", input, &res, RequestOptions{})
+	_, err := t.post("/check_gate", input, &res, RequestOptions{}, nil)
 	if err != nil {
 		return gateResponse{
 			Name:   gateName,
@@ -527,7 +527,7 @@ func fetchConfig(user User, configName string, t *transport) configResponse {
 		StatsigMetadata: t.metadata,
 	}
 	var res configResponse
-	_, err := t.post("/get_config", input, &res, RequestOptions{})
+	_, err := t.post("/get_config", input, &res, RequestOptions{}, nil)
 	if err != nil {
 		return configResponse{
 			Name:   configName,
