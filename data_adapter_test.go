@@ -19,7 +19,6 @@ func TestBootstrapWithAdapter(t *testing.T) {
 	idlists_bytes, _ := os.ReadFile("test_data/get_id_lists.json")
 	idlist_bytes, _ := os.ReadFile("test_data/list_1.txt")
 	testServer := getTestServer(testServerOptions{
-		dcsOnline: true,
 		onLogEvent: func(newEvents []map[string]interface{}) {
 			for _, newEvent := range newEvents {
 				eventTyped := convertToExposureEvent(newEvent)
@@ -217,7 +216,6 @@ func TestAdapterWithPolling(t *testing.T) {
 func TestIncorrectlyImplementedAdapter(t *testing.T) {
 	events := []Event{}
 	testServer := getTestServer(testServerOptions{
-		dcsOnline: true,
 		onLogEvent: func(newEvents []map[string]interface{}) {
 			for _, newEvent := range newEvents {
 				eventTyped := convertToExposureEvent(newEvent)

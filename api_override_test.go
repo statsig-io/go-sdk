@@ -13,7 +13,6 @@ type counters struct {
 
 func setupTestServer(counts *counters) *httptest.Server {
 	return getTestServer(testServerOptions{
-		dcsOnline: true,
 		onLogEvent: func(events []map[string]interface{}) {
 			counts.logEvent += 1
 		},

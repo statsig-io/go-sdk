@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -23,14 +23,7 @@ const (
 	backoffMultiplier = 10
 )
 
-type apis struct {
-	downloadConfigSpecs string
-	getIDLists          string
-	logEvent            string
-}
-
 type transport struct {
-	api      apis
 	sdkKey   string
 	metadata statsigMetadata // Safe to read from but not thread safe to write into. If value needs to change, please ensure thread safety.
 	client   *http.Client
@@ -38,20 +31,6 @@ type transport struct {
 }
 
 func newTransport(secret string, options *Options) *transport {
-	api := apis{
-		downloadConfigSpecs: strings.TrimSuffix(defaultString(
-			options.APIOverrides.DownloadConfigSpecs,
-			defaultString(options.API, StatsigCDN),
-		), "/"),
-		getIDLists: strings.TrimSuffix(defaultString(
-			options.APIOverrides.GetIDLists,
-			defaultString(options.API, StatsigAPI),
-		), "/"),
-		logEvent: strings.TrimSuffix(defaultString(
-			options.APIOverrides.LogEvent,
-			defaultString(options.API, StatsigAPI),
-		), "/"),
-	}
 	defer func() {
 		if err := recover(); err != nil {
 			Logger().LogError(err)
@@ -59,7 +38,6 @@ func newTransport(secret string, options *Options) *transport {
 	}()
 
 	return &transport{
-		api:      api,
 		metadata: getStatsigMetadata(),
 		sdkKey:   secret,
 		client: &http.Client{
@@ -89,11 +67,19 @@ func (transport *transport) download_config_specs(sinceTime int64, responseBody 
 	} else {
 		endpoint = fmt.Sprintf("/download_config_specs/%s.json?sinceTime=%d", transport.sdkKey, sinceTime)
 	}
-	return transport.get(endpoint, responseBody, RequestOptions{})
+	options := RequestOptions{}
+	if transport.options.FallbackToStatsigAPI {
+		options.retries = 1
+	}
+	return transport.get(endpoint, responseBody, options)
 }
 
 func (transport *transport) get_id_lists(responseBody interface{}) (*http.Response, error) {
-	return transport.post("/get_id_lists", nil, responseBody, RequestOptions{})
+	options := RequestOptions{}
+	if transport.options.FallbackToStatsigAPI {
+		options.retries = 1
+	}
+	return transport.post("/get_id_lists", nil, responseBody, options)
 }
 
 func (transport *transport) get_id_list(url string, headers map[string]string) (*http.Response, error) {
@@ -171,7 +157,11 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 			bodyBuf = bytes.NewBufferString("{}")
 		}
 	}
-	req, err := http.NewRequest(method, transport.buildURL(endpoint), bodyBuf)
+	url, err := transport.buildURL(endpoint, false)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest(method, url.String(), bodyBuf)
 	if err != nil {
 		return nil, err
 	}
@@ -193,16 +183,47 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 	return req, nil
 }
 
-func (transport *transport) buildURL(endpoint string) string {
+func (t *transport) buildURL(path string, isRetry bool) (*url.URL, error) {
+	var api string
+	useDefaultAPI := isRetry && t.options.FallbackToStatsigAPI
+	endpoint := strings.TrimPrefix(path, "/v1")
 	if strings.Contains(endpoint, "download_config_specs") {
-		return transport.api.downloadConfigSpecs + endpoint
+		if useDefaultAPI {
+			api = StatsigCDN
+		} else {
+			api = defaultString(t.options.APIOverrides.DownloadConfigSpecs, defaultString(t.options.API, StatsigCDN))
+		}
 	} else if strings.Contains(endpoint, "get_id_list") {
-		return transport.api.getIDLists + endpoint
+		if useDefaultAPI {
+			api = StatsigAPI
+		} else {
+			api = defaultString(t.options.APIOverrides.GetIDLists, defaultString(t.options.API, StatsigAPI))
+		}
 	} else if strings.Contains(endpoint, "log_event") {
-		return transport.api.logEvent + endpoint
+		if useDefaultAPI {
+			api = StatsigAPI
+		} else {
+			api = defaultString(t.options.APIOverrides.LogEvent, defaultString(t.options.API, StatsigAPI))
+		}
 	} else {
-		return defaultString(transport.options.API, StatsigAPI) + endpoint
+		if useDefaultAPI {
+			api = StatsigAPI
+		} else {
+			api = defaultString(t.options.API, StatsigAPI)
+		}
 	}
+	return url.Parse(strings.TrimSuffix(api, "/") + endpoint)
+}
+
+func (t *transport) updateRequestForRetry(r *http.Request) *http.Request {
+	retryURL, err := t.buildURL(r.URL.Path, true)
+	if err == nil && strings.Compare(r.URL.Host, retryURL.Host) != 0 {
+		retryRequest, err := http.NewRequest(r.Method, retryURL.String(), r.Body)
+		if err == nil {
+			return retryRequest
+		}
+	}
+	return nil
 }
 
 func (transport *transport) doRequest(
@@ -225,10 +246,16 @@ func (transport *transport) doRequest(
 		if err != nil {
 			return response, response != nil, err
 		}
+
+		retryRequest := transport.updateRequestForRetry(request)
+		if retryRequest != nil {
+			request = retryRequest
+		}
+
 		drainAndCloseBody := func() {
 			if response.Body != nil {
 				// Drain body to re-use the same connection
-				_, _ = io.Copy(ioutil.Discard, response.Body)
+				_, _ = io.Copy(io.Discard, response.Body)
 				response.Body.Close()
 			}
 		}

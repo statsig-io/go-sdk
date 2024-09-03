@@ -8,7 +8,6 @@ func TestLayerExposure(t *testing.T) {
 	events := []Event{}
 
 	testServer := getTestServer(testServerOptions{
-		dcsOnline: true,
 		onLogEvent: func(newEvents []map[string]interface{}) {
 			for _, newEvent := range newEvents {
 				eventTyped := convertToExposureEvent(newEvent)

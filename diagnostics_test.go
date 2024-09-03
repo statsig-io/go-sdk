@@ -15,7 +15,6 @@ type Pair struct {
 func TestInitDiagnostics(t *testing.T) {
 	var events events
 	testServer := getTestServer(testServerOptions{
-		dcsOnline: true,
 		onLogEvent: func(newEvents []map[string]interface{}) {
 			events = newEvents
 		},
@@ -60,7 +59,6 @@ func TestInitDiagnostics(t *testing.T) {
 func TestInitTimeoutDiagnostics(t *testing.T) {
 	var events events
 	testServer := getTestServer(testServerOptions{
-		dcsOnline: true,
 		onLogEvent: func(newEvents []map[string]interface{}) {
 			events = newEvents
 		},
@@ -93,7 +91,6 @@ func TestConfigSyncDiagnostics(t *testing.T) {
 	count := 0
 	testServer := getTestServer(
 		testServerOptions{
-			dcsOnline: true,
 			onLogEvent: func(events []map[string]interface{}) {
 				mu.Lock()
 				defer mu.Unlock()
@@ -154,7 +151,6 @@ func TestApiCallDiagnostics(t *testing.T) {
 	var events events
 	testServer := getTestServer(
 		testServerOptions{
-			dcsOnline: true,
 			onLogEvent: func(newEvents []map[string]interface{}) {
 				events = newEvents
 			},
@@ -200,7 +196,6 @@ func TestBootstrapDiagnostics(t *testing.T) {
 	var events events
 	testServer := getTestServer(
 		testServerOptions{
-			dcsOnline: true,
 			onLogEvent: func(newEvents []map[string]interface{}) {
 				events = newEvents
 			},
@@ -252,7 +247,6 @@ func TestDiagnosticsGetCleared(t *testing.T) {
 	var mu sync.Mutex
 	count := 0
 	testServer := getTestServer(testServerOptions{
-		dcsOnline: true,
 		onLogEvent: func(events []map[string]interface{}) {
 			mu.Lock()
 			defer mu.Unlock()
@@ -327,7 +321,6 @@ func TestDiagnosticsSampling(t *testing.T) {
 	var mu sync.RWMutex
 
 	testServer := getTestServer(testServerOptions{
-		dcsOnline: true,
 		onLogEvent: func(newEvents []map[string]interface{}) {
 			mu.Lock()
 			events = append(events, newEvents...)
@@ -383,7 +376,6 @@ func TestDiagnosticsClearMarkers(t *testing.T) {
 	var events events
 	testServer := getTestServer(
 		testServerOptions{
-			dcsOnline: true,
 			onLogEvent: func(newEvents []map[string]interface{}) {
 				events = append(events, newEvents...)
 			},
@@ -426,7 +418,6 @@ func TestDiagnosticsMaxMarkers(t *testing.T) {
 	var events events
 	testServer := getTestServer(
 		testServerOptions{
-			dcsOnline: true,
 			onLogEvent: func(newEvents []map[string]interface{}) {
 				events = newEvents
 			},
@@ -465,7 +456,6 @@ func TestDiagnosticsMaxMarkers(t *testing.T) {
 func TestDisableDiagnostics(t *testing.T) {
 	var events events
 	testServer := getTestServer(testServerOptions{
-		dcsOnline: true,
 		onLogEvent: func(newEvents []map[string]interface{}) {
 			events = newEvents
 

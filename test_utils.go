@@ -15,7 +15,7 @@ import (
 type events []map[string]interface{}
 
 type testServerOptions struct {
-	dcsOnline       bool
+	status          int
 	onLogEvent      func(events []map[string]interface{})
 	onDCS           func()
 	onGetIDLists    func()
@@ -26,29 +26,30 @@ type testServerOptions struct {
 func getTestServer(opts testServerOptions) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Add("x-statsig-region", "az-westus-2")
+		var status int
+		if opts.status == 0 {
+			status = http.StatusOK
+		} else {
+			status = opts.status
+		}
+		res.WriteHeader(status)
+		if status < 200 || status >= 300 {
+			return
+		}
 		if strings.Contains(req.URL.Path, "download_config_specs") {
-			if !opts.dcsOnline {
-				res.WriteHeader(http.StatusInternalServerError)
-			} else {
-				dcsFile := "download_config_specs.json"
-				if opts.withSampling {
-					dcsFile = "download_config_specs_with_diagnostics_sampling.json"
-				}
-				if opts.isLayerExposure {
-					dcsFile = "layer_exposure_download_config_specs.json"
-				}
-				bytes, _ := os.ReadFile(dcsFile)
-				res.WriteHeader(http.StatusOK)
-				_, _ = res.Write(bytes)
-				if opts.onDCS != nil {
-					opts.onDCS()
-				}
+			dcsFile := "download_config_specs.json"
+			if opts.withSampling {
+				dcsFile = "download_config_specs_with_diagnostics_sampling.json"
 			}
+			if opts.isLayerExposure {
+				dcsFile = "layer_exposure_download_config_specs.json"
+			}
+			bytes, _ := os.ReadFile(dcsFile)
+			_, _ = res.Write(bytes)
 			if opts.onDCS != nil {
 				opts.onDCS()
 			}
 		} else if strings.Contains(req.URL.Path, "log_event") {
-			res.WriteHeader(http.StatusOK)
 			type requestInput struct {
 				Events          []map[string]interface{} `json:"events"`
 				StatsigMetadata statsigMetadata          `json:"statsigMetadata"`
@@ -71,7 +72,6 @@ func getTestServer(opts testServerOptions) *httptest.Server {
 				opts.onLogEvent(input.Events)
 			}
 		} else if strings.Contains(req.URL.Path, "get_id_lists") {
-			res.WriteHeader(http.StatusOK)
 			response, _ := json.Marshal(map[string]map[string]interface{}{
 				"my_id_list": {
 					"name":         "my_id_list",

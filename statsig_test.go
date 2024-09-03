@@ -92,7 +92,6 @@ func TestRulesUpdatedCallback(t *testing.T) {
 func TestLogImmediate(t *testing.T) {
 	env := ""
 	testServer := getTestServer(testServerOptions{
-		dcsOnline: true,
 		onLogEvent: func(newEvents []map[string]interface{}) {
 			eventTyped := convertToExposureEvent(newEvents[0])
 			env = eventTyped.User.StatsigEnvironment["tier"]

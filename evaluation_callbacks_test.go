@@ -42,9 +42,7 @@ func TestExposureCallback(t *testing.T) {
 		},
 	}
 
-	testServer := getTestServer(testServerOptions{
-		dcsOnline: true,
-	})
+	testServer := getTestServer(testServerOptions{})
 
 	var opt *Options
 	var user User

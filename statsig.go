@@ -25,6 +25,7 @@ func Initialize(sdkKey string) {
 type Options struct {
 	API                   string       `json:"api"`
 	APIOverrides          APIOverrides `json:"api_overrides"`
+	FallbackToStatsigAPI  bool
 	Transport             http.RoundTripper
 	Environment           Environment `json:"environment"`
 	LocalMode             bool        `json:"localMode"`
