@@ -15,6 +15,7 @@ type ClientInitializeResponse struct {
 	Time           int64                               `json:"time"`
 	SDKInfo        SDKInfo                             `json:"sdkInfo"`
 	User           User                                `json:"user"`
+	HashUsed       string                              `json:"hash_used"`
 }
 
 type SDKInfo struct {
@@ -42,6 +43,7 @@ type ConfigInitializeResponse struct {
 	IsUserInExperiment *bool                  `json:"is_user_in_experiment,omitempty"`
 	IsInLayer          *bool                  `json:"is_in_layer,omitempty"`
 	ExplicitParameters *[]string              `json:"explicit_parameters,omitempty"`
+	GroupName          string                 `json:"group_name,omitempty"`
 }
 
 type LayerInitializeResponse struct {
@@ -54,6 +56,7 @@ type LayerInitializeResponse struct {
 	ExplicitParameters            *[]string              `json:"explicit_parameters,omitempty"`
 	AllocatedExperimentName       string                 `json:"allocated_experiment_name,omitempty"`
 	UndelegatedSecondaryExposures []SecondaryExposure    `json:"undelegated_secondary_exposures"`
+	GroupName                     string                 `json:"group_name,omitempty"`
 }
 
 func mergeMaps(a map[string]interface{}, b map[string]interface{}) {
@@ -118,6 +121,9 @@ func getClientInitializeResponse(
 			Group:                      evalRes.RuleID,
 			IsDeviceBased:              strings.EqualFold(spec.IDType, "stableid"),
 		}
+		if evalRes.GroupName != "" {
+			result.GroupName = evalRes.GroupName
+		}
 		if strings.EqualFold(spec.Entity, "experiment") {
 			result.IsUserInExperiment = new(bool)
 			*result.IsUserInExperiment = evalRes.IsExperimentGroup != nil && *evalRes.IsExperimentGroup
@@ -171,6 +177,9 @@ func getClientInitializeResponse(
 				if len(delegateSpec.ExplicitParameters) > 0 {
 					*result.ExplicitParameters = delegateSpec.ExplicitParameters
 				}
+				if delegateResult.GroupName != "" {
+					result.GroupName = delegateResult.GroupName
+				}
 			}
 		}
 		return hashedName, result
@@ -222,6 +231,7 @@ func getClientInitializeResponse(
 		Time:           e.store.lastSyncTime,
 		SDKInfo:        SDKInfo{SDKVersion: meta.SDKVersion, SDKType: meta.SDKType},
 		User:           *user.getCopyForLogging(),
+		HashUsed:       hashAlgorithm,
 	}
 	return response
 }
