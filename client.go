@@ -118,7 +118,7 @@ func (c *Client) ManuallyLogGateExposure(user User, gate string) {
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.evalGate(user, gate, StatsigContext{Caller: "logGateExposure", ConfigName: gate})
 		context := &logContext{isManualExposure: true}
-		c.logger.logGateExposure(user, gate, res.Value, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
+		c.logger.logGateExposure(user, gate, res, context)
 	})
 }
 
@@ -147,7 +147,7 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.evalConfig(user, config, nil, StatsigContext{Caller: "logConfigExposure", ConfigName: config})
 		context := &logContext{isManualExposure: true}
-		c.logger.logConfigExposure(user, config, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
+		c.logger.logConfigExposure(user, config, res, context)
 	})
 }
 
@@ -236,7 +236,7 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 		res := c.evaluator.evalLayer(user, layer, nil, StatsigContext{Caller: "logLayerParameterExposure", ConfigName: layer})
 		config := NewLayer(layer, res.JsonValue, res.RuleID, res.GroupName, nil, res.ConfigDelegate)
 		context := &logContext{isManualExposure: true}
-		c.logger.logLayerExposure(user, *config, parameter, *res, res.EvaluationDetails, context)
+		c.logger.logLayerExposure(user, *config, parameter, *res, context)
 	})
 }
 
@@ -378,7 +378,7 @@ func (c *Client) checkGateImpl(user User, name string, options checkGateOptions,
 			res = &evalResult{Value: serverRes.Value, RuleID: serverRes.RuleID}
 		} else {
 			context := &logContext{isManualExposure: false}
-			exposure := c.logger.getGateExposureWithEvaluationDetails(user, name, res.Value, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
+			exposure := c.logger.getGateExposureWithEvaluationDetails(user, name, res, context)
 			if !options.disableLogExposures {
 				c.logger.logExposure(*exposure)
 			}
@@ -432,7 +432,7 @@ func (c *Client) getConfigImpl(user User, name string, context getConfigImplCont
 				logExposure = !context.configOptions.disableLogExposures
 			}
 			context := &logContext{isManualExposure: false}
-			exposure := c.logger.getConfigExposureWithEvaluationDetails(user, name, res.RuleID, res.SecondaryExposures, res.EvaluationDetails, context)
+			exposure := c.logger.getConfigExposureWithEvaluationDetails(user, name, res, context)
 			if logExposure {
 				c.logger.logExposure(*exposure)
 			}
@@ -478,7 +478,7 @@ func (c *Client) getLayerImpl(user User, name string, options *GetLayerOptions, 
 
 		logFunc := func(layer Layer, parameterName string) {
 			context := &logContext{isManualExposure: false}
-			exposure := c.logger.getLayerExposureWithEvaluationDetails(user, layer, parameterName, *res, res.EvaluationDetails, context)
+			exposure := c.logger.getLayerExposureWithEvaluationDetails(user, layer, parameterName, *res, context)
 			if !options.DisableLogExposures {
 				c.logger.logExposure(*exposure)
 			}

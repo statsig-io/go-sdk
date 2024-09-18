@@ -1,0 +1,154 @@
+{
+  "dynamic_configs": [],
+  "feature_gates": [
+    {
+      "name": "test_ua_browser_name",
+      "type": "feature_gate",
+      "salt": "30c76215-8a9b-461d-bcc0-a99197534d52",
+      "enabled": true,
+      "defaultValue": false,
+      "rules": [
+        {
+          "name": "9eiCEHlnoUMZM297goyGh",
+          "passPercentage": 100,
+          "conditions": [
+            {
+              "type": "ua_based",
+              "targetValue": [
+                "Chrome"
+              ],
+              "operator": "any",
+              "field": "browser_name",
+              "additionalValues": {},
+              "isDeviceBased": false,
+              "idType": "userID"
+            }
+          ],
+          "returnValue": true,
+          "id": "1gGkMDmjbL66xC9STQnz64:100.00:4",
+          "salt": "a68db427-b46e-4507-93e4-0abda62c4c74",
+          "isDeviceBased": false,
+          "idType": "userID"
+        }
+      ],
+      "isDeviceBased": false,
+      "idType": "userID",
+      "entity": "feature_gate"
+    },
+    {
+      "name": "test_ua_browser_version",
+      "type": "feature_gate",
+      "salt": "30c76215-8a9b-461d-bcc0-a99197534d52",
+      "enabled": true,
+      "defaultValue": false,
+      "rules": [
+        {
+          "name": "9eiCEHlnoUMZM297goyGh",
+          "passPercentage": 100,
+          "conditions": [
+            {
+              "type": "ua_based",
+              "targetValue": [
+                "58.0.3029.110"
+              ],
+              "operator": "any",
+              "field": "browser_version",
+              "additionalValues": {},
+              "isDeviceBased": false,
+              "idType": "userID"
+            }
+          ],
+          "returnValue": true,
+          "id": "1gGkMDmjbL66xC9STQnz64:100.00:4",
+          "salt": "a68db427-b46e-4507-93e4-0abda62c4c74",
+          "isDeviceBased": false,
+          "idType": "userID"
+        }
+      ],
+      "isDeviceBased": false,
+      "idType": "userID",
+      "entity": "feature_gate"
+    },
+    {
+      "name": "test_ua_os_name",
+      "type": "feature_gate",
+      "salt": "30c76215-8a9b-461d-bcc0-a99197534d52",
+      "enabled": true,
+      "defaultValue": false,
+      "rules": [
+        {
+          "name": "9eiCEHlnoUMZM297goyGh",
+          "passPercentage": 100,
+          "conditions": [
+            {
+              "type": "ua_based",
+              "targetValue": [
+                "Windows"
+              ],
+              "operator": "any",
+              "field": "os_name",
+              "additionalValues": {},
+              "isDeviceBased": false,
+              "idType": "userID"
+            }
+          ],
+          "returnValue": true,
+          "id": "1gGkMDmjbL66xC9STQnz64:100.00:4",
+          "salt": "a68db427-b46e-4507-93e4-0abda62c4c74",
+          "isDeviceBased": false,
+          "idType": "userID"
+        }
+      ],
+      "isDeviceBased": false,
+      "idType": "userID",
+      "entity": "feature_gate"
+    },
+    {
+      "name": "test_ua_os_version",
+      "type": "feature_gate",
+      "salt": "30c76215-8a9b-461d-bcc0-a99197534d52",
+      "enabled": true,
+      "defaultValue": false,
+      "rules": [
+        {
+          "name": "9eiCEHlnoUMZM297goyGh",
+          "passPercentage": 100,
+          "conditions": [
+            {
+              "type": "ua_based",
+              "targetValue": [
+                "10"
+              ],
+              "operator": "any",
+              "field": "os_version",
+              "additionalValues": {},
+              "isDeviceBased": false,
+              "idType": "userID"
+            }
+          ],
+          "returnValue": true,
+          "id": "1gGkMDmjbL66xC9STQnz64:100.00:4",
+          "salt": "a68db427-b46e-4507-93e4-0abda62c4c74",
+          "isDeviceBased": false,
+          "idType": "userID"
+        }
+      ],
+      "isDeviceBased": false,
+      "idType": "userID",
+      "entity": "feature_gate"
+    }
+  ],
+  "layer_configs": [],
+  "layers": {},
+  "has_updates": true,
+  "time": 1631638014811,
+  "id_lists": {},
+  "diagnostics": {
+    "download_config_specs": 10000,
+    "get_id_list": 10000,
+    "get_id_list_sources": 10000,
+    "api_call": 10000,
+    "config_sync": 10000,
+    "initialize": 10000
+  }
+}

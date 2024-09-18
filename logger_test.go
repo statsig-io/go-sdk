@@ -55,7 +55,8 @@ func TestLog(t *testing.T) {
 
 	// Test gate exposures
 	exposures := []SecondaryExposure{{Gate: "another_gate", GateValue: "true", RuleID: "default"}}
-	logger.logGateExposure(user, "test_gate", true, "rule_id", exposures, nil, nil)
+	gateRes := &evalResult{RuleID: "rule_id", SecondaryExposures: exposures, Value: true}
+	logger.logGateExposure(user, "test_gate", gateRes, nil)
 	evt2, ok := logger.events[1].(ExposureEvent)
 	if !ok {
 		t.Errorf("Gate exposure event type incorrect.")
@@ -76,7 +77,8 @@ func TestLog(t *testing.T) {
 
 	// Test config exposures
 	exposures = append(exposures, SecondaryExposure{Gate: "yet_another_gate", GateValue: "false", RuleID: ""})
-	logger.logConfigExposure(user, "test_config", "rule_id_config", exposures, nil, nil)
+	configRes := &evalResult{RuleID: "rule_id_config", SecondaryExposures: exposures}
+	logger.logConfigExposure(user, "test_config", configRes, nil)
 	evt3, ok := logger.events[2].(ExposureEvent)
 	if !ok {
 		t.Errorf("Config exposure event type incorrect.")

@@ -120,13 +120,10 @@ func (l *logger) logInternal(evt interface{}) {
 func (l *logger) logGateExposure(
 	user User,
 	gateName string,
-	value bool,
-	ruleID string,
-	exposures []SecondaryExposure,
-	evalDetails *EvaluationDetails,
+	res *evalResult,
 	context *logContext,
 ) *ExposureEvent {
-	evt := l.getGateExposureWithEvaluationDetails(user, gateName, value, ruleID, exposures, evalDetails, context)
+	evt := l.getGateExposureWithEvaluationDetails(user, gateName, res, context)
 	l.logExposure(*evt)
 	return evt
 }
@@ -134,27 +131,26 @@ func (l *logger) logGateExposure(
 func (l *logger) getGateExposureWithEvaluationDetails(
 	user User,
 	gateName string,
-	value bool,
-	ruleID string,
-	exposures []SecondaryExposure,
-	evalDetails *EvaluationDetails,
+	res *evalResult,
 	context *logContext,
 ) *ExposureEvent {
 	metadata := map[string]string{
 		"gate":      gateName,
-		"gateValue": strconv.FormatBool(value),
-		"ruleID":    ruleID,
+		"gateValue": strconv.FormatBool(res.Value),
+		"ruleID":    res.RuleID,
 	}
 	if context != nil && context.isManualExposure {
 		metadata["isManualExposure"] = "true"
 	}
+
 	evt := &ExposureEvent{
 		User:               user,
 		EventName:          GateExposureEventName,
 		Metadata:           metadata,
-		SecondaryExposures: exposures,
+		SecondaryExposures: res.SecondaryExposures,
 	}
-	l.addEvaluationDetailsToExposureEvent(evt, evalDetails)
+	l.addEvaluationDetailsToExposureEvent(evt, res.EvaluationDetails)
+	l.addDeviceMetadataToExposureEvent(evt, res.DerivedDeviceMetadata)
 	return evt
 }
 
@@ -170,15 +166,25 @@ func (l *logger) addEvaluationDetailsToExposureEvent(
 	}
 }
 
+func (l *logger) addDeviceMetadataToExposureEvent(
+	evt *ExposureEvent,
+	deviceMetadata *DerivedDeviceMetadata,
+) {
+	if deviceMetadata != nil {
+		evt.Metadata["os_name"] = deviceMetadata.OsName
+		evt.Metadata["os_version"] = deviceMetadata.OsVersion
+		evt.Metadata["browser_name"] = deviceMetadata.BrowserName
+		evt.Metadata["browser_version"] = deviceMetadata.BrowserVersion
+	}
+}
+
 func (l *logger) logConfigExposure(
 	user User,
 	configName string,
-	ruleID string,
-	exposures []SecondaryExposure,
-	evalDetails *EvaluationDetails,
+	res *evalResult,
 	context *logContext,
 ) *ExposureEvent {
-	evt := l.getConfigExposureWithEvaluationDetails(user, configName, ruleID, exposures, evalDetails, context)
+	evt := l.getConfigExposureWithEvaluationDetails(user, configName, res, context)
 	l.logExposure(*evt)
 	return evt
 }
@@ -186,14 +192,12 @@ func (l *logger) logConfigExposure(
 func (l *logger) getConfigExposureWithEvaluationDetails(
 	user User,
 	configName string,
-	ruleID string,
-	exposures []SecondaryExposure,
-	evalDetails *EvaluationDetails,
+	res *evalResult,
 	context *logContext,
 ) *ExposureEvent {
 	metadata := map[string]string{
 		"config": configName,
-		"ruleID": ruleID,
+		"ruleID": res.RuleID,
 	}
 	if context != nil && context.isManualExposure {
 		metadata["isManualExposure"] = "true"
@@ -202,9 +206,10 @@ func (l *logger) getConfigExposureWithEvaluationDetails(
 		User:               user,
 		EventName:          ConfigExposureEventName,
 		Metadata:           metadata,
-		SecondaryExposures: exposures,
+		SecondaryExposures: res.SecondaryExposures,
 	}
-	l.addEvaluationDetailsToExposureEvent(evt, evalDetails)
+	l.addEvaluationDetailsToExposureEvent(evt, res.EvaluationDetails)
+	l.addDeviceMetadataToExposureEvent(evt, res.DerivedDeviceMetadata)
 	return evt
 }
 
@@ -213,10 +218,9 @@ func (l *logger) logLayerExposure(
 	config Layer,
 	parameterName string,
 	evalResult evalResult,
-	evalDetails *EvaluationDetails,
 	context *logContext,
 ) *ExposureEvent {
-	evt := l.getLayerExposureWithEvaluationDetails(user, config, parameterName, evalResult, evalDetails, context)
+	evt := l.getLayerExposureWithEvaluationDetails(user, config, parameterName, evalResult, context)
 	l.logExposure(*evt)
 	return evt
 }
@@ -226,8 +230,8 @@ func (l *logger) getLayerExposureWithEvaluationDetails(
 	config Layer,
 	parameterName string,
 	evalResult evalResult,
-	evalDetails *EvaluationDetails,
-	context *logContext) *ExposureEvent {
+	context *logContext,
+) *ExposureEvent {
 	allocatedExperiment := ""
 	exposures := evalResult.UndelegatedSecondaryExposures
 	isExplicit := false
@@ -258,7 +262,8 @@ func (l *logger) getLayerExposureWithEvaluationDetails(
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
-	l.addEvaluationDetailsToExposureEvent(evt, evalDetails)
+	l.addEvaluationDetailsToExposureEvent(evt, evalResult.EvaluationDetails)
+	l.addDeviceMetadataToExposureEvent(evt, evalResult.DerivedDeviceMetadata)
 	return evt
 }
 

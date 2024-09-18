@@ -25,6 +25,14 @@ type evalResult struct {
 	ExplicitParameters            []string               `json:"explicit_parameters"`
 	EvaluationDetails             *EvaluationDetails     `json:"evaluation_details,omitempty"`
 	IsExperimentGroup             *bool                  `json:"is_experiment_group,omitempty"`
+	DerivedDeviceMetadata         *DerivedDeviceMetadata `json:"derived_device_metadata,omitempty"`
+}
+
+type DerivedDeviceMetadata struct {
+	OsName         string `json:"os_name"`
+	OsVersion      string `json:"os_version"`
+	BrowserName    string `json:"browser_name"`
+	BrowserVersion string `json:"browser_version"`
 }
 
 type SecondaryExposure struct {
@@ -363,6 +371,8 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context StatsigC
 
 	var exposures = make([]SecondaryExposure, 0)
 	defaultRuleID := "default"
+	var deviceMetadata *DerivedDeviceMetadata
+
 	if spec.Enabled {
 		for _, rule := range spec.Rules {
 			r := e.evalRule(user, rule, depth+1, context)
@@ -370,6 +380,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context StatsigC
 				return r
 			}
 			exposures = e.cleanExposures(append(exposures, r.SecondaryExposures...))
+			deviceMetadata = assignDerivedDeviceMetadata(r, deviceMetadata)
 			if r.Value {
 				delegatedResult := e.evalDelegate(user, rule, exposures, depth+1, context)
 				if delegatedResult != nil {
@@ -389,6 +400,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context StatsigC
 						SecondaryExposures:            exposures,
 						UndelegatedSecondaryExposures: exposures,
 						EvaluationDetails:             evalDetails,
+						DerivedDeviceMetadata:         deviceMetadata,
 					}
 					if rule.IsExperimentGroup != nil {
 						result.IsExperimentGroup = rule.IsExperimentGroup
@@ -396,11 +408,12 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context StatsigC
 					return result
 				} else {
 					return &evalResult{
-						Value:              pass,
-						RuleID:             rule.ID,
-						GroupName:          rule.GroupName,
-						SecondaryExposures: exposures,
-						EvaluationDetails:  evalDetails,
+						Value:                 pass,
+						RuleID:                rule.ID,
+						GroupName:             rule.GroupName,
+						SecondaryExposures:    exposures,
+						EvaluationDetails:     evalDetails,
+						DerivedDeviceMetadata: deviceMetadata,
 					}
 				}
 			}
@@ -417,9 +430,10 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context StatsigC
 			SecondaryExposures:            exposures,
 			UndelegatedSecondaryExposures: exposures,
 			EvaluationDetails:             evalDetails,
+			DerivedDeviceMetadata:         deviceMetadata,
 		}
 	}
-	return &evalResult{Value: false, RuleID: defaultRuleID, SecondaryExposures: exposures}
+	return &evalResult{Value: false, RuleID: defaultRuleID, SecondaryExposures: exposures, DerivedDeviceMetadata: deviceMetadata}
 }
 
 func (e *evaluator) evalDelegate(user User, rule configRule, exposures []SecondaryExposure, depth int, context StatsigContext) *evalResult {
@@ -461,6 +475,7 @@ func getUnitID(user User, idType string) string {
 
 func (e *evaluator) evalRule(user User, rule configRule, depth int, context StatsigContext) *evalResult {
 	var exposures = make([]SecondaryExposure, 0)
+	var deviceMetadata *DerivedDeviceMetadata
 	var finalResult = &evalResult{Value: true, FetchFromServer: false}
 	for _, cond := range rule.Conditions {
 		res := e.evalCondition(user, cond, depth+1, context)
@@ -470,9 +485,11 @@ func (e *evaluator) evalRule(user User, rule configRule, depth int, context Stat
 		if res.FetchFromServer {
 			finalResult.FetchFromServer = true
 		}
+		deviceMetadata = assignDerivedDeviceMetadata(res, deviceMetadata)
 		exposures = append(exposures, res.SecondaryExposures...)
 	}
 	finalResult.SecondaryExposures = exposures
+	finalResult.DerivedDeviceMetadata = deviceMetadata
 	return finalResult
 }
 
@@ -480,6 +497,8 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 	var value interface{}
 	condType := cond.Type
 	op := cond.Operator
+	var deviceMetadata *DerivedDeviceMetadata
+
 	switch {
 	case strings.EqualFold(condType, "public"):
 		return &evalResult{Value: true}
@@ -504,9 +523,9 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		}
 
 		if strings.EqualFold(condType, "pass_gate") {
-			return &evalResult{Value: result.Value, SecondaryExposures: allExposures}
+			return &evalResult{Value: result.Value, SecondaryExposures: allExposures, DerivedDeviceMetadata: result.DerivedDeviceMetadata}
 		} else {
-			return &evalResult{Value: !result.Value, SecondaryExposures: allExposures}
+			return &evalResult{Value: !result.Value, SecondaryExposures: allExposures, DerivedDeviceMetadata: result.DerivedDeviceMetadata}
 		}
 	case strings.EqualFold(condType, "ip_based"):
 		value = getFromUser(user, cond.Field)
@@ -516,7 +535,8 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 	case strings.EqualFold(condType, "ua_based"):
 		value = getFromUser(user, cond.Field)
 		if value == nil || value == "" {
-			value = getFromUserAgent(user, cond.Field, e.uaParser)
+			deviceMetadata = &DerivedDeviceMetadata{}
+			value = getFromUserAgent(user, cond.Field, e.uaParser, deviceMetadata)
 		}
 	case strings.EqualFold(condType, "user_field"):
 		value = getFromUser(user, cond.Field)
@@ -651,7 +671,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		pass = false
 		server = true
 	}
-	return &evalResult{Value: pass, FetchFromServer: server}
+	return &evalResult{Value: pass, FetchFromServer: server, DerivedDeviceMetadata: deviceMetadata}
 }
 
 func getFromUser(user User, field string) interface{} {
@@ -703,7 +723,7 @@ func getFromEnvironment(user User, field string) string {
 	return value
 }
 
-func getFromUserAgent(user User, field string, parser *uaParser) string {
+func getFromUserAgent(user User, field string, parser *uaParser, deviceMetadata *DerivedDeviceMetadata) string {
 	ua := getFromUser(user, "useragent")
 	uaStr, ok := ua.(string)
 	if !ok {
@@ -715,13 +735,27 @@ func getFromUserAgent(user User, field string, parser *uaParser) string {
 	}
 	switch {
 	case strings.EqualFold(field, "os_name") || strings.EqualFold(field, "osname"):
+		if deviceMetadata != nil {
+			deviceMetadata.OsName = client.Os.Family
+		}
 		return client.Os.Family
 	case strings.EqualFold(field, "os_version") || strings.EqualFold(field, "osversion"):
-		return strings.Join(removeEmptyStrings([]string{client.Os.Major, client.Os.Minor, client.Os.Patch, client.Os.PatchMinor}), ".")
+		osVersion := strings.Join(removeEmptyStrings([]string{client.Os.Major, client.Os.Minor, client.Os.Patch, client.Os.PatchMinor}), ".")
+		if deviceMetadata != nil {
+			deviceMetadata.OsVersion = osVersion
+		}
+		return osVersion
 	case strings.EqualFold(field, "browser_name") || strings.EqualFold(field, "browsername"):
+		if deviceMetadata != nil {
+			deviceMetadata.BrowserName = client.UserAgent.Family
+		}
 		return client.UserAgent.Family
 	case strings.EqualFold(field, "browser_version") || strings.EqualFold(field, "browserversion"):
-		return strings.Join(removeEmptyStrings([]string{client.UserAgent.Major, client.UserAgent.Minor, client.UserAgent.Patch}), ".")
+		browserVersion := strings.Join(removeEmptyStrings([]string{client.UserAgent.Major, client.UserAgent.Minor, client.UserAgent.Patch}), ".")
+		if deviceMetadata != nil {
+			deviceMetadata.BrowserVersion = browserVersion
+		}
+		return browserVersion
 	}
 	return ""
 }
@@ -952,4 +986,17 @@ func getUnixTimestamp(v interface{}) int64 {
 		return int64(v)
 	}
 	return 0
+}
+
+func assignDerivedDeviceMetadata(res *evalResult, deviceMetadata *DerivedDeviceMetadata) *DerivedDeviceMetadata {
+	if res.DerivedDeviceMetadata != nil {
+		if deviceMetadata == nil {
+			deviceMetadata = &DerivedDeviceMetadata{}
+		}
+		deviceMetadata.OsName = res.DerivedDeviceMetadata.OsName
+		deviceMetadata.OsVersion = res.DerivedDeviceMetadata.OsVersion
+		deviceMetadata.BrowserName = res.DerivedDeviceMetadata.BrowserName
+		deviceMetadata.BrowserVersion = res.DerivedDeviceMetadata.BrowserVersion
+	}
+	return deviceMetadata
 }

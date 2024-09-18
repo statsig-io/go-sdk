@@ -21,6 +21,7 @@ type testServerOptions struct {
 	onGetIDLists    func()
 	withSampling    bool
 	isLayerExposure bool
+	uaBasedRules    bool
 }
 
 func getTestServer(opts testServerOptions) *httptest.Server {
@@ -43,6 +44,9 @@ func getTestServer(opts testServerOptions) *httptest.Server {
 			}
 			if opts.isLayerExposure {
 				dcsFile = "layer_exposure_download_config_specs.json"
+			}
+			if opts.uaBasedRules {
+				dcsFile = "download_config_specs_ua_gates.json"
 			}
 			bytes, _ := os.ReadFile(dcsFile)
 			_, _ = res.Write(bytes)
