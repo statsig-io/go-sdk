@@ -251,17 +251,17 @@ func (c *Client) LogEvent(event Event) {
 	})
 }
 
-// Override the value of a Feature Gate for the given user
+// Override the value of a Feature Gate for all users
 func (c *Client) OverrideGate(gate string, val bool) {
 	c.errorBoundary.captureVoid(func() { c.evaluator.OverrideGate(gate, val) })
 }
 
-// Override the DynamicConfig value for the given user
+// Override the DynamicConfig value for all users
 func (c *Client) OverrideConfig(config string, val map[string]interface{}) {
 	c.errorBoundary.captureVoid(func() { c.evaluator.OverrideConfig(config, val) })
 }
 
-// Override the Layer value for the given user
+// Override the Layer value for all users
 func (c *Client) OverrideLayer(layer string, val map[string]interface{}) {
 	c.errorBoundary.captureVoid(func() { c.evaluator.OverrideLayer(layer, val) })
 }

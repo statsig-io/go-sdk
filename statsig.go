@@ -182,7 +182,7 @@ func ManuallyLogConfigExposure(user User, config string) {
 	instance.ManuallyLogConfigExposure(user, config)
 }
 
-// Override the value of a Feature Gate for the given user
+// Override the value of a Feature Gate for all users
 func OverrideGate(gate string, val bool) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling OverrideGate"))
@@ -190,7 +190,7 @@ func OverrideGate(gate string, val bool) {
 	instance.OverrideGate(gate, val)
 }
 
-// Override the DynamicConfig value for the given user
+// Override the DynamicConfig value for all users
 func OverrideConfig(config string, val map[string]interface{}) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling OverrideConfig"))
@@ -198,7 +198,7 @@ func OverrideConfig(config string, val map[string]interface{}) {
 	instance.OverrideConfig(config, val)
 }
 
-// Override the Layer value for the given user
+// Override the Layer value for all users
 func OverrideLayer(layer string, val map[string]interface{}) {
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling OverrideLayer"))

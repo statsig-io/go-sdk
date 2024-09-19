@@ -304,21 +304,21 @@ func (e *evaluator) getLayerOverrideEval(name string) (*evalResult, bool) {
 	return &evalResult{}, false
 }
 
-// Override the value of a Feature Gate for the given user
+// Override the value of a Feature Gate for all users
 func (e *evaluator) OverrideGate(gate string, val bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.gateOverrides[gate] = val
 }
 
-// Override the DynamicConfig value for the given user
+// Override the DynamicConfig value for all users
 func (e *evaluator) OverrideConfig(config string, val map[string]interface{}) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.configOverrides[config] = val
 }
 
-// Override the Layer value for the given user
+// Override the Layer value for all users
 func (e *evaluator) OverrideLayer(layer string, val map[string]interface{}) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
