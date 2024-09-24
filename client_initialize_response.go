@@ -191,12 +191,31 @@ func getClientInitializeResponse(
 	} else {
 		appId, _ = e.store.getAppIDForSDKKey(options.ClientKey)
 	}
+
+	filterByEntities := false
+	gatesLookup := make(map[string]bool)
+	configsLookup := make(map[string]bool)
+	if entities, ok := e.store.getEntitiesForSDKKey(options.ClientKey); ok {
+		filterByEntities = true
+		for _, gate := range entities.Gates {
+			gatesLookup[gate] = true
+		}
+		for _, config := range entities.Configs {
+			configsLookup[config] = true
+		}
+	}
+
 	featureGates := make(map[string]GateInitializeResponse)
 	dynamicConfigs := make(map[string]ConfigInitializeResponse)
 	layerConfigs := make(map[string]LayerInitializeResponse)
 	for name, spec := range e.store.featureGates {
 		if !spec.hasTargetAppID(appId) {
 			continue
+		}
+		if filterByEntities {
+			if _, ok := gatesLookup[name]; !ok {
+				continue
+			}
 		}
 		if !strings.EqualFold(spec.Entity, "segment") && !strings.EqualFold(spec.Entity, "holdout") {
 			hashedName, res := gateToResponse(name, spec)
@@ -206,6 +225,11 @@ func getClientInitializeResponse(
 	for name, spec := range e.store.dynamicConfigs {
 		if !spec.hasTargetAppID(appId) {
 			continue
+		}
+		if filterByEntities {
+			if _, ok := configsLookup[name]; !ok {
+				continue
+			}
 		}
 		hashedName, res := configToResponse(name, spec)
 		dynamicConfigs[hashedName] = res

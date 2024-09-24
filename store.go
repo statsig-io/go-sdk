@@ -69,18 +69,24 @@ type configCondition struct {
 }
 
 type downloadConfigSpecResponse struct {
-	HasUpdates             bool                `json:"has_updates"`
-	Time                   int64               `json:"time"`
-	FeatureGates           []configSpec        `json:"feature_gates"`
-	DynamicConfigs         []configSpec        `json:"dynamic_configs"`
-	LayerConfigs           []configSpec        `json:"layer_configs"`
-	Layers                 map[string][]string `json:"layers"`
-	IDLists                map[string]bool     `json:"id_lists"`
-	DiagnosticsSampleRates map[string]int      `json:"diagnostics"`
-	SDKKeysToAppID         map[string]string   `json:"sdk_keys_to_app_ids,omitempty"`
-	HashedSDKKeysToAppID   map[string]string   `json:"hashed_sdk_keys_to_app_ids,omitempty"`
-	HashedSDKKeyUsed       string              `json:"hashed_sdk_key_used,omitempty"`
-	SDKFlags               map[string]bool     `json:"sdk_flags,omitempty"`
+	HasUpdates              bool                      `json:"has_updates"`
+	Time                    int64                     `json:"time"`
+	FeatureGates            []configSpec              `json:"feature_gates"`
+	DynamicConfigs          []configSpec              `json:"dynamic_configs"`
+	LayerConfigs            []configSpec              `json:"layer_configs"`
+	Layers                  map[string][]string       `json:"layers"`
+	IDLists                 map[string]bool           `json:"id_lists"`
+	DiagnosticsSampleRates  map[string]int            `json:"diagnostics"`
+	SDKKeysToAppID          map[string]string         `json:"sdk_keys_to_app_ids,omitempty"`
+	HashedSDKKeysToAppID    map[string]string         `json:"hashed_sdk_keys_to_app_ids,omitempty"`
+	HashedSDKKeysToEntities map[string]configEntities `json:"hashed_sdk_keys_to_entities,omitempty"`
+	HashedSDKKeyUsed        string                    `json:"hashed_sdk_key_used,omitempty"`
+	SDKFlags                map[string]bool           `json:"sdk_flags,omitempty"`
+}
+
+type configEntities struct {
+	Configs []string `json:"configs"`
+	Gates   []string `json:"gates"`
 }
 
 type idList struct {
@@ -101,30 +107,31 @@ const (
 )
 
 type store struct {
-	featureGates         map[string]configSpec
-	dynamicConfigs       map[string]configSpec
-	layerConfigs         map[string]configSpec
-	experimentToLayer    map[string]string
-	sdkKeysToAppID       map[string]string
-	hashedSDKKeysToAppID map[string]string
-	idLists              map[string]*idList
-	lastSyncTime         int64
-	initialSyncTime      int64
-	initReason           evaluationReason
-	initializedIDLists   bool
-	transport            *transport
-	configSyncInterval   time.Duration
-	idListSyncInterval   time.Duration
-	shutdown             bool
-	rulesUpdatedCallback func(rules string, time int64)
-	errorBoundary        *errorBoundary
-	dataAdapter          IDataAdapter
-	syncFailureCount     int
-	diagnostics          *diagnostics
-	mu                   sync.RWMutex
-	sdkKey               string
-	isPolling            bool
-	bootstrapValues      string
+	featureGates            map[string]configSpec
+	dynamicConfigs          map[string]configSpec
+	layerConfigs            map[string]configSpec
+	experimentToLayer       map[string]string
+	sdkKeysToAppID          map[string]string
+	hashedSDKKeysToAppID    map[string]string
+	hashedSDKKeysToEntities map[string]configEntities
+	idLists                 map[string]*idList
+	lastSyncTime            int64
+	initialSyncTime         int64
+	initReason              evaluationReason
+	initializedIDLists      bool
+	transport               *transport
+	configSyncInterval      time.Duration
+	idListSyncInterval      time.Duration
+	shutdown                bool
+	rulesUpdatedCallback    func(rules string, time int64)
+	errorBoundary           *errorBoundary
+	dataAdapter             IDataAdapter
+	syncFailureCount        int
+	diagnostics             *diagnostics
+	mu                      sync.RWMutex
+	sdkKey                  string
+	isPolling               bool
+	bootstrapValues         string
 }
 
 var syncOutdatedMax = 2 * time.Minute
@@ -269,6 +276,13 @@ func (s *store) getAppIDForSDKKey(clientKey string) (string, bool) {
 	}
 	appId, ok := s.sdkKeysToAppID[clientKey]
 	return appId, ok
+}
+
+func (s *store) getEntitiesForSDKKey(clientKey string) (configEntities, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	entities, ok := s.hashedSDKKeysToEntities[getDJB2Hash(clientKey)]
+	return entities, ok
 }
 
 func (s *store) fetchConfigSpecsFromAdapter() {
@@ -447,6 +461,7 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 		s.experimentToLayer = newExperimentToLayer
 		s.sdkKeysToAppID = specs.SDKKeysToAppID
 		s.hashedSDKKeysToAppID = specs.HashedSDKKeysToAppID
+		s.hashedSDKKeysToEntities = specs.HashedSDKKeysToEntities
 		s.lastSyncTime = specs.Time
 		s.mu.Unlock()
 		return true, true
