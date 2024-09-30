@@ -455,8 +455,14 @@ func evalPassPercent(user User, rule configRule, spec configSpec) bool {
 	if ruleSalt == "" {
 		ruleSalt = rule.ID
 	}
-	hash := getHashUint64Encoding(spec.Salt + "." + ruleSalt + "." + getUnitID(user, rule.IDType))
+	if rule.PassPercentage == 0.0 {
+		return false
+	}
+	if rule.PassPercentage == 100.0 {
+		return true
+	}
 
+	hash := getHashUint64Encoding(spec.Salt + "." + ruleSalt + "." + getUnitID(user, rule.IDType))
 	return float64(hash%10000) < (rule.PassPercentage * 100)
 }
 
