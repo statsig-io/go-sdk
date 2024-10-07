@@ -348,7 +348,7 @@ func TestDiagnosticsSampling(t *testing.T) {
 	defer ShutdownAndDangerouslyClearInstance()
 
 	for i := 1; i <= 10; i++ {
-		instance.evaluator.store.fetchConfigSpecsFromServer(false)
+		instance.evaluator.store.fetchConfigSpecsFromServer(nil)
 		instance.logger.flush(false)
 	}
 	mu.RLock()
@@ -396,7 +396,7 @@ func TestDiagnosticsClearMarkers(t *testing.T) {
 	InitializeWithOptions("secret-key", options)
 	defer ShutdownAndDangerouslyClearInstance()
 	for i := 1; i <= 10; i++ {
-		instance.evaluator.store.fetchConfigSpecsFromServer(false)
+		instance.evaluator.store.fetchConfigSpecsFromServer(nil)
 		instance.logger.flush(false)
 	}
 
@@ -479,7 +479,7 @@ func TestDisableDiagnostics(t *testing.T) {
 	GetConfig(user, "non_existent_config")
 	GetExperiment(user, "non_existent_experiment")
 	GetLayer(user, "non_existent_layer")
-	instance.evaluator.store.fetchConfigSpecsFromServer(false)
+	instance.evaluator.store.fetchConfigSpecsFromServer(nil)
 	instance.logger.flush(true)
 	defer ShutdownAndDangerouslyClearInstance()
 

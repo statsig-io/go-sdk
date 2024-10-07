@@ -1,31 +1,50 @@
 package statsig
 
-type evaluationReason string
+import "fmt"
+
+type EvaluationSource string
 
 const (
-	reasonNetwork            evaluationReason = "Network"
-	reasonBootstrap          evaluationReason = "Bootstrap"
-	reasonLocalOverride      evaluationReason = "LocalOverride"
-	reasonUnrecognized       evaluationReason = "Unrecognized"
-	reasonUninitialized      evaluationReason = "Uninitialized"
-	reasonDataAdapter        evaluationReason = "DataAdapter"
-	reasonNetworkNotModified evaluationReason = "NetworkNotModified"
-	reasonPersisted          evaluationReason = "Persisted"
+	sourceUninitialized      EvaluationSource = "Uninitialized"
+	sourceNetwork            EvaluationSource = "Network"
+	sourceNetworkNotModified EvaluationSource = "NetworkNotModified"
+	sourceBootstrap          EvaluationSource = "Bootstrap"
+	sourceDataAdapter        EvaluationSource = "DataAdapter"
+)
+
+type EvaluationReason string
+
+const (
+	reasonNone          EvaluationReason = "None"
+	reasonLocalOverride EvaluationReason = "LocalOverride"
+	reasonUnrecognized  EvaluationReason = "Unrecognized"
+	reasonPersisted     EvaluationReason = "Persisted"
 )
 
 type EvaluationDetails struct {
-	Reason         evaluationReason
+	Source         EvaluationSource
+	Reason         EvaluationReason
 	ConfigSyncTime int64
 	InitTime       int64
 	ServerTime     int64
 }
 
+func (d EvaluationDetails) detailedReason() string {
+	if d.Reason == reasonNone {
+		return string(d.Source)
+	} else {
+		return fmt.Sprintf("%s:%s", d.Source, d.Reason)
+	}
+}
+
 func newEvaluationDetails(
-	reason evaluationReason,
+	source EvaluationSource,
+	reason EvaluationReason,
 	configSyncTime int64,
 	initTime int64,
 ) *EvaluationDetails {
 	return &EvaluationDetails{
+		Source:         source,
 		Reason:         reason,
 		ConfigSyncTime: configSyncTime,
 		InitTime:       initTime,
@@ -34,11 +53,10 @@ func newEvaluationDetails(
 }
 
 func reconstructEvaluationDetailsFromPersisted(
-	reason evaluationReason,
 	configSyncTime int64,
 ) *EvaluationDetails {
 	return &EvaluationDetails{
-		Reason:         reason,
+		Reason:         reasonPersisted,
 		ConfigSyncTime: configSyncTime,
 		InitTime:       0, // unsupported for persisted
 		ServerTime:     getUnixMilli(),

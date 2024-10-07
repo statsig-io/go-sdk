@@ -25,6 +25,12 @@ func NewClient(sdkKey string) *Client {
 
 // Initializes a Statsig Client with the given sdkKey and options
 func NewClientWithOptions(sdkKey string, options *Options) *Client {
+	client, _ := newClientImpl(sdkKey, options)
+	return client
+}
+
+func newClientImpl(sdkKey string, options *Options) (*Client, *initContext) {
+	context := newInitContext()
 	diagnostics := newDiagnostics(options)
 	diagnostics.initialize().overall().start().mark()
 	if len(options.API) == 0 {
@@ -51,30 +57,33 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	if options.InitTimeout > 0 {
 		channel := make(chan *Client, 1)
 		go func() {
-			client.init()
+			client.init(context)
 			channel <- client
 		}()
 
 		select {
 		case res := <-channel:
 			diagnostics.initialize().overall().end().success(true).mark()
-			return res
+			return res, context
 		case <-time.After(options.InitTimeout):
 			Logger().LogStep(StatsigProcessInitialize, "Timed out")
 			diagnostics.initialize().overall().end().success(false).reason("timeout").mark()
 			client.initInBackground()
-			return client
+			context.Error = errors.New("Timed out")
+			return client, context
 		}
 	} else {
-		client.init()
+		client.init(context)
 	}
 
 	diagnostics.initialize().overall().end().success(true).mark()
-	return client
+	return client, context
 }
 
-func (c *Client) init() {
-	c.evaluator.initialize()
+func (c *Client) init(context *initContext) {
+	c.evaluator.initialize(context)
+	context.Success = c.evaluator.store.source != sourceUninitialized
+	context.Source = c.evaluator.store.source
 }
 
 func (c *Client) initInBackground() {

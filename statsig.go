@@ -7,20 +7,6 @@ import (
 	"time"
 )
 
-var instance *Client
-
-// Initializes the global Statsig instance with the given sdkKey
-func Initialize(sdkKey string) {
-	InitializeGlobalOutputLogger(OutputLoggerOptions{})
-	InitializeGlobalSessionID()
-	if IsInitialized() {
-		Logger().Log("Statsig is already initialized.", nil)
-		return
-	}
-
-	instance = NewClient(sdkKey)
-}
-
 // Advanced options for configuring the Statsig SDK
 type Options struct {
 	API                   string       `json:"api"`
@@ -101,21 +87,42 @@ type GCIROptions struct {
 	HashAlgorithm         string
 }
 
+type InitializeDetails struct {
+	Duration time.Duration
+	Success  bool
+	Error    error
+	Source   EvaluationSource
+}
+
+var instance *Client
+
 // IsInitialized returns whether the global Statsig instance has already been initialized or not
 func IsInitialized() bool {
 	return instance != nil
 }
 
+// Initializes the global Statsig instance with the given sdkKey
+func Initialize(sdkKey string) InitializeDetails {
+	return InitializeWithOptions(sdkKey, &Options{})
+}
+
 // Initializes the global Statsig instance with the given sdkKey and options
-func InitializeWithOptions(sdkKey string, options *Options) {
+func InitializeWithOptions(sdkKey string, options *Options) InitializeDetails {
 	InitializeGlobalOutputLogger(options.OutputLoggerOptions)
 	InitializeGlobalSessionID()
 	if IsInitialized() {
 		Logger().Log("Statsig is already initialized.", nil)
-		return
+		return InitializeDetails{Success: true, Source: instance.evaluator.store.source}
 	}
 
-	instance = NewClientWithOptions(sdkKey, options)
+	var context *initContext
+	instance, context = newClientImpl(sdkKey, options)
+	return InitializeDetails{
+		Duration: time.Since(context.Start),
+		Success:  context.Success,
+		Error:    context.Error,
+		Source:   context.Source,
+	}
 }
 
 // Checks the value of a Feature Gate for the given user

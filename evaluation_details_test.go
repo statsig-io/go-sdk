@@ -177,19 +177,19 @@ func TestEvaluationDetails(t *testing.T) {
 			"gate":      "always_on_gate",
 			"gateValue": "false",
 			"ruleID":    "",
-			"reason":    "Unrecognized",
+			"reason":    "Uninitialized:Unrecognized",
 		}, 0)
 
 		compareMetadata(t, configExposures["test_config"].Metadata, map[string]string{
 			"config": "test_config",
 			"ruleID": "",
-			"reason": "Unrecognized",
+			"reason": "Uninitialized:Unrecognized",
 		}, 0)
 
 		compareMetadata(t, experimentExposures["sample_experiment"].Metadata, map[string]string{
 			"config": "sample_experiment",
 			"ruleID": "",
-			"reason": "Unrecognized",
+			"reason": "Uninitialized:Unrecognized",
 		}, 0)
 	})
 
@@ -210,13 +210,13 @@ func TestEvaluationDetails(t *testing.T) {
 			"gate":      "always_on_gate",
 			"gateValue": "false",
 			"ruleID":    "override",
-			"reason":    "LocalOverride",
+			"reason":    "Network:LocalOverride",
 		}, configSyncTime)
 
 		compareMetadata(t, configExposures["test_config"].Metadata, map[string]string{
 			"config": "test_config",
 			"ruleID": "override",
-			"reason": "LocalOverride",
+			"reason": "Network:LocalOverride",
 		}, configSyncTime)
 	})
 }

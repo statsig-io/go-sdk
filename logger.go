@@ -155,7 +155,7 @@ func (l *logger) addEvaluationDetailsToExposureEvent(
 	evalDetails *EvaluationDetails,
 ) {
 	if evalDetails != nil {
-		evt.Metadata["reason"] = string(evalDetails.Reason)
+		evt.Metadata["reason"] = string(evalDetails.detailedReason())
 		evt.Metadata["configSyncTime"] = fmt.Sprint(evalDetails.ConfigSyncTime)
 		evt.Metadata["initTime"] = fmt.Sprint(evalDetails.InitTime)
 		evt.Metadata["serverTime"] = fmt.Sprint(evalDetails.ServerTime)

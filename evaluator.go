@@ -51,7 +51,6 @@ func newEvalResultFromUserPersistedValues(configName string, persitedValues User
 
 func newEvalResultFromStickyValues(evalMap StickyValues) *evalResult {
 	evaluationDetails := reconstructEvaluationDetailsFromPersisted(
-		reasonPersisted,
 		safeParseJSONint64(evalMap.Time),
 	)
 
@@ -125,8 +124,8 @@ func newEvaluator(
 	}
 }
 
-func (e *evaluator) initialize() {
-	e.store.initialize()
+func (e *evaluator) initialize(context *initContext) {
+	e.store.initialize(context)
 	e.uaParser.init()
 	e.countryLookup.init()
 }
@@ -138,10 +137,10 @@ func (e *evaluator) shutdown() {
 	e.store.stopPolling()
 }
 
-func (e *evaluator) createEvaluationDetails(reason evaluationReason) *EvaluationDetails {
+func (e *evaluator) createEvaluationDetails(reason EvaluationReason) *EvaluationDetails {
 	e.store.mu.RLock()
 	defer e.store.mu.RUnlock()
-	return newEvaluationDetails(reason, e.store.lastSyncTime, e.store.initialSyncTime)
+	return newEvaluationDetails(e.store.source, reason, e.store.lastSyncTime, e.store.initialSyncTime)
 }
 
 func (e *evaluator) evalGate(user User, gateName string, context *evalContext) *evalResult {
@@ -360,10 +359,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 		panic(errors.New("Statsig Evaluation Depth Exceeded"))
 	}
 	var configValue map[string]interface{}
-	e.store.mu.RLock()
-	reason := e.store.initReason
-	e.store.mu.RUnlock()
-	evalDetails := e.createEvaluationDetails(reason)
+	evalDetails := e.createEvaluationDetails(reasonNone)
 	isDynamicConfig := strings.EqualFold(spec.Type, dynamicConfigType)
 	if isDynamicConfig {
 		configValue = spec.DefaultValueJSON

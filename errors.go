@@ -9,7 +9,9 @@ import (
 type StatsigError error
 
 var (
+	ErrNetworkRequest StatsigError = errors.New("failed network request")
 	ErrFailedLogEvent StatsigError = errors.New("failed to log events")
+	ErrDataAdapter    StatsigError = errors.New("failed data adapter")
 )
 
 type RequestMetadata struct {
@@ -33,6 +35,8 @@ func (e *TransportError) Error() string {
 
 func (e *TransportError) Unwrap() error { return e.Err }
 
+func (e *TransportError) Is(target error) bool { return target == ErrNetworkRequest }
+
 type LogEventError struct {
 	Err    error
 	Events int
@@ -49,3 +53,20 @@ func (e *LogEventError) Error() string {
 func (e *LogEventError) Unwrap() error { return e.Err }
 
 func (e *LogEventError) Is(target error) bool { return target == ErrFailedLogEvent }
+
+type DataAdapterError struct {
+	Err    error
+	Method string
+}
+
+func (e *DataAdapterError) Error() string {
+	if e.Err != nil {
+		return fmt.Sprintf("Error calling data adapter %s: %s", e.Method, e.Err.Error())
+	} else {
+		return fmt.Sprintf("Error calling data adapter %s", e.Method)
+	}
+}
+
+func (e *DataAdapterError) Unwrap() error { return e.Err }
+
+func (e *DataAdapterError) Is(target error) bool { return target == ErrDataAdapter }

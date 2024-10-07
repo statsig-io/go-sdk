@@ -117,7 +117,7 @@ type store struct {
 	idLists                 map[string]*idList
 	lastSyncTime            int64
 	initialSyncTime         int64
-	initReason              evaluationReason
+	source                  EvaluationSource
 	initializedIDLists      bool
 	transport               *transport
 	configSyncInterval      time.Duration
@@ -184,7 +184,7 @@ func newStoreInternal(
 		idListSyncInterval:   idListSyncInterval,
 		rulesUpdatedCallback: rulesUpdatedCallback,
 		errorBoundary:        errorBoundary,
-		initReason:           reasonUninitialized,
+		source:               sourceUninitialized,
 		initializedIDLists:   false,
 		dataAdapter:          dataAdapter,
 		syncFailureCount:     0,
@@ -206,25 +206,29 @@ func (s *store) startPolling() {
 	}
 }
 
-func (s *store) initialize() {
+func (s *store) initialize(context *initContext) {
 	firstAttempt := true
 	if s.dataAdapter != nil {
 		firstAttempt = false
 		s.dataAdapter.Initialize()
-		s.fetchConfigSpecsFromAdapter()
+		s.fetchConfigSpecsFromAdapter(context)
 	} else if s.bootstrapValues != "" {
 		firstAttempt = false
-		if _, updated := s.processConfigSpecs(s.bootstrapValues, s.addDiagnostics().bootstrap()); updated {
-			s.mu.Lock()
-			s.initReason = reasonBootstrap
-			s.mu.Unlock()
+		if parsed, updated := s.processConfigSpecs(s.bootstrapValues, s.addDiagnostics().bootstrap()); parsed {
+			if updated {
+				s.mu.Lock()
+				s.source = sourceBootstrap
+				s.mu.Unlock()
+			}
+		} else {
+			context.Error = errors.New("Failed to parse bootstrap values")
 		}
 	}
 	if s.lastSyncTime == 0 {
 		if !firstAttempt {
 			s.diagnostics.initDiagnostics.logProcess("Retrying with network...")
 		}
-		s.fetchConfigSpecsFromServer(true)
+		s.fetchConfigSpecsFromServer(context)
 	}
 	s.mu.Lock()
 	s.initialSyncTime = s.lastSyncTime
@@ -285,18 +289,22 @@ func (s *store) getEntitiesForSDKKey(clientKey string) (configEntities, bool) {
 	return entities, ok
 }
 
-func (s *store) fetchConfigSpecsFromAdapter() {
+func (s *store) fetchConfigSpecsFromAdapter(context *initContext) {
 	s.addDiagnostics().dataStoreConfigSpecs().fetch().start().mark()
 	defer func() {
 		if err := recover(); err != nil {
-			Logger().LogError(fmt.Sprintf("Error calling data adapter get: %s\n", toError(err).Error()))
+			dataAdapterError := DataAdapterError{Err: toError(err), Method: "get"}
+			Logger().LogError(dataAdapterError)
+			if context != nil {
+				context.Error = &dataAdapterError
+			}
 		}
 	}()
 	specString := s.dataAdapter.Get(CONFIG_SPECS_KEY)
 	s.addDiagnostics().dataStoreConfigSpecs().fetch().end().success(true).mark()
 	if _, updated := s.processConfigSpecs(specString, s.addDiagnostics().dataStoreConfigSpecs()); updated {
 		s.mu.Lock()
-		s.initReason = reasonDataAdapter
+		s.source = sourceDataAdapter
 		s.mu.Unlock()
 	}
 }
@@ -308,7 +316,8 @@ func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
 	specString, err := json.Marshal(specs)
 	defer func() {
 		if err := recover(); err != nil {
-			Logger().LogError(fmt.Sprintf("Error calling data adapter set: %s\n", toError(err).Error()))
+			dataAdapterError := DataAdapterError{Err: toError(err), Method: "set"}
+			Logger().LogError(dataAdapterError)
 		}
 	}()
 	if err == nil {
@@ -316,13 +325,14 @@ func (s *store) saveConfigSpecsToAdapter(specs downloadConfigSpecResponse) {
 	}
 }
 
-func (s *store) handleSyncError(err error, isColdStart bool) {
+func (s *store) handleSyncError(err error, context *initContext) {
 	s.syncFailureCount += 1
 	failDuration := time.Duration(s.syncFailureCount) * s.configSyncInterval
-	if isColdStart {
+	if context != nil {
 		Logger().LogError(fmt.Sprintf("Failed to initialize from the network. " +
 			"See https://docs.statsig.com/messages/serverSDKConnection for more information\n"))
 		s.errorBoundary.logException(err)
+		context.Error = err
 	} else if failDuration > syncOutdatedMax {
 		Logger().LogError(fmt.Sprintf("Syncing the server SDK with Statsig network has failed for %dms. "+
 			"Your sdk will continue to serve gate/config/experiment definitions as of the last successful sync. "+
@@ -332,14 +342,14 @@ func (s *store) handleSyncError(err error, isColdStart bool) {
 	}
 }
 
-func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
+func (s *store) fetchConfigSpecsFromServer(context *initContext) {
 	if s.transport.options.LocalMode {
 		return
 	}
 	var specs downloadConfigSpecResponse
 	res, err := s.transport.download_config_specs(s.lastSyncTime, &specs, s.addDiagnostics())
 	if res == nil || err != nil {
-		s.handleSyncError(err, isColdStart)
+		s.handleSyncError(err, context)
 		return
 	}
 	parsed, updated := s.processConfigSpecs(specs, s.addDiagnostics().downloadConfigSpecs())
@@ -347,14 +357,18 @@ func (s *store) fetchConfigSpecsFromServer(isColdStart bool) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if updated {
-			s.initReason = reasonNetwork
+			s.source = sourceNetwork
 			if s.rulesUpdatedCallback != nil {
 				v, _ := json.Marshal(specs)
 				s.rulesUpdatedCallback(string(v[:]), specs.Time)
 			}
 			s.saveConfigSpecsToAdapter(specs)
 		} else {
-			s.initReason = reasonNetworkNotModified
+			s.source = sourceNetworkNotModified
+		}
+	} else {
+		if context != nil {
+			context.Error = errors.New("Failed to parse config specs")
 		}
 	}
 }
@@ -509,7 +523,8 @@ func (s *store) fetchIDListsFromAdapter() {
 	s.addDiagnostics().dataStoreIDLists().fetch().start().mark()
 	defer func() {
 		if err := recover(); err != nil {
-			Logger().LogError(fmt.Sprintf("Error calling data adapter get: %s\n", toError(err).Error()))
+			dataAdapterError := DataAdapterError{Err: toError(err), Method: "get"}
+			Logger().LogError(dataAdapterError)
 		}
 	}()
 	idListsString := s.dataAdapter.Get(ID_LISTS_KEY)
@@ -530,7 +545,8 @@ func (s *store) saveIDListsToAdapter(idLists map[string]*idList) {
 	idListsJSON, err := json.Marshal(idLists)
 	defer func() {
 		if err := recover(); err != nil {
-			Logger().LogError(fmt.Sprintf("Error calling data adapter set: %s\n", toError(err).Error()))
+			dataAdapterError := DataAdapterError{Err: toError(err), Method: "set"}
+			Logger().LogError(dataAdapterError)
 		}
 	}()
 	if err == nil {
@@ -636,7 +652,8 @@ func (s *store) getSingleIDListFromAdapter(list *idList) {
 	s.addDiagnostics().dataStoreIDList().fetch().start().name(list.Name).mark()
 	defer func() {
 		if err := recover(); err != nil {
-			Logger().LogError(fmt.Sprintf("Error calling data adapter get: %s\n", toError(err).Error()))
+			dataAdapterError := DataAdapterError{Err: toError(err), Method: "get"}
+			Logger().LogError(dataAdapterError)
 		}
 	}()
 	content := s.dataAdapter.Get(fmt.Sprintf("%s::%s", ID_LISTS_KEY, list.Name))
@@ -729,9 +746,9 @@ func (s *store) pollForRulesetChanges() {
 			break
 		}
 		if s.dataAdapter != nil && s.dataAdapter.ShouldBeUsedForQueryingUpdates(CONFIG_SPECS_KEY) {
-			s.fetchConfigSpecsFromAdapter()
+			s.fetchConfigSpecsFromAdapter(nil)
 		} else {
-			s.fetchConfigSpecsFromServer(false)
+			s.fetchConfigSpecsFromServer(nil)
 		}
 	}
 }
