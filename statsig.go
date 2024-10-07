@@ -274,7 +274,7 @@ func GetLayerWithOptions(user User, layer string, options *GetLayerOptions) Laye
 	if !IsInitialized() {
 		panic(fmt.Errorf("must Initialize() statsig before calling GetLayerWithOptions"))
 	}
-	return instance.getLayerImpl(user, layer, options, StatsigContext{Caller: "GetLayerWithOptions", ConfigName: layer})
+	return instance.GetLayerWithOptions(user, layer, options)
 }
 
 // Logs an exposure event for the parameter in the given layer

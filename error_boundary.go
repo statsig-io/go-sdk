@@ -22,11 +22,11 @@ type errorBoundary struct {
 }
 
 type logExceptionRequestBody struct {
-	Exception       string                 `json:"exception"`
-	Info            string                 `json:"info"`
-	StatsigMetadata statsigMetadata        `json:"statsigMetadata"`
-	Extra           map[string]interface{} `json:"extra"`
-	Tag             string                 `json:"tag"`
+	Exception       string          `json:"exception"`
+	Info            string          `json:"info"`
+	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
+	Extra           errorContext    `json:"extra"`
+	Tag             string          `json:"tag"`
 }
 
 type logExceptionResponse struct {
@@ -68,66 +68,93 @@ func (e *errorBoundary) checkSeen(exceptionString string) bool {
 	return false
 }
 
-func (e *errorBoundary) captureCheckGate(task func() FeatureGate) FeatureGate {
+func (e *errorBoundary) captureCheckGate(
+	task func(context *evalContext) FeatureGate,
+	context *evalContext,
+) FeatureGate {
+	errorContext := &errorContext{evalContext: context, Caller: context.Caller}
 	defer e.ebRecover(func() {
 		e.diagnostics.api().checkGate().end().success(false).mark()
-	})
+	}, errorContext)
 	e.diagnostics.api().checkGate().start().mark()
-	res := task()
+	res := task(context)
 	e.diagnostics.api().checkGate().end().success(true).mark()
 	return res
 }
 
-func (e *errorBoundary) captureGetConfig(task func() DynamicConfig) DynamicConfig {
+func (e *errorBoundary) captureGetConfig(
+	task func(context *evalContext) DynamicConfig,
+	context *evalContext,
+) DynamicConfig {
+	errorContext := &errorContext{evalContext: context, Caller: context.Caller}
 	defer e.ebRecover(func() {
 		e.diagnostics.api().getConfig().end().success(false).mark()
-	})
+	}, errorContext)
 	e.diagnostics.api().getConfig().start().mark()
-	res := task()
+	res := task(context)
 	e.diagnostics.api().getConfig().end().success(true).mark()
 	return res
 }
 
-func (e *errorBoundary) captureGetLayer(task func() Layer) Layer {
+func (e *errorBoundary) captureGetLayer(
+	task func(context *evalContext) Layer,
+	context *evalContext,
+) Layer {
+	errorContext := &errorContext{evalContext: context, Caller: context.Caller}
 	defer e.ebRecover(func() {
 		e.diagnostics.api().getLayer().end().success(false).mark()
-	})
+	}, errorContext)
 	e.diagnostics.api().getLayer().start().mark()
-	res := task()
+	res := task(context)
 	e.diagnostics.api().getLayer().end().success(true).mark()
 	return res
 }
 
-func (e *errorBoundary) captureGetClientInitializeResponse(task func() ClientInitializeResponse) ClientInitializeResponse {
-	defer e.ebRecover(func() {})
-	return task()
+func (e *errorBoundary) captureGetClientInitializeResponse(
+	task func(context *evalContext) ClientInitializeResponse,
+	context *evalContext,
+) ClientInitializeResponse {
+	errorContext := &errorContext{evalContext: context, Caller: context.Caller}
+	defer e.ebRecover(func() {}, errorContext)
+	return task(context)
 }
 
-func (e *errorBoundary) captureGetUserPersistedValues(task func() UserPersistedValues) UserPersistedValues {
-	defer e.ebRecover(func() {})
-	return task()
+func (e *errorBoundary) captureGetUserPersistedValues(
+	task func(context *errorContext) UserPersistedValues,
+	context *errorContext,
+) UserPersistedValues {
+	defer e.ebRecover(func() {}, context)
+	return task(context)
 }
 
-func (e *errorBoundary) captureVoid(task func()) {
-	defer e.ebRecover(func() {})
-	task()
+func (e *errorBoundary) captureVoid(
+	task func(context *evalContext),
+	context *evalContext,
+) {
+	errorContext := &errorContext{evalContext: context, Caller: context.Caller}
+	defer e.ebRecover(func() {}, errorContext)
+	task(context)
 }
 
-func (e *errorBoundary) captureGetExperimentLayer(task func() (string, bool)) (string, bool) {
-	defer e.ebRecover(func() {})
-	val, ok := task()
+func (e *errorBoundary) captureGetExperimentLayer(
+	task func(context *evalContext) (string, bool),
+	context *evalContext,
+) (string, bool) {
+	errorContext := &errorContext{evalContext: context, Caller: context.Caller}
+	defer e.ebRecover(func() {}, errorContext)
+	val, ok := task(context)
 	return val, ok
 }
 
-func (e *errorBoundary) ebRecover(recoverCallback func()) {
+func (e *errorBoundary) ebRecover(recoverCallback func(), context *errorContext) {
 	if err := recover(); err != nil {
-		e.logException(toError(err))
+		e.logExceptionWithContext(toError(err), *context)
 		Logger().LogError(err)
 		recoverCallback()
 	}
 }
 
-func (e *errorBoundary) logExceptionWithContext(exception error, context StatsigContext) {
+func (e *errorBoundary) logExceptionWithContext(exception error, context errorContext) {
 	if e.options.StatsigLoggerOptions.DisableAllLogging || e.options.LocalMode {
 		return
 	}
@@ -151,7 +178,7 @@ func (e *errorBoundary) logExceptionWithContext(exception error, context Statsig
 		Exception:       exceptionString,
 		Info:            string(stack),
 		StatsigMetadata: metadata,
-		Extra:           context.getContextForLogging(),
+		Extra:           context,
 		Tag:             context.Caller,
 	}
 	bodyString, err := json.Marshal(body)
@@ -174,5 +201,5 @@ func (e *errorBoundary) logExceptionWithContext(exception error, context Statsig
 }
 
 func (e *errorBoundary) logException(exception error) {
-	e.logExceptionWithContext(exception, StatsigContext{})
+	e.logExceptionWithContext(exception, errorContext{})
 }

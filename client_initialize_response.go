@@ -68,13 +68,12 @@ func mergeMaps(a map[string]interface{}, b map[string]interface{}) {
 func getClientInitializeResponse(
 	user User,
 	e *evaluator,
-	options *GCIROptions,
+	context *evalContext,
 ) ClientInitializeResponse {
-	hashAlgorithm := options.HashAlgorithm
+	hashAlgorithm := context.Hash
 	if hashAlgorithm != "none" && hashAlgorithm != "djb2" {
 		hashAlgorithm = "sha256"
 	}
-	context := StatsigContext{Caller: "getClientInitializeResponse", Hash: hashAlgorithm}
 
 	evalResultToBaseResponse := func(name string, eval *evalResult) (string, baseSpecInitializeResponse) {
 		hashedName := hashName(hashAlgorithm, name)
@@ -87,7 +86,7 @@ func getClientInitializeResponse(
 	}
 	gateToResponse := func(gateName string, spec configSpec) (string, GateInitializeResponse) {
 		evalRes := &evalResult{}
-		if options.IncludeLocalOverrides {
+		if context.IncludeLocalOverrides {
 			if gateOverride, hasOverride := e.getGateOverrideEval(gateName); hasOverride {
 				evalRes = gateOverride
 			} else {
@@ -105,7 +104,7 @@ func getClientInitializeResponse(
 	}
 	configToResponse := func(configName string, spec configSpec) (string, ConfigInitializeResponse) {
 		evalRes := &evalResult{}
-		if options.IncludeLocalOverrides {
+		if context.IncludeLocalOverrides {
 			if configOverride, hasOverride := e.getConfigOverrideEval(configName); hasOverride {
 				evalRes = configOverride
 			} else {
@@ -147,7 +146,7 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 	layerToResponse := func(layerName string, spec configSpec) (string, LayerInitializeResponse) {
-		evalResult := e.eval(user, spec, 0, StatsigContext{Hash: hashAlgorithm})
+		evalResult := e.eval(user, spec, 0, &evalContext{Hash: hashAlgorithm})
 		hashedName, base := evalResultToBaseResponse(layerName, evalResult)
 		result := LayerInitializeResponse{
 			baseSpecInitializeResponse:    base,
@@ -186,16 +185,16 @@ func getClientInitializeResponse(
 	}
 
 	var appId string
-	if options.TargetAppID != "" {
-		appId = options.TargetAppID
+	if context.TargetAppID != "" {
+		appId = context.TargetAppID
 	} else {
-		appId, _ = e.store.getAppIDForSDKKey(options.ClientKey)
+		appId, _ = e.store.getAppIDForSDKKey(context.ClientKey)
 	}
 
 	filterByEntities := false
 	gatesLookup := make(map[string]bool)
 	configsLookup := make(map[string]bool)
-	if entities, ok := e.store.getEntitiesForSDKKey(options.ClientKey); ok {
+	if entities, ok := e.store.getEntitiesForSDKKey(context.ClientKey); ok {
 		filterByEntities = true
 		for _, gate := range entities.Gates {
 			gatesLookup[gate] = true

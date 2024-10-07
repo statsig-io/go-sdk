@@ -39,10 +39,6 @@ type logEventInput struct {
 
 type logEventResponse struct{}
 
-type logContext struct {
-	isManualExposure bool
-}
-
 type logger struct {
 	events        []interface{}
 	transport     *transport
@@ -121,7 +117,7 @@ func (l *logger) logGateExposure(
 	user User,
 	gateName string,
 	res *evalResult,
-	context *logContext,
+	context *evalContext,
 ) *ExposureEvent {
 	evt := l.getGateExposureWithEvaluationDetails(user, gateName, res, context)
 	l.logExposure(*evt)
@@ -132,14 +128,14 @@ func (l *logger) getGateExposureWithEvaluationDetails(
 	user User,
 	gateName string,
 	res *evalResult,
-	context *logContext,
+	context *evalContext,
 ) *ExposureEvent {
 	metadata := map[string]string{
 		"gate":      gateName,
 		"gateValue": strconv.FormatBool(res.Value),
 		"ruleID":    res.RuleID,
 	}
-	if context != nil && context.isManualExposure {
+	if context != nil && context.IsManualExposure {
 		metadata["isManualExposure"] = "true"
 	}
 
@@ -182,7 +178,7 @@ func (l *logger) logConfigExposure(
 	user User,
 	configName string,
 	res *evalResult,
-	context *logContext,
+	context *evalContext,
 ) *ExposureEvent {
 	evt := l.getConfigExposureWithEvaluationDetails(user, configName, res, context)
 	l.logExposure(*evt)
@@ -193,13 +189,13 @@ func (l *logger) getConfigExposureWithEvaluationDetails(
 	user User,
 	configName string,
 	res *evalResult,
-	context *logContext,
+	context *evalContext,
 ) *ExposureEvent {
 	metadata := map[string]string{
 		"config": configName,
 		"ruleID": res.RuleID,
 	}
-	if context != nil && context.isManualExposure {
+	if context != nil && context.IsManualExposure {
 		metadata["isManualExposure"] = "true"
 	}
 	evt := &ExposureEvent{
@@ -217,8 +213,8 @@ func (l *logger) logLayerExposure(
 	user User,
 	config Layer,
 	parameterName string,
-	evalResult evalResult,
-	context *logContext,
+	evalResult *evalResult,
+	context *evalContext,
 ) *ExposureEvent {
 	evt := l.getLayerExposureWithEvaluationDetails(user, config, parameterName, evalResult, context)
 	l.logExposure(*evt)
@@ -229,8 +225,8 @@ func (l *logger) getLayerExposureWithEvaluationDetails(
 	user User,
 	config Layer,
 	parameterName string,
-	evalResult evalResult,
-	context *logContext,
+	evalResult *evalResult,
+	context *evalContext,
 ) *ExposureEvent {
 	allocatedExperiment := ""
 	exposures := evalResult.UndelegatedSecondaryExposures
@@ -252,7 +248,7 @@ func (l *logger) getLayerExposureWithEvaluationDetails(
 		"parameterName":       parameterName,
 		"isExplicitParameter": strconv.FormatBool(isExplicit),
 	}
-	if context != nil && context.isManualExposure {
+	if context != nil && context.IsManualExposure {
 		metadata["isManualExposure"] = "true"
 	}
 
@@ -296,7 +292,7 @@ func (l *logger) sendEvents(events []interface{}) {
 	var res logEventResponse
 	_, err := l.transport.log_event(events, &res, RequestOptions{retries: maxRetries})
 	if err != nil {
-		context := StatsigContext{
+		context := errorContext{
 			Caller:       "statsig::log_event_failed",
 			EventCount:   len(events),
 			BypassDedupe: true,

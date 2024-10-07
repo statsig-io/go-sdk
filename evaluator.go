@@ -144,11 +144,11 @@ func (e *evaluator) createEvaluationDetails(reason evaluationReason) *Evaluation
 	return newEvaluationDetails(reason, e.store.lastSyncTime, e.store.initialSyncTime)
 }
 
-func (e *evaluator) evalGate(user User, gateName string, context StatsigContext) *evalResult {
+func (e *evaluator) evalGate(user User, gateName string, context *evalContext) *evalResult {
 	return e.evalGateImpl(user, gateName, 0, context)
 }
 
-func (e *evaluator) evalGateImpl(user User, gateName string, depth int, context StatsigContext) *evalResult {
+func (e *evaluator) evalGateImpl(user User, gateName string, depth int, context *evalContext) *evalResult {
 	if gateOverrideEval, hasOverride := e.getGateOverrideEval(gateName); hasOverride {
 		return gateOverrideEval
 	}
@@ -161,11 +161,11 @@ func (e *evaluator) evalGateImpl(user User, gateName string, depth int, context 
 	return emptyEvalResult
 }
 
-func (e *evaluator) evalConfig(user User, configName string, persistedValues UserPersistedValues, context StatsigContext) *evalResult {
-	return e.evalConfigImpl(user, configName, persistedValues, 0, context)
+func (e *evaluator) evalConfig(user User, configName string, context *evalContext) *evalResult {
+	return e.evalConfigImpl(user, configName, 0, context)
 }
 
-func (e *evaluator) evalConfigImpl(user User, configName string, persistedValues UserPersistedValues, depth int, context StatsigContext) *evalResult {
+func (e *evaluator) evalConfigImpl(user User, configName string, depth int, context *evalContext) *evalResult {
 	if configOverrideEval, hasOverride := e.getConfigOverrideEval(configName); hasOverride {
 		return configOverrideEval
 	}
@@ -177,11 +177,11 @@ func (e *evaluator) evalConfigImpl(user User, configName string, persistedValues
 		return emptyEvalResult
 	}
 
-	if persistedValues == nil || config.IsActive == nil || !*config.IsActive {
+	if context.PersistedValues == nil || config.IsActive == nil || !*config.IsActive {
 		return e.evalAndDeleteFromPersistentStorage(user, config, depth, context)
 	}
 
-	stickyResult := newEvalResultFromUserPersistedValues(configName, persistedValues)
+	stickyResult := newEvalResultFromUserPersistedValues(configName, context.PersistedValues)
 	if stickyResult != nil {
 		return stickyResult
 	}
@@ -189,11 +189,11 @@ func (e *evaluator) evalConfigImpl(user User, configName string, persistedValues
 	return e.evalAndSaveToPersistentStorage(user, config, depth, context)
 }
 
-func (e *evaluator) evalLayer(user User, name string, persistedValues UserPersistedValues, context StatsigContext) *evalResult {
-	return e.evalLayerImpl(user, name, persistedValues, 0, context)
+func (e *evaluator) evalLayer(user User, name string, context *evalContext) *evalResult {
+	return e.evalLayerImpl(user, name, 0, context)
 }
 
-func (e *evaluator) evalLayerImpl(user User, name string, persistedValues UserPersistedValues, depth int, context StatsigContext) *evalResult {
+func (e *evaluator) evalLayerImpl(user User, name string, depth int, context *evalContext) *evalResult {
 	if layerOverrideEval, hasOverride := e.getLayerOverrideEval(name); hasOverride {
 		return layerOverrideEval
 	}
@@ -205,11 +205,11 @@ func (e *evaluator) evalLayerImpl(user User, name string, persistedValues UserPe
 		return emptyEvalResult
 	}
 
-	if persistedValues == nil {
+	if context.PersistedValues == nil {
 		return e.evalAndDeleteFromPersistentStorage(user, config, depth, context)
 	}
 
-	stickyResult := newEvalResultFromUserPersistedValues(name, persistedValues)
+	stickyResult := newEvalResultFromUserPersistedValues(name, context.PersistedValues)
 	if stickyResult != nil {
 		if e.allocatedExperimentExistsAndIsActive(stickyResult) {
 			return stickyResult
@@ -234,7 +234,7 @@ func (e *evaluator) allocatedExperimentExistsAndIsActive(evaluation *evalResult)
 	return exists && delegate.IsActive != nil && *delegate.IsActive
 }
 
-func (e *evaluator) evalAndSaveToPersistentStorage(user User, config configSpec, depth int, context StatsigContext) *evalResult {
+func (e *evaluator) evalAndSaveToPersistentStorage(user User, config configSpec, depth int, context *evalContext) *evalResult {
 	evaluation := e.eval(user, config, depth, context)
 	if evaluation.IsExperimentGroup != nil && *evaluation.IsExperimentGroup {
 		e.persistentStorageUtils.save(user, config.IDType, config.Name, evaluation)
@@ -242,7 +242,7 @@ func (e *evaluator) evalAndSaveToPersistentStorage(user User, config configSpec,
 	return evaluation
 }
 
-func (e *evaluator) evalAndDeleteFromPersistentStorage(user User, config configSpec, depth int, context StatsigContext) *evalResult {
+func (e *evaluator) evalAndDeleteFromPersistentStorage(user User, config configSpec, depth int, context *evalContext) *evalResult {
 	e.persistentStorageUtils.delete(user, config.IDType, config.Name)
 	return e.eval(user, config, depth, context)
 }
@@ -337,9 +337,9 @@ func (e *evaluator) OverrideLayer(layer string, val map[string]interface{}) {
 // These values can then be given to a Statsig Client SDK via bootstrapping.
 func (e *evaluator) getClientInitializeResponse(
 	user User,
-	options *GCIROptions,
+	context *evalContext,
 ) ClientInitializeResponse {
-	return getClientInitializeResponse(user, e, options)
+	return getClientInitializeResponse(user, e, context)
 }
 
 func (e *evaluator) cleanExposures(exposures []SecondaryExposure) []SecondaryExposure {
@@ -355,7 +355,7 @@ func (e *evaluator) cleanExposures(exposures []SecondaryExposure) []SecondaryExp
 	return result
 }
 
-func (e *evaluator) eval(user User, spec configSpec, depth int, context StatsigContext) *evalResult {
+func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalContext) *evalResult {
 	if depth > maxRecursiveDepth {
 		panic(errors.New("Statsig Evaluation Depth Exceeded"))
 	}
@@ -436,7 +436,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context StatsigC
 	return &evalResult{Value: false, RuleID: defaultRuleID, SecondaryExposures: exposures, DerivedDeviceMetadata: deviceMetadata}
 }
 
-func (e *evaluator) evalDelegate(user User, rule configRule, exposures []SecondaryExposure, depth int, context StatsigContext) *evalResult {
+func (e *evaluator) evalDelegate(user User, rule configRule, exposures []SecondaryExposure, depth int, context *evalContext) *evalResult {
 	config, hasConfig := e.store.getDynamicConfig(rule.ConfigDelegate)
 	if !hasConfig {
 		return nil
@@ -479,7 +479,7 @@ func getUnitID(user User, idType string) string {
 	return user.UserID
 }
 
-func (e *evaluator) evalRule(user User, rule configRule, depth int, context StatsigContext) *evalResult {
+func (e *evaluator) evalRule(user User, rule configRule, depth int, context *evalContext) *evalResult {
 	var exposures = make([]SecondaryExposure, 0)
 	var deviceMetadata *DerivedDeviceMetadata
 	var finalResult = &evalResult{Value: true, FetchFromServer: false}
@@ -499,7 +499,7 @@ func (e *evaluator) evalRule(user User, rule configRule, depth int, context Stat
 	return finalResult
 }
 
-func (e *evaluator) evalCondition(user User, cond configCondition, depth int, context StatsigContext) *evalResult {
+func (e *evaluator) evalCondition(user User, cond configCondition, depth int, context *evalContext) *evalResult {
 	var value interface{}
 	condType := cond.Type
 	op := cond.Operator
