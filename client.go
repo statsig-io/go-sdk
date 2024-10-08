@@ -82,6 +82,8 @@ func newClientImpl(sdkKey string, options *Options) (*Client, *initContext) {
 
 func (c *Client) init(context *initContext) {
 	c.evaluator.initialize(context)
+	c.evaluator.store.mu.RLock()
+	defer c.evaluator.store.mu.RUnlock()
 	context.Success = c.evaluator.store.source != sourceUninitialized
 	context.Source = c.evaluator.store.source
 }
