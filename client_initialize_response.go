@@ -31,7 +31,8 @@ type baseSpecInitializeResponse struct {
 
 type GateInitializeResponse struct {
 	baseSpecInitializeResponse
-	Value bool `json:"value"`
+	Value  bool   `json:"value"`
+	IDType string `json:"id_type,omitempty"`
 }
 
 type ConfigInitializeResponse struct {
@@ -44,6 +45,7 @@ type ConfigInitializeResponse struct {
 	IsInLayer          *bool                  `json:"is_in_layer,omitempty"`
 	ExplicitParameters *[]string              `json:"explicit_parameters,omitempty"`
 	GroupName          string                 `json:"group_name,omitempty"`
+	IDType             string                 `json:"id_type,omitempty"`
 }
 
 type LayerInitializeResponse struct {
@@ -99,6 +101,7 @@ func getClientInitializeResponse(
 		result := GateInitializeResponse{
 			baseSpecInitializeResponse: base,
 			Value:                      evalRes.Value,
+			IDType:                     spec.IDType,
 		}
 		return hashedName, result
 	}
@@ -119,6 +122,7 @@ func getClientInitializeResponse(
 			Value:                      evalRes.JsonValue,
 			Group:                      evalRes.RuleID,
 			IsDeviceBased:              strings.EqualFold(spec.IDType, "stableid"),
+			IDType:                     spec.IDType,
 		}
 		if evalRes.GroupName != "" {
 			result.GroupName = evalRes.GroupName
