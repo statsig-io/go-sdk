@@ -221,7 +221,7 @@ func (s *store) initialize(context *initContext) {
 				s.mu.Unlock()
 			}
 		} else {
-			context.Error = errors.New("Failed to parse bootstrap values")
+			context.setError(errors.New("Failed to parse bootstrap values"))
 		}
 	}
 	if s.lastSyncTime == 0 {
@@ -296,7 +296,7 @@ func (s *store) fetchConfigSpecsFromAdapter(context *initContext) {
 			dataAdapterError := DataAdapterError{Err: toError(err), Method: "get"}
 			Logger().LogError(dataAdapterError)
 			if context != nil {
-				context.Error = &dataAdapterError
+				context.setError(&dataAdapterError)
 			}
 		}
 	}()
@@ -332,7 +332,7 @@ func (s *store) handleSyncError(err error, context *initContext) {
 		Logger().LogError(fmt.Sprintf("Failed to initialize from the network. " +
 			"See https://docs.statsig.com/messages/serverSDKConnection for more information\n"))
 		s.errorBoundary.logException(err)
-		context.Error = err
+		context.setError(err)
 	} else if failDuration > syncOutdatedMax {
 		Logger().LogError(fmt.Sprintf("Syncing the server SDK with Statsig network has failed for %dms. "+
 			"Your sdk will continue to serve gate/config/experiment definitions as of the last successful sync. "+
@@ -368,7 +368,7 @@ func (s *store) fetchConfigSpecsFromServer(context *initContext) {
 		}
 	} else {
 		if context != nil {
-			context.Error = errors.New("Failed to parse config specs")
+			context.setError(errors.New("Failed to parse config specs"))
 		}
 	}
 }

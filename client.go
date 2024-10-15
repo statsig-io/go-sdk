@@ -69,8 +69,9 @@ func newClientImpl(sdkKey string, options *Options) (*Client, *initContext) {
 			Logger().LogStep(StatsigProcessInitialize, "Timed out")
 			diagnostics.initialize().overall().end().success(false).reason("timeout").mark()
 			client.initInBackground()
-			context.Error = errors.New("Timed out")
-			return client, context
+			ctx := context.copy() // Goroutines are not terminated upon timeout. Clone context to avoid race condition on setting Error
+			ctx.setError(errors.New("Timed out"))
+			return client, ctx
 		}
 	} else {
 		client.init(context)
@@ -84,8 +85,8 @@ func (c *Client) init(context *initContext) {
 	c.evaluator.initialize(context)
 	c.evaluator.store.mu.RLock()
 	defer c.evaluator.store.mu.RUnlock()
-	context.Success = c.evaluator.store.source != sourceUninitialized
-	context.Source = c.evaluator.store.source
+	context.setSuccess(c.evaluator.store.source != sourceUninitialized)
+	context.setSource(c.evaluator.store.source)
 }
 
 func (c *Client) initInBackground() {

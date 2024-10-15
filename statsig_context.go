@@ -1,6 +1,9 @@
 package statsig
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 type errorContext struct {
 	evalContext  *evalContext
@@ -28,8 +31,38 @@ type initContext struct {
 	Success bool
 	Error   error
 	Source  EvaluationSource
+	mu      sync.RWMutex
 }
 
 func newInitContext() *initContext {
 	return &initContext{Start: time.Now(), Success: false, Source: sourceUninitialized}
+}
+
+func (c *initContext) setSuccess(success bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.Success = success
+}
+
+func (c *initContext) setError(err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.Error = err
+}
+
+func (c *initContext) setSource(source EvaluationSource) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.Source = source
+}
+
+func (c *initContext) copy() *initContext {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return &initContext{
+		Start:   c.Start,
+		Success: c.Success,
+		Error:   c.Error,
+		Source:  c.Source,
+	}
 }
