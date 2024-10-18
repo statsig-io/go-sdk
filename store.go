@@ -184,7 +184,7 @@ func newStoreInternal(
 		idListSyncInterval:   idListSyncInterval,
 		rulesUpdatedCallback: rulesUpdatedCallback,
 		errorBoundary:        errorBoundary,
-		source:               sourceUninitialized,
+		source:               SourceUninitialized,
 		initializedIDLists:   false,
 		dataAdapter:          dataAdapter,
 		syncFailureCount:     0,
@@ -217,7 +217,7 @@ func (s *store) initialize(context *initContext) {
 		if parsed, updated := s.processConfigSpecs(s.bootstrapValues, s.addDiagnostics().bootstrap()); parsed {
 			if updated {
 				s.mu.Lock()
-				s.source = sourceBootstrap
+				s.source = SourceBootstrap
 				s.mu.Unlock()
 			}
 		} else {
@@ -304,7 +304,7 @@ func (s *store) fetchConfigSpecsFromAdapter(context *initContext) {
 	s.addDiagnostics().dataStoreConfigSpecs().fetch().end().success(true).mark()
 	if _, updated := s.processConfigSpecs(specString, s.addDiagnostics().dataStoreConfigSpecs()); updated {
 		s.mu.Lock()
-		s.source = sourceDataAdapter
+		s.source = SourceDataAdapter
 		s.mu.Unlock()
 	}
 }
@@ -357,14 +357,14 @@ func (s *store) fetchConfigSpecsFromServer(context *initContext) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if updated {
-			s.source = sourceNetwork
+			s.source = SourceNetwork
 			if s.rulesUpdatedCallback != nil {
 				v, _ := json.Marshal(specs)
 				s.rulesUpdatedCallback(string(v[:]), specs.Time)
 			}
 			s.saveConfigSpecsToAdapter(specs)
 		} else {
-			s.source = sourceNetworkNotModified
+			s.source = SourceNetworkNotModified
 		}
 	} else {
 		if context != nil {

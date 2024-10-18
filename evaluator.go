@@ -155,7 +155,7 @@ func (e *evaluator) evalGateImpl(user User, gateName string, depth int, context 
 		return e.eval(user, gate, depth, context)
 	}
 	emptyEvalResult := new(evalResult)
-	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+	emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(ReasonUnrecognized)
 	emptyEvalResult.SecondaryExposures = make([]SecondaryExposure, 0)
 	return emptyEvalResult
 }
@@ -171,7 +171,7 @@ func (e *evaluator) evalConfigImpl(user User, configName string, depth int, cont
 	config, hasConfig := e.store.getDynamicConfig(configName)
 	if !hasConfig {
 		emptyEvalResult := new(evalResult)
-		emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+		emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(ReasonUnrecognized)
 		emptyEvalResult.SecondaryExposures = make([]SecondaryExposure, 0)
 		return emptyEvalResult
 	}
@@ -199,7 +199,7 @@ func (e *evaluator) evalLayerImpl(user User, name string, depth int, context *ev
 	config, hasConfig := e.store.getLayerConfig(name)
 	if !hasConfig {
 		emptyEvalResult := new(evalResult)
-		emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(reasonUnrecognized)
+		emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(ReasonUnrecognized)
 		emptyEvalResult.SecondaryExposures = make([]SecondaryExposure, 0)
 		return emptyEvalResult
 	}
@@ -255,7 +255,7 @@ func (e *evaluator) getGateOverride(name string) (bool, bool) {
 
 func (e *evaluator) getGateOverrideEval(name string) (*evalResult, bool) {
 	if gateOverride, hasOverride := e.getGateOverride(name); hasOverride {
-		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
+		evalDetails := e.createEvaluationDetails(ReasonLocalOverride)
 		return &evalResult{
 			Value:              gateOverride,
 			RuleID:             "override",
@@ -276,7 +276,7 @@ func (e *evaluator) getConfigOverride(name string) (map[string]interface{}, bool
 
 func (e *evaluator) getConfigOverrideEval(name string) (*evalResult, bool) {
 	if configOverride, hasOverride := e.getConfigOverride(name); hasOverride {
-		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
+		evalDetails := e.createEvaluationDetails(ReasonLocalOverride)
 		return &evalResult{
 			Value:              true,
 			JsonValue:          configOverride,
@@ -298,7 +298,7 @@ func (e *evaluator) getLayerOverride(name string) (map[string]interface{}, bool)
 
 func (e *evaluator) getLayerOverrideEval(name string) (*evalResult, bool) {
 	if layerOverride, hasOverride := e.getLayerOverride(name); hasOverride {
-		evalDetails := e.createEvaluationDetails(reasonLocalOverride)
+		evalDetails := e.createEvaluationDetails(ReasonLocalOverride)
 		return &evalResult{
 			Value:              true,
 			JsonValue:          layerOverride,
@@ -359,7 +359,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 		panic(errors.New("Statsig Evaluation Depth Exceeded"))
 	}
 	var configValue map[string]interface{}
-	evalDetails := e.createEvaluationDetails(reasonNone)
+	evalDetails := e.createEvaluationDetails(ReasonNone)
 	isDynamicConfig := strings.EqualFold(spec.Type, dynamicConfigType)
 	if isDynamicConfig {
 		configValue = spec.DefaultValueJSON

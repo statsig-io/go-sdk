@@ -5,20 +5,20 @@ import "fmt"
 type EvaluationSource string
 
 const (
-	sourceUninitialized      EvaluationSource = "Uninitialized"
-	sourceNetwork            EvaluationSource = "Network"
-	sourceNetworkNotModified EvaluationSource = "NetworkNotModified"
-	sourceBootstrap          EvaluationSource = "Bootstrap"
-	sourceDataAdapter        EvaluationSource = "DataAdapter"
+	SourceUninitialized      EvaluationSource = "Uninitialized"
+	SourceNetwork            EvaluationSource = "Network"
+	SourceNetworkNotModified EvaluationSource = "NetworkNotModified"
+	SourceBootstrap          EvaluationSource = "Bootstrap"
+	SourceDataAdapter        EvaluationSource = "DataAdapter"
 )
 
 type EvaluationReason string
 
 const (
-	reasonNone          EvaluationReason = "None"
-	reasonLocalOverride EvaluationReason = "LocalOverride"
-	reasonUnrecognized  EvaluationReason = "Unrecognized"
-	reasonPersisted     EvaluationReason = "Persisted"
+	ReasonNone          EvaluationReason = "None"
+	ReasonLocalOverride EvaluationReason = "LocalOverride"
+	ReasonUnrecognized  EvaluationReason = "Unrecognized"
+	ReasonPersisted     EvaluationReason = "Persisted"
 )
 
 type EvaluationDetails struct {
@@ -30,7 +30,7 @@ type EvaluationDetails struct {
 }
 
 func (d EvaluationDetails) detailedReason() string {
-	if d.Reason == reasonNone {
+	if d.Reason == ReasonNone {
 		return string(d.Source)
 	} else {
 		return fmt.Sprintf("%s:%s", d.Source, d.Reason)
@@ -56,7 +56,7 @@ func reconstructEvaluationDetailsFromPersisted(
 	configSyncTime int64,
 ) *EvaluationDetails {
 	return &EvaluationDetails{
-		Reason:         reasonPersisted,
+		Reason:         ReasonPersisted,
 		ConfigSyncTime: configSyncTime,
 		InitTime:       0, // unsupported for persisted
 		ServerTime:     getUnixMilli(),

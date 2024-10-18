@@ -60,8 +60,8 @@ func TestBootstrapWithAdapter(t *testing.T) {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
 		}
 		for _, event := range events {
-			if event.Metadata["reason"] != string(sourceDataAdapter) {
-				t.Errorf("Expected init reason to be %s", sourceDataAdapter)
+			if event.Metadata["reason"] != string(SourceDataAdapter) {
+				t.Errorf("Expected init reason to be %s", SourceDataAdapter)
 			}
 		}
 	})
@@ -257,8 +257,8 @@ func TestIncorrectlyImplementedAdapter(t *testing.T) {
 			t.Errorf("Should receive exactly 3 log_event. Got %d", len(events))
 		}
 		for _, event := range events {
-			if event.Metadata["reason"] != string(sourceNetwork) {
-				t.Errorf("Expected init reason to be %s", sourceNetwork)
+			if event.Metadata["reason"] != string(SourceNetwork) {
+				t.Errorf("Expected init reason to be %s", SourceNetwork)
 			}
 		}
 	})

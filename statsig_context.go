@@ -35,7 +35,7 @@ type initContext struct {
 }
 
 func newInitContext() *initContext {
-	return &initContext{Start: time.Now(), Success: false, Source: sourceUninitialized}
+	return &initContext{Start: time.Now(), Success: false, Source: SourceUninitialized}
 }
 
 func (c *initContext) setSuccess(success bool) {

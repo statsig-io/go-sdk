@@ -40,7 +40,7 @@ func TestInitDetails(t *testing.T) {
 		if details.Error != nil {
 			t.Errorf("Expected initalize to have no errors")
 		}
-		if details.Source != sourceNetwork {
+		if details.Source != SourceNetwork {
 			t.Errorf("Expected initalize source to be Network")
 		}
 		ShutdownAndDangerouslyClearInstance()
@@ -71,7 +71,7 @@ func TestInitDetails(t *testing.T) {
 		if !errors.Is(details.Error, ErrNetworkRequest) {
 			t.Errorf("Expected initalize to have network error")
 		}
-		if details.Source != sourceUninitialized {
+		if details.Source != SourceUninitialized {
 			t.Errorf("Expected initalize source to be Uninitialized")
 		}
 		ShutdownAndDangerouslyClearInstance()
@@ -103,7 +103,7 @@ func TestInitDetails(t *testing.T) {
 		if details.Error.Error() != "Timed out" {
 			t.Errorf("Expected initalize to have timeout error")
 		}
-		if details.Source != sourceUninitialized {
+		if details.Source != SourceUninitialized {
 			t.Errorf("Expected initalize source to be Uninitialized")
 		}
 		ShutdownAndDangerouslyClearInstance()
@@ -127,7 +127,7 @@ func TestInitDetails(t *testing.T) {
 		if details.Error != nil {
 			t.Errorf("Expected initalize to have no errors")
 		}
-		if details.Source != sourceBootstrap {
+		if details.Source != SourceBootstrap {
 			t.Errorf("Expected initalize source to be Bootstrap")
 		}
 		ShutdownAndDangerouslyClearInstance()
@@ -161,7 +161,7 @@ func TestInitDetails(t *testing.T) {
 		if details.Error.Error() != "Failed to parse bootstrap values" {
 			t.Errorf("Expected initalize to have bootstrap parsing error")
 		}
-		if details.Source != sourceNetwork {
+		if details.Source != SourceNetwork {
 			t.Errorf("Expected initalize source to be Network")
 		}
 		ShutdownAndDangerouslyClearInstance()
@@ -192,7 +192,7 @@ func TestInitDetails(t *testing.T) {
 		if !errors.Is(details.Error, ErrNetworkRequest) {
 			t.Errorf("Expected initalize to have network error")
 		}
-		if details.Source != sourceUninitialized {
+		if details.Source != SourceUninitialized {
 			t.Errorf("Expected initalize source to be Uninitialized")
 		}
 		ShutdownAndDangerouslyClearInstance()
@@ -220,7 +220,7 @@ func TestInitDetails(t *testing.T) {
 		if details.Error != nil {
 			t.Errorf("Expected initalize to have no errors")
 		}
-		if details.Source != sourceDataAdapter {
+		if details.Source != SourceDataAdapter {
 			t.Errorf("Expected initalize source to be DataAdapter")
 		}
 		ShutdownAndDangerouslyClearInstance()
@@ -254,7 +254,7 @@ func TestInitDetails(t *testing.T) {
 		if !errors.Is(details.Error, ErrDataAdapter) {
 			t.Errorf("Expected initalize to have data adapter error")
 		}
-		if details.Source != sourceNetwork {
+		if details.Source != SourceNetwork {
 			t.Errorf("Expected initalize source to be Network")
 		}
 		ShutdownAndDangerouslyClearInstance()
@@ -286,7 +286,7 @@ func TestInitDetails(t *testing.T) {
 		if !errors.Is(details.Error, ErrNetworkRequest) {
 			t.Errorf("Expected initalize to have network error")
 		}
-		if details.Source != sourceUninitialized {
+		if details.Source != SourceUninitialized {
 			t.Errorf("Expected initalize source to be Uninitialized")
 		}
 		ShutdownAndDangerouslyClearInstance()

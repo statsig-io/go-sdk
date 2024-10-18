@@ -97,7 +97,7 @@ func (c *Client) init(context *initContext) {
 	c.evaluator.initialize(context)
 	c.evaluator.store.mu.RLock()
 	defer c.evaluator.store.mu.RUnlock()
-	context.setSuccess(c.evaluator.store.source != sourceUninitialized)
+	context.setSuccess(c.evaluator.store.source != SourceUninitialized)
 	context.setSource(c.evaluator.store.source)
 }
 
