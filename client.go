@@ -29,6 +29,18 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 	return client
 }
 
+// Initializes a Statsig Client with the given sdkKey and options
+// returning the initialized client and details of initialization
+func NewClientWithDetails(sdkKey string, options *Options) (*Client, InitializeDetails) {
+	client, context := newClientImpl(sdkKey, options)
+	return client, InitializeDetails{
+		Duration: time.Since(context.Start),
+		Success:  context.Success,
+		Error:    context.Error,
+		Source:   context.Source,
+	}
+}
+
 func newClientImpl(sdkKey string, options *Options) (*Client, *initContext) {
 	context := newInitContext()
 	diagnostics := newDiagnostics(options)
