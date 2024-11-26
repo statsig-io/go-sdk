@@ -45,9 +45,6 @@ func newClientImpl(sdkKey string, options *Options) (*Client, *initContext) {
 	context := newInitContext()
 	diagnostics := newDiagnostics(options)
 	diagnostics.initialize().overall().start().mark()
-	if len(options.API) == 0 {
-		options.API = "https://statsigapi.net/v1"
-	}
 	errorBoundary := newErrorBoundary(sdkKey, options, diagnostics)
 	if !options.LocalMode && !strings.HasPrefix(sdkKey, "secret") {
 		err := errors.New(InvalidSDKKeyError)
