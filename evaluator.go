@@ -580,7 +580,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 	case strings.EqualFold(op, "version_neq"):
 		pass = compareVersions(value, cond.TargetValue, func(x, y []int64) bool { return compareVersionsHelper(x, y) != 0 })
 
-	// array operations
+	// one to array operations
 	case strings.EqualFold(op, "any"):
 		pass = arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			if cond.UserBucket != nil {
@@ -605,6 +605,42 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		pass = !arrayAny(cond.TargetValue, value, func(x, y interface{}) bool {
 			return compareStrings(x, y, false, func(s1, s2 string) bool { return s1 == s2 })
 		})
+
+	// array to array operations
+	case strings.EqualFold(op, "array_contains_any"):
+		targetArr, okTarget := cond.TargetValue.([]interface{})
+		valArr, okVal := value.([]interface{})
+		if !(okTarget && okVal) {
+			pass = false
+		} else {
+			pass = arrayContainsAny(targetArr, valArr)
+		}
+	case strings.EqualFold(op, "array_contains_none"):
+		targetArr, okTarget := cond.TargetValue.([]interface{})
+		valArr, okVal := value.([]interface{})
+		if !(okTarget && okVal) {
+			pass = false
+		} else {
+			pass = !arrayContainsAny(targetArr, valArr)
+		}
+	case strings.EqualFold(op, "array_contains_all"):
+		targetArr, okTarget := cond.TargetValue.([]interface{})
+		valArr, okVal := value.([]interface{})
+
+		if !(okTarget && okVal) {
+			pass = false
+		} else {
+			pass = arrayContainsAll(targetArr, valArr)
+		}
+	case strings.EqualFold(op, "not_array_contains_all"):
+		targetArr, okTarget := cond.TargetValue.([]interface{})
+		valArr, okVal := value.([]interface{})
+
+		if !(okTarget && okVal) {
+			pass = false
+		} else {
+			pass = !arrayContainsAll(targetArr, valArr)
+		}
 
 	// string operations
 	case strings.EqualFold(op, "str_starts_with_any"):
@@ -835,8 +871,15 @@ func convertToString(a interface{}) string {
 		return strconv.FormatBool(aVal.Bool())
 	case reflect.String:
 		return fmt.Sprintf("%v", a)
+	case reflect.Slice, reflect.Array:
+		var result []string
+		for i := 0; i < aVal.Len(); i++ {
+			result = append(result, fmt.Sprintf("%v", aVal.Index(i).Interface()))
+		}
+		return strings.Join(result, ",")
 	}
-	return ""
+
+	return fmt.Sprintf("%v", a)
 }
 
 func compareNumbers(a, b interface{}, fun func(x, y float64) bool) bool {
@@ -945,6 +988,40 @@ func arrayAny(arr interface{}, val interface{}, fun func(x, y interface{}) bool)
 			if fun(val, arrVal) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func arrayContainsAll(target []interface{}, value []interface{}) bool {
+	valueSet := make(map[string]struct{})
+	for _, item := range value {
+		valStr := convertToString(item)
+		valueSet[valStr] = struct{}{}
+	}
+
+	for _, t := range target {
+		strTarget := convertToString(t)
+		_, strExists := valueSet[strTarget]
+		if !strExists {
+			return false
+		}
+	}
+	return true
+}
+
+func arrayContainsAny(target []interface{}, value []interface{}) bool {
+	valueSet := make(map[string]struct{})
+	for _, item := range value {
+		valStr := convertToString(item)
+		valueSet[valStr] = struct{}{}
+	}
+
+	for _, t := range target {
+		strTarget := convertToString(t)
+		_, strExists := valueSet[strTarget]
+		if strExists {
+			return true
 		}
 	}
 	return false
