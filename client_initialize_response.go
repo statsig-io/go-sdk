@@ -46,6 +46,7 @@ type ConfigInitializeResponse struct {
 	ExplicitParameters *[]string              `json:"explicit_parameters,omitempty"`
 	GroupName          string                 `json:"group_name,omitempty"`
 	IDType             string                 `json:"id_type,omitempty"`
+	RulePassed         bool                   `json:"passed"`
 }
 
 type LayerInitializeResponse struct {
@@ -123,6 +124,7 @@ func getClientInitializeResponse(
 			Group:                      evalRes.RuleID,
 			IsDeviceBased:              strings.EqualFold(spec.IDType, "stableid"),
 			IDType:                     spec.IDType,
+			RulePassed:                 evalRes.Value,
 		}
 		if evalRes.GroupName != "" {
 			result.GroupName = evalRes.GroupName

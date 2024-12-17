@@ -85,8 +85,9 @@ func TestLog(t *testing.T) {
 	}
 
 	configExposureEvent := ExposureEvent{EventName: ConfigExposureEventName, User: privateUser, Metadata: map[string]string{
-		"config": "test_config",
-		"ruleID": "rule_id_config",
+		"config":     "test_config",
+		"ruleID":     "rule_id_config",
+		"rulePassed": "false",
 	}, SecondaryExposures: exposures, Time: evt3.Time}
 
 	if !reflect.DeepEqual(evt3, configExposureEvent) {

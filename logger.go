@@ -192,8 +192,9 @@ func (l *logger) getConfigExposureWithEvaluationDetails(
 	context *evalContext,
 ) *ExposureEvent {
 	metadata := map[string]string{
-		"config": configName,
-		"ruleID": res.RuleID,
+		"config":     configName,
+		"ruleID":     res.RuleID,
+		"rulePassed": strconv.FormatBool(res.Value),
 	}
 	if context != nil && context.IsManualExposure {
 		metadata["isManualExposure"] = "true"
