@@ -82,6 +82,7 @@ type downloadConfigSpecResponse struct {
 	HashedSDKKeysToEntities map[string]configEntities `json:"hashed_sdk_keys_to_entities,omitempty"`
 	HashedSDKKeyUsed        string                    `json:"hashed_sdk_key_used,omitempty"`
 	SDKFlags                map[string]bool           `json:"sdk_flags,omitempty"`
+	SDKConfigs              map[string]interface{}    `json:"sdk_configs,omitempty"`
 }
 
 type configEntities struct {
@@ -468,6 +469,8 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 			}
 		}
 
+		SDKConfig().SetConfigs(specs.SDKConfigs)
+		SDKConfig().SetFlags(specs.SDKFlags)
 		s.mu.Lock()
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs

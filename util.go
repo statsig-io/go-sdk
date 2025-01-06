@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -125,4 +126,25 @@ func hashName(hashAlgorithm string, name string) string {
 	default:
 		return name
 	}
+}
+
+func getNumericValue(a interface{}) (float64, bool) {
+	if a == nil {
+		return 0, false
+	}
+	aVal := reflect.ValueOf(a)
+	switch reflect.TypeOf(a).Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return float64(aVal.Int()), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return float64(aVal.Uint()), true
+	case reflect.Float32, reflect.Float64:
+		return float64(aVal.Float()), true
+	case reflect.String:
+		f, err := strconv.ParseFloat(aVal.String(), 64)
+		if err == nil {
+			return f, true
+		}
+	}
+	return 0, false
 }
