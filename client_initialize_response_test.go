@@ -86,6 +86,68 @@ func TestInitializeResponseConsistency(t *testing.T) {
 	}
 }
 
+func TestClientInitializeResponseOptions(t *testing.T) {
+	user := User{
+		UserID:    "123",
+		Email:     "test@statsig.com",
+		Country:   "US",
+		Custom:    map[string]interface{}{"test": "123"},
+		CustomIDs: map[string]string{"stableID": "12345"},
+	}
+
+	InitializeWithOptions(secret, &Options{
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+	})
+	defer ShutdownAndDangerouslyClearInstance()
+
+	response := GetClientInitializeResponseWithOptions(user, &GCIROptions{
+		IncludeConfigType: true,
+		HashAlgorithm:     "none",
+	})
+
+	var featureGate GateInitializeResponse
+	var dynamicConfig ConfigInitializeResponse
+	var experiment ConfigInitializeResponse
+	var autotune ConfigInitializeResponse
+	var layer LayerInitializeResponse
+	for _, g := range response.FeatureGates {
+		if g.Name == "test_public" {
+			featureGate = g
+		}
+	}
+	for _, c := range response.DynamicConfigs {
+		if c.Name == "test_custom_config" {
+			dynamicConfig = c
+		} else if c.Name == "test_experiment_with_targeting" {
+			experiment = c
+		} else if c.Name == "test_autotune" {
+			autotune = c
+		}
+	}
+	for _, l := range response.LayerConfigs {
+		if l.Name == "Basic_test_layer" {
+			layer = l
+		}
+	}
+
+	if featureGate.ConfigType != FeatureGateType {
+		t.Errorf("Expected GCIR config type of test_public to be %s, received %s", FeatureGateType, featureGate.ConfigType)
+	}
+	if dynamicConfig.ConfigType != DynamicConfigType {
+		t.Errorf("Expected GCIR config type of test_custom_config to be %s, received %s", DynamicConfigType, dynamicConfig.ConfigType)
+	}
+	if experiment.ConfigType != ExperimentType {
+		t.Errorf("Expected GCIR config type of test_experiment_with_targeting to be %s, received %s", ExperimentType, experiment.ConfigType)
+	}
+	if autotune.ConfigType != AutotuneType {
+		t.Errorf("Expected GCIR config type of test_custom_config to be %s, received %s", AutotuneType, autotune.ConfigType)
+	}
+	if layer.ConfigType != LayerType {
+		t.Errorf("Expected GCIR config type of Basic_test_layer to be %s, received %s", LayerType, layer.ConfigType)
+	}
+}
+
 func filterHttpResponseAndReadBody(httpResponse *http.Response) ([]byte, error) {
 	var interfaceBody ClientInitializeResponse
 	// Initialize nullable fields so that JSON Unmarshal doesn't convert to null

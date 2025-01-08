@@ -24,6 +24,7 @@ type evalContext struct {
 	IsExperiment          bool
 	DisableLogExposures   bool
 	PersistedValues       UserPersistedValues
+	IncludeConfigType     bool
 }
 
 type initContext struct {

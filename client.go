@@ -335,6 +335,7 @@ func (c *Client) GetClientInitializeResponseImpl(user User, options *GCIROptions
 		ClientKey:             options.ClientKey,
 		TargetAppID:           options.TargetAppID,
 		Hash:                  options.HashAlgorithm,
+		IncludeConfigType:     options.IncludeConfigType,
 	})
 }
 

@@ -23,10 +23,24 @@ type SDKInfo struct {
 	SDKVersion string `json:"sdkVersion"`
 }
 
+type ConfigType = string
+
+const (
+	FeatureGateType   ConfigType = "feature_gate"
+	HoldoutType       ConfigType = "holdout"
+	SegmentType       ConfigType = "segment"
+	DynamicConfigType ConfigType = "dynamic_config"
+	ExperimentType    ConfigType = "experiment"
+	AutotuneType      ConfigType = "autotune"
+	LayerType         ConfigType = "layer"
+	UnknownType       ConfigType = "unknown"
+)
+
 type baseSpecInitializeResponse struct {
 	Name               string              `json:"name"`
 	RuleID             string              `json:"rule_id"`
 	SecondaryExposures []SecondaryExposure `json:"secondary_exposures"`
+	ConfigType         ConfigType          `json:"config_type,omitempty"`
 }
 
 type GateInitializeResponse struct {
@@ -68,6 +82,27 @@ func mergeMaps(a map[string]interface{}, b map[string]interface{}) {
 	}
 }
 
+func getConfigType(spec configSpec) ConfigType {
+	switch spec.Entity {
+	case "feature_gate":
+		return FeatureGateType
+	case "holdout":
+		return HoldoutType
+	case "segment":
+		return SegmentType
+	case "dynamic_config":
+		return DynamicConfigType
+	case "experiment":
+		return ExperimentType
+	case "autotune":
+		return AutotuneType
+	case "layer":
+		return LayerType
+	default:
+		return UnknownType
+	}
+}
+
 func getClientInitializeResponse(
 	user User,
 	e *evaluator,
@@ -104,6 +139,9 @@ func getClientInitializeResponse(
 			Value:                      evalRes.Value,
 			IDType:                     spec.IDType,
 		}
+		if context.IncludeConfigType {
+			result.ConfigType = getConfigType(spec)
+		}
 		return hashedName, result
 	}
 	configToResponse := func(configName string, spec configSpec) (string, ConfigInitializeResponse) {
@@ -125,6 +163,9 @@ func getClientInitializeResponse(
 			IsDeviceBased:              strings.EqualFold(spec.IDType, "stableid"),
 			IDType:                     spec.IDType,
 			RulePassed:                 evalRes.Value,
+		}
+		if context.IncludeConfigType {
+			result.ConfigType = getConfigType(spec)
 		}
 		if evalRes.GroupName != "" {
 			result.GroupName = evalRes.GroupName
@@ -160,6 +201,9 @@ func getClientInitializeResponse(
 			Group:                         evalResult.RuleID,
 			IsDeviceBased:                 strings.EqualFold(spec.IDType, "stableid"),
 			UndelegatedSecondaryExposures: evalResult.UndelegatedSecondaryExposures,
+		}
+		if context.IncludeConfigType {
+			result.ConfigType = getConfigType(spec)
 		}
 		delegate := evalResult.ConfigDelegate
 		result.ExplicitParameters = new([]string)
@@ -222,7 +266,7 @@ func getClientInitializeResponse(
 				continue
 			}
 		}
-		if !strings.EqualFold(spec.Entity, "segment") && !strings.EqualFold(spec.Entity, "holdout") {
+		if !strings.EqualFold(spec.Entity, SegmentType) && !strings.EqualFold(spec.Entity, HoldoutType) {
 			hashedName, res := gateToResponse(name, spec)
 			featureGates[hashedName] = res
 		}

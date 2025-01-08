@@ -83,4 +83,5 @@ type GCIROptions struct {
 	ClientKey             string
 	TargetAppID           string
 	HashAlgorithm         string
+	IncludeConfigType     bool
 }
