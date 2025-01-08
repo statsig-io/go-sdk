@@ -14,21 +14,30 @@ import (
 	"time"
 )
 
+type EntityType string
+
+const (
+	EntityGate   EntityType = "feature_gates"
+	EntityConfig EntityType = "dynamic_configs"
+	EntityLayer  EntityType = "layer_configs"
+)
+
 type configSpec struct {
-	Name               string                 `json:"name"`
-	Type               string                 `json:"type"`
-	Salt               string                 `json:"salt"`
-	Enabled            bool                   `json:"enabled"`
-	Rules              []configRule           `json:"rules"`
-	DefaultValue       json.RawMessage        `json:"defaultValue"`
-	DefaultValueJSON   map[string]interface{} `json:"-"`
-	DefaultValueBool   *bool                  `json:"-"`
-	IDType             string                 `json:"idType"`
-	ExplicitParameters []string               `json:"explicitParameters"`
-	Entity             string                 `json:"entity"`
-	IsActive           *bool                  `json:"isActive,omitempty"`
-	HasSharedParams    *bool                  `json:"hasSharedParams,omitempty"`
-	TargetAppIDs       []string               `json:"targetAppIDs,omitempty"`
+	Name                string                 `json:"name"`
+	Type                string                 `json:"type"`
+	Salt                string                 `json:"salt"`
+	Enabled             bool                   `json:"enabled"`
+	Rules               []configRule           `json:"rules"`
+	DefaultValue        json.RawMessage        `json:"defaultValue"`
+	DefaultValueJSON    map[string]interface{} `json:"-"`
+	DefaultValueBool    *bool                  `json:"-"`
+	IDType              string                 `json:"idType"`
+	ExplicitParameters  []string               `json:"explicitParameters"`
+	Entity              string                 `json:"entity"`
+	IsActive            *bool                  `json:"isActive,omitempty"`
+	HasSharedParams     *bool                  `json:"hasSharedParams,omitempty"`
+	TargetAppIDs        []string               `json:"targetAppIDs,omitempty"`
+	ForwardAllExposures *bool                  `json:"forwardAllExposures,omitempty"`
 }
 
 func (c configSpec) hasTargetAppID(appId string) bool {
@@ -56,6 +65,7 @@ type configRule struct {
 	IDType            string                 `json:"idType"`
 	ConfigDelegate    string                 `json:"configDelegate"`
 	IsExperimentGroup *bool                  `json:"isExperimentGroup,omitempty"`
+	SamplingRate      *int                   `json:"samplingRate,omitempty"`
 }
 
 type configCondition struct {

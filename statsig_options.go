@@ -30,6 +30,13 @@ type Options struct {
 	UAParserOptions       UAParserOptions
 }
 
+func (o *Options) GetSDKEnvironmentTier() string {
+	if o.Environment.Tier != "" {
+		return o.Environment.Tier
+	}
+	return "production"
+}
+
 type APIOverrides struct {
 	DownloadConfigSpecs string `json:"download_config_specs"`
 	GetIDLists          string `json:"get_id_lists"`

@@ -15,6 +15,7 @@ func TestLog(t *testing.T) {
 	opt := &Options{
 		API: testServer.URL,
 	}
+	InitializeGlobalSDKConfig()
 	transport := newTransport("secret", opt)
 	errorBoundary := newErrorBoundary("secret", opt, nil)
 	logger := newLogger(transport, opt, nil, errorBoundary)

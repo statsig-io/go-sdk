@@ -352,7 +352,7 @@ func (c *Client) verifyUser(user User) bool {
 // Using any method is undefined after Shutdown() has been called
 func (c *Client) Shutdown() {
 	c.errorBoundary.captureVoid(func(context *evalContext) {
-		c.logger.flush(true)
+		c.logger.shutdown()
 		c.evaluator.shutdown()
 	}, &evalContext{Caller: "shutdown"})
 }
@@ -401,10 +401,7 @@ func (c *Client) checkGateImpl(user User, name string, context *evalContext) Fea
 		serverRes := fetchGate(user, name, c.transport)
 		res = &evalResult{Value: serverRes.Value, RuleID: serverRes.RuleID}
 	} else {
-		exposure := c.logger.getGateExposureWithEvaluationDetails(user, name, res, context)
-		if !context.DisableLogExposures {
-			c.logger.logExposure(*exposure)
-		}
+		exposure := c.logger.logGateExposure(user, name, res, context)
 
 		if c.options.EvaluationCallbacks.GateEvaluationCallback != nil {
 			if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
@@ -436,10 +433,7 @@ func (c *Client) getConfigImpl(user User, name string, context *evalContext) Dyn
 		res = c.fetchConfigFromServer(user, name)
 		config = *NewConfig(name, res.JsonValue, res.RuleID, res.GroupName, res.EvaluationDetails)
 	} else {
-		exposure := c.logger.getConfigExposureWithEvaluationDetails(user, name, res, context)
-		if !context.DisableLogExposures {
-			c.logger.logExposure(*exposure)
-		}
+		exposure := c.logger.logConfigExposure(user, name, res, context)
 
 		if context.IsExperiment && c.options.EvaluationCallbacks.ExperimentEvaluationCallback != nil {
 			if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
@@ -479,10 +473,7 @@ func (c *Client) getLayerImpl(user User, name string, context *evalContext) Laye
 	}
 
 	logFunc := func(layer Layer, parameterName string) {
-		exposure := c.logger.getLayerExposureWithEvaluationDetails(user, layer, parameterName, res, context)
-		if !context.DisableLogExposures {
-			c.logger.logExposure(*exposure)
-		}
+		exposure := c.logger.logLayerExposure(user, layer, parameterName, res, context)
 		if c.options.EvaluationCallbacks.LayerEvaluationCallback != nil {
 			if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
 				c.options.EvaluationCallbacks.LayerEvaluationCallback(name, parameterName, DynamicConfig{layer.configBase}, exposure)
