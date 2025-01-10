@@ -10,7 +10,6 @@ import (
 // Instead, define an accessor below using the Mutex lock
 type GlobalState struct {
 	logger    *OutputLogger
-	sdkConfig *SDKConfigs
 	sessionID string
 	mu        sync.RWMutex
 }
@@ -41,16 +40,4 @@ func InitializeGlobalSessionID() {
 	global.mu.Lock()
 	defer global.mu.Unlock()
 	global.sessionID = uuid.NewString()
-}
-
-func SDKConfig() *SDKConfigs {
-	global.mu.RLock()
-	defer global.mu.RUnlock()
-	return global.sdkConfig
-}
-
-func InitializeGlobalSDKConfig() {
-	global.mu.Lock()
-	defer global.mu.Unlock()
-	global.sdkConfig = &SDKConfigs{}
 }

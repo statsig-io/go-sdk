@@ -31,7 +31,8 @@ func TestLogEventErrors(t *testing.T) {
 	diagnostics := newDiagnostics(opts)
 	transport := newTransport("secret", opts)
 	errorBoundary := newErrorBoundary("secret", opts, nil)
-	logger := newLogger(transport, opts, diagnostics, errorBoundary)
+	sdkConfigs := newSDKConfigs()
+	logger := newLogger(transport, opts, diagnostics, errorBoundary, sdkConfigs)
 
 	user := User{
 		UserID: "123",

@@ -50,9 +50,11 @@ func newClientImpl(sdkKey string, options *Options) (*Client, *initContext) {
 		err := errors.New(InvalidSDKKeyError)
 		panic(err)
 	}
+	sdkConfigs := newSDKConfigs()
 	transport := newTransport(sdkKey, options)
-	logger := newLogger(transport, options, diagnostics, errorBoundary)
-	evaluator := newEvaluator(transport, errorBoundary, options, diagnostics, sdkKey)
+	logger := newLogger(transport, options, diagnostics, errorBoundary, sdkConfigs)
+	evaluator := newEvaluator(transport, errorBoundary, options, diagnostics, sdkKey, sdkConfigs)
+
 	client := &Client{
 		sdkKey:        sdkKey,
 		evaluator:     evaluator,

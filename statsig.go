@@ -30,7 +30,6 @@ func Initialize(sdkKey string) InitializeDetails {
 func InitializeWithOptions(sdkKey string, options *Options) InitializeDetails {
 	InitializeGlobalOutputLogger(options.OutputLoggerOptions)
 	InitializeGlobalSessionID()
-	InitializeGlobalSDKConfig()
 	if IsInitialized() {
 		Logger().Log("Statsig is already initialized.", nil)
 		return InitializeDetails{Success: true, Source: instance.evaluator.store.source}

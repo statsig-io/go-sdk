@@ -143,6 +143,7 @@ type store struct {
 	sdkKey                  string
 	isPolling               bool
 	bootstrapValues         string
+	sdkConfigs              *SDKConfigs
 }
 
 var syncOutdatedMax = 2 * time.Minute
@@ -153,6 +154,7 @@ func newStore(
 	options *Options,
 	diagnostics *diagnostics,
 	sdkKey string,
+	sdkConfigs *SDKConfigs,
 ) *store {
 	configSyncInterval := 10 * time.Second
 	idListSyncInterval := time.Minute
@@ -172,6 +174,7 @@ func newStore(
 		diagnostics,
 		sdkKey,
 		options.BootstrapValues,
+		sdkConfigs,
 	)
 }
 
@@ -185,6 +188,7 @@ func newStoreInternal(
 	diagnostics *diagnostics,
 	sdkKey string,
 	bootstrapValues string,
+	sdkConfigs *SDKConfigs,
 ) *store {
 	store := &store{
 		featureGates:         make(map[string]configSpec),
@@ -203,6 +207,7 @@ func newStoreInternal(
 		sdkKey:               sdkKey,
 		isPolling:            false,
 		bootstrapValues:      bootstrapValues,
+		sdkConfigs:           sdkConfigs,
 	}
 	return store
 }
@@ -479,8 +484,8 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 			}
 		}
 
-		SDKConfig().SetConfigs(specs.SDKConfigs)
-		SDKConfig().SetFlags(specs.SDKFlags)
+		s.sdkConfigs.SetConfigs(specs.SDKConfigs)
+		s.sdkConfigs.SetFlags(specs.SDKFlags)
 		s.mu.Lock()
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs

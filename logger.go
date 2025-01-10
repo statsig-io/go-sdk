@@ -55,9 +55,10 @@ type logger struct {
 	options        *Options
 	errorBoundary  *errorBoundary
 	samplingKeySet *TTLSet
+	SDKConfigs     *SDKConfigs
 }
 
-func newLogger(transport *transport, options *Options, diagnostics *diagnostics, errorBoundary *errorBoundary) *logger {
+func newLogger(transport *transport, options *Options, diagnostics *diagnostics, errorBoundary *errorBoundary, sdkConfigs *SDKConfigs) *logger {
 	loggingInterval := time.Minute
 	maxEvents := 1000
 	if options.LoggingInterval > 0 {
@@ -77,6 +78,7 @@ func newLogger(transport *transport, options *Options, diagnostics *diagnostics,
 		options:        options,
 		errorBoundary:  errorBoundary,
 		samplingKeySet: NewTTLSet(),
+		SDKConfigs:     sdkConfigs,
 	}
 
 	go log.backgroundFlush()
@@ -369,8 +371,8 @@ func (l *logger) determineSampling(entityType EntityType,
 
 	shadowShouldLog := true
 	env := l.options.GetSDKEnvironmentTier()
-	samplingMode, _ = SDKConfig().GetConfigStrValue("sampling_mode")
-	specialCaseSamplingRate, _ := SDKConfig().GetConfigIntValue("special_case_sampling_rate")
+	samplingMode, _ = l.SDKConfigs.GetConfigStrValue("sampling_mode")
+	specialCaseSamplingRate, _ := l.SDKConfigs.GetConfigIntValue("special_case_sampling_rate")
 	specialCaseRules := map[string]bool{
 		"disabled": true,
 		"default":  true,

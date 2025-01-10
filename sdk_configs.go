@@ -11,6 +11,13 @@ type SDKConfigs struct {
 	mu      sync.RWMutex
 }
 
+func newSDKConfigs() *SDKConfigs {
+	return &SDKConfigs{
+		flags:   make(map[string]bool),
+		configs: make(map[string]interface{}),
+	}
+}
+
 func (s *SDKConfigs) SetFlags(newFlags map[string]bool) {
 	s.mu.Lock()
 	s.flags = newFlags
