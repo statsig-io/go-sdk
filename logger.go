@@ -138,6 +138,10 @@ func (l *logger) logGateExposure(
 		metadata["isManualExposure"] = "true"
 	}
 
+	if res.ConfigVersion != nil {
+		metadata["configVersion"] = strconv.Itoa(*res.ConfigVersion)
+	}
+
 	evt := &ExposureEvent{
 		User:               user,
 		EventName:          GateExposureEventName,
@@ -158,10 +162,10 @@ func (l *logger) addEvaluationDetailsToExposureEvent(
 	evalDetails *EvaluationDetails,
 ) {
 	if evalDetails != nil {
-		evt.Metadata["reason"] = string(evalDetails.detailedReason())
-		evt.Metadata["configSyncTime"] = fmt.Sprint(evalDetails.ConfigSyncTime)
-		evt.Metadata["initTime"] = fmt.Sprint(evalDetails.InitTime)
-		evt.Metadata["serverTime"] = fmt.Sprint(evalDetails.ServerTime)
+		evt.Metadata["reason"] = evalDetails.detailedReason()
+		evt.Metadata["configSyncTime"] = strconv.FormatInt(evalDetails.ConfigSyncTime, 10)
+		evt.Metadata["initTime"] = strconv.FormatInt(evalDetails.InitTime, 10)
+		evt.Metadata["serverTime"] = strconv.FormatInt(evalDetails.ServerTime, 10)
 	}
 }
 
@@ -215,6 +219,9 @@ func (l *logger) logConfigExposure(
 	if context != nil && context.IsManualExposure {
 		metadata["isManualExposure"] = "true"
 	}
+	if res.ConfigVersion != nil {
+		metadata["configVersion"] = strconv.Itoa(*res.ConfigVersion)
+	}
 	evt := &ExposureEvent{
 		User:               user,
 		EventName:          ConfigExposureEventName,
@@ -257,6 +264,11 @@ func (l *logger) logLayerExposure(
 		"parameterName":       parameterName,
 		"isExplicitParameter": strconv.FormatBool(isExplicit),
 	}
+
+	if evalResult.ConfigVersion != nil {
+		metadata["configVersion"] = strconv.Itoa(*evalResult.ConfigVersion)
+	}
+
 	if context != nil && context.IsManualExposure {
 		metadata["isManualExposure"] = "true"
 	}

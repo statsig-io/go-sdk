@@ -38,6 +38,7 @@ type configSpec struct {
 	HasSharedParams     *bool                  `json:"hasSharedParams,omitempty"`
 	TargetAppIDs        []string               `json:"targetAppIDs,omitempty"`
 	ForwardAllExposures *bool                  `json:"forwardAllExposures,omitempty"`
+	ConfigVersion       *int                   `json:"version,omitempty"`
 }
 
 func (c configSpec) hasTargetAppID(appId string) bool {

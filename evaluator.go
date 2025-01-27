@@ -28,6 +28,7 @@ type evalResult struct {
 	DerivedDeviceMetadata         *DerivedDeviceMetadata `json:"derived_device_metadata,omitempty"`
 	ForwardAllExposures           bool                   `json:"forward_all_exposures,omitempty"`
 	SamplingRate                  *int                   `json:"sampling_rate,omitempty"`
+	ConfigVersion                 *int                   `json:"config_version,omitempty"`
 }
 
 type DerivedDeviceMetadata struct {
@@ -401,6 +402,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 						EvaluationDetails:             evalDetails,
 						DerivedDeviceMetadata:         deviceMetadata,
 						SamplingRate:                  rule.SamplingRate,
+						ConfigVersion:                 spec.ConfigVersion,
 					}
 					if rule.IsExperimentGroup != nil {
 						result.IsExperimentGroup = rule.IsExperimentGroup
@@ -415,6 +417,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 						EvaluationDetails:     evalDetails,
 						DerivedDeviceMetadata: deviceMetadata,
 						SamplingRate:          rule.SamplingRate,
+						ConfigVersion:         spec.ConfigVersion,
 					}
 				}
 			}
@@ -432,9 +435,10 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 			UndelegatedSecondaryExposures: exposures,
 			EvaluationDetails:             evalDetails,
 			DerivedDeviceMetadata:         deviceMetadata,
+			ConfigVersion:                 spec.ConfigVersion,
 		}
 	}
-	return &evalResult{Value: false, RuleID: defaultRuleID, SecondaryExposures: exposures, DerivedDeviceMetadata: deviceMetadata}
+	return &evalResult{Value: false, RuleID: defaultRuleID, SecondaryExposures: exposures, DerivedDeviceMetadata: deviceMetadata, ConfigVersion: spec.ConfigVersion}
 }
 
 func (e *evaluator) evalDelegate(user User, rule configRule, exposures []SecondaryExposure, depth int, context *evalContext) *evalResult {
