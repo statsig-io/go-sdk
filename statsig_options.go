@@ -91,4 +91,18 @@ type GCIROptions struct {
 	TargetAppID           string
 	HashAlgorithm         string
 	IncludeConfigType     bool
+	ConfigTypesToInclude  []ConfigType
 }
+
+type ConfigType = string
+
+const (
+	FeatureGateType   ConfigType = "feature_gate"
+	HoldoutType       ConfigType = "holdout"
+	SegmentType       ConfigType = "segment"
+	DynamicConfigType ConfigType = "dynamic_config"
+	ExperimentType    ConfigType = "experiment"
+	AutotuneType      ConfigType = "autotune"
+	LayerType         ConfigType = "layer"
+	UnknownType       ConfigType = "unknown"
+)

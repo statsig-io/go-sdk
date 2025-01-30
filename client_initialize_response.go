@@ -23,19 +23,6 @@ type SDKInfo struct {
 	SDKVersion string `json:"sdkVersion"`
 }
 
-type ConfigType = string
-
-const (
-	FeatureGateType   ConfigType = "feature_gate"
-	HoldoutType       ConfigType = "holdout"
-	SegmentType       ConfigType = "segment"
-	DynamicConfigType ConfigType = "dynamic_config"
-	ExperimentType    ConfigType = "experiment"
-	AutotuneType      ConfigType = "autotune"
-	LayerType         ConfigType = "layer"
-	UnknownType       ConfigType = "unknown"
-)
-
 type baseSpecInitializeResponse struct {
 	Name               string              `json:"name"`
 	RuleID             string              `json:"rule_id"`
@@ -254,11 +241,32 @@ func getClientInitializeResponse(
 		}
 	}
 
+	configTypesMap := make(map[ConfigType]struct{})
+	if context.ConfigTypesToInclude != nil {
+		for _, configType := range context.ConfigTypesToInclude {
+			configTypesMap[configType] = struct{}{}
+		}
+	}
+
+	shouldFilterConfigType := func(specType ConfigType) bool {
+		if context.ConfigTypesToInclude == nil {
+			return false
+		}
+		if _, exists := configTypesMap[specType]; exists {
+			return false
+		}
+		return true
+
+	}
+
 	featureGates := make(map[string]GateInitializeResponse)
 	dynamicConfigs := make(map[string]ConfigInitializeResponse)
 	layerConfigs := make(map[string]LayerInitializeResponse)
 	for name, spec := range e.store.featureGates {
 		if !spec.hasTargetAppID(appId) {
+			continue
+		}
+		if shouldFilterConfigType(getConfigType(spec)) {
 			continue
 		}
 		if filterByEntities {
@@ -275,6 +283,9 @@ func getClientInitializeResponse(
 		if !spec.hasTargetAppID(appId) {
 			continue
 		}
+		if shouldFilterConfigType(getConfigType(spec)) {
+			continue
+		}
 		if filterByEntities {
 			if _, ok := configsLookup[name]; !ok {
 				continue
@@ -285,6 +296,9 @@ func getClientInitializeResponse(
 	}
 	for name, spec := range e.store.layerConfigs {
 		if !spec.hasTargetAppID(appId) {
+			continue
+		}
+		if shouldFilterConfigType(getConfigType(spec)) {
 			continue
 		}
 		hashedName, res := layerToResponse(name, spec)

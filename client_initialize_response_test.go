@@ -148,6 +148,116 @@ func TestClientInitializeResponseOptions(t *testing.T) {
 	}
 }
 
+func TestClientInitializeResponseFilterOptions(t *testing.T) {
+	user := User{
+		UserID:    "123",
+		Email:     "test@statsig.com",
+		Country:   "US",
+		Custom:    map[string]interface{}{"test": "123"},
+		CustomIDs: map[string]string{"stableID": "12345"},
+	}
+
+	InitializeWithOptions(secret, &Options{
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+	})
+	defer ShutdownAndDangerouslyClearInstance()
+
+	tests := []struct {
+		name        string
+		filter      *GCIROptions
+		expectGate  bool
+		expectDC    bool
+		expectExp   bool
+		expectAT    bool
+		expectLayer bool
+	}{
+		{
+			name:       "Include all entities",
+			filter:     &GCIROptions{HashAlgorithm: "none"},
+			expectGate: true, expectDC: true, expectExp: true, expectAT: true, expectLayer: true,
+		},
+		{
+			name:       "Only feature gates",
+			filter:     &GCIROptions{HashAlgorithm: "none", ConfigTypesToInclude: []ConfigType{FeatureGateType}},
+			expectGate: true, expectDC: false, expectExp: false, expectAT: false, expectLayer: false,
+		},
+		{
+			name:       "Only dynamic configs",
+			filter:     &GCIROptions{HashAlgorithm: "none", ConfigTypesToInclude: []ConfigType{DynamicConfigType}},
+			expectGate: false, expectDC: true, expectExp: false, expectAT: false, expectLayer: false,
+		},
+		{
+			name:       "Only experiments",
+			filter:     &GCIROptions{HashAlgorithm: "none", ConfigTypesToInclude: []ConfigType{ExperimentType}},
+			expectGate: false, expectDC: false, expectExp: true, expectAT: false, expectLayer: false,
+		},
+		{
+			name:       "Only autotune configs",
+			filter:     &GCIROptions{HashAlgorithm: "none", ConfigTypesToInclude: []ConfigType{AutotuneType}},
+			expectGate: false, expectDC: false, expectExp: false, expectAT: true, expectLayer: false,
+		},
+		{
+			name:       "Only layers",
+			filter:     &GCIROptions{HashAlgorithm: "none", ConfigTypesToInclude: []ConfigType{LayerType}},
+			expectGate: false, expectDC: false, expectExp: false, expectAT: false, expectLayer: true,
+		},
+		{
+			name:       "Include multiple entities (feature gates and experiments)",
+			filter:     &GCIROptions{HashAlgorithm: "none", ConfigTypesToInclude: []ConfigType{FeatureGateType, ExperimentType}},
+			expectGate: true, expectDC: false, expectExp: true, expectAT: false, expectLayer: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			response := GetClientInitializeResponseWithOptions(user, tt.filter)
+
+			var featureGate GateInitializeResponse
+			var dynamicConfig ConfigInitializeResponse
+			var experiment ConfigInitializeResponse
+			var autotune ConfigInitializeResponse
+			var layer LayerInitializeResponse
+
+			for _, g := range response.FeatureGates {
+				if g.Name == "test_public" {
+					featureGate = g
+				}
+			}
+			for _, c := range response.DynamicConfigs {
+				if c.Name == "test_custom_config" {
+					dynamicConfig = c
+				} else if c.Name == "test_experiment_with_targeting" {
+					experiment = c
+				} else if c.Name == "test_autotune" {
+					autotune = c
+				}
+			}
+			for _, l := range response.LayerConfigs {
+				if l.Name == "Basic_test_layer" {
+					layer = l
+				}
+			}
+
+			if (featureGate.Name != "") != tt.expectGate {
+				t.Errorf("Feature gate presence mismatch: got %v, want %v", featureGate.Name != "", tt.expectGate)
+			}
+			if (dynamicConfig.Name != "") != tt.expectDC {
+				t.Errorf("Dynamic config presence mismatch: got %v, want %v", dynamicConfig.Name != "", tt.expectDC)
+			}
+			if (experiment.Name != "") != tt.expectExp {
+				t.Errorf("Experiment presence mismatch: got %v, want %v", experiment.Name != "", tt.expectExp)
+			}
+			if (autotune.Name != "") != tt.expectAT {
+				t.Errorf("Autotune config presence mismatch: got %v, want %v", autotune.Name != "", tt.expectAT)
+			}
+			if (layer.Name != "") != tt.expectLayer {
+				t.Errorf("Layer presence mismatch: got %v, want %v", layer.Name != "", tt.expectLayer)
+			}
+		})
+	}
+}
+
 func filterHttpResponseAndReadBody(httpResponse *http.Response) ([]byte, error) {
 	var interfaceBody ClientInitializeResponse
 	// Initialize nullable fields so that JSON Unmarshal doesn't convert to null

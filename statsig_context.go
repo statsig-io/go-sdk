@@ -25,6 +25,7 @@ type evalContext struct {
 	DisableLogExposures   bool
 	PersistedValues       UserPersistedValues
 	IncludeConfigType     bool
+	ConfigTypesToInclude  []ConfigType
 }
 
 type initContext struct {
