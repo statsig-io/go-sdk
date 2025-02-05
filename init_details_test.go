@@ -100,7 +100,7 @@ func TestInitDetails(t *testing.T) {
 		if details.Success {
 			t.Errorf("Expected initalize success to be false")
 		}
-		if details.Error.Error() != "Timed out" {
+		if details.Error.Error() != "timed out" {
 			t.Errorf("Expected initalize to have timeout error")
 		}
 		if details.Source != SourceUninitialized {

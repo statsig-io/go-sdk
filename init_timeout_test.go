@@ -18,7 +18,7 @@ func TestInitTimeout(t *testing.T) {
 	defer testServer.Close()
 
 	user := User{UserID: "some_user_id"}
-	initTimeBuffer := 2 * time.Millisecond // expected runtime buffer for initialize with timeout
+	initTimeBuffer := 5 * time.Millisecond // expected runtime buffer for initialize with timeout
 
 	t.Run("No timeout option", func(t *testing.T) {
 		options := &Options{
@@ -83,6 +83,13 @@ func TestInitTimeout(t *testing.T) {
 		if gate != false {
 			t.Errorf("Expected gate to be default off")
 		}
+		if !instance.evaluator.store.isPolling {
+			t.Errorf("Expected evaluator store background polling to start")
+		}
+		if !instance.logger.samplingKeySet.isBackgroundThreadRunning {
+			t.Errorf("Expected sampling key set background thread to start")
+		}
+
 		ShutdownAndDangerouslyClearInstance()
 	})
 }

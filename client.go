@@ -81,7 +81,7 @@ func newClientImpl(sdkKey string, options *Options) (*Client, *initContext) {
 			diagnostics.initialize().overall().end().success(false).reason("timeout").mark()
 			client.initInBackground()
 			ctx := context.copy() // Goroutines are not terminated upon timeout. Clone context to avoid race condition on setting Error
-			ctx.setError(errors.New("Timed out"))
+			ctx.setError(errors.New("timed out"))
 			return client, ctx
 		}
 	} else {
@@ -96,12 +96,14 @@ func (c *Client) init(context *initContext) {
 	c.evaluator.initialize(context)
 	c.evaluator.store.mu.RLock()
 	defer c.evaluator.store.mu.RUnlock()
+	c.logger.samplingKeySet.StartResetThread()
 	context.setSuccess(c.evaluator.store.source != SourceUninitialized)
 	context.setSource(c.evaluator.store.source)
 }
 
 func (c *Client) initInBackground() {
 	c.evaluator.store.startPolling()
+	c.logger.samplingKeySet.StartResetThread()
 }
 
 // Checks the value of a Feature Gate for the given user

@@ -7,10 +7,11 @@ import (
 )
 
 type TTLSet struct {
-	store         map[string]struct{}
-	mu            sync.RWMutex
-	resetInterval time.Duration
-	shutdown      bool
+	store                     map[string]struct{}
+	mu                        sync.RWMutex
+	resetInterval             time.Duration
+	shutdown                  bool
+	isBackgroundThreadRunning bool
 }
 
 func NewTTLSet() *TTLSet {
@@ -19,7 +20,6 @@ func NewTTLSet() *TTLSet {
 		resetInterval: time.Minute,
 	}
 
-	go set.startResetThread()
 	return set
 }
 
@@ -36,38 +36,43 @@ func (s *TTLSet) Contains(key string) bool {
 	return exists
 }
 
-func (s *TTLSet) Reset() {
-	s.mu.Lock()
-	s.store = make(map[string]struct{})
-	s.mu.Unlock()
-}
-
 func (s *TTLSet) Shutdown() {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.shutdown = true
-	s.mu.Unlock()
+	s.isBackgroundThreadRunning = false
 }
 
-func (s *TTLSet) startResetThread() {
-	for {
-		time.Sleep(s.resetInterval)
-		stop := func() bool {
-			s.mu.RLock()
-			defer s.mu.RUnlock()
-			return s.shutdown
-		}()
-		if stop {
-			break
-		}
-
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					err := errors.New("panic in TTLSet reset thread")
-					Logger().LogError(err)
-				}
-			}()
-			s.Reset()
-		}()
+func (s *TTLSet) StartResetThread() {
+	s.mu.Lock()
+	if s.isBackgroundThreadRunning {
+		s.mu.Unlock()
+		return
 	}
+	s.isBackgroundThreadRunning = true
+	s.mu.Unlock()
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err := errors.New("panic in TTLSet reset thread")
+				Logger().LogError(err)
+			}
+		}()
+		for {
+			time.Sleep(s.resetInterval)
+			stop := func() bool {
+				s.mu.RLock()
+				defer s.mu.RUnlock()
+				return s.shutdown
+			}()
+			if stop {
+				break
+			}
+
+			s.mu.Lock()
+			s.store = make(map[string]struct{})
+			s.mu.Unlock()
+		}
+	}()
 }
