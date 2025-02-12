@@ -19,6 +19,7 @@ const (
 	ReasonLocalOverride EvaluationReason = "LocalOverride"
 	ReasonUnrecognized  EvaluationReason = "Unrecognized"
 	ReasonPersisted     EvaluationReason = "Persisted"
+	ReasonUnsupported	EvaluationReason = "Unsupported"
 )
 
 type EvaluationDetails struct {

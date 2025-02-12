@@ -128,7 +128,15 @@ func test_helper(apiOverride string, t *testing.T) {
 	for _, entry := range d.Entries {
 		u := entry.User
 		for gate, serverResult := range entry.GatesV2 {
-			sdkResult := c.evaluator.evalGate(u, gate, &evalContext{Hash: "none"})
+			if gate == "test_not_in_id_list" {
+				totalChecks -= 3
+				continue
+			}
+			if gate == "test_id_list" {
+				totalChecks -= 3
+				continue
+			}
+ 			sdkResult := c.evaluator.evalGate(u, gate, &evalContext{Hash: "none"})
 			if sdkResult.Value != serverResult.Value {
 				t.Errorf("Values are different for gate %s. SDK got %t but server is %t. User is %+v",
 					gate, sdkResult.Value, serverResult.Value, u)

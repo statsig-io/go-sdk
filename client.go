@@ -372,56 +372,27 @@ type GetLayerOptions struct {
 	PersistedValues     UserPersistedValues
 }
 
-type gateResponse struct {
-	Name   string `json:"name"`
-	Value  bool   `json:"value"`
-	RuleID string `json:"rule_id"`
-}
-
-type configResponse struct {
-	Name   string                 `json:"name"`
-	Value  map[string]interface{} `json:"value"`
-	RuleID string                 `json:"rule_id"`
-}
-
-type checkGateInput struct {
-	GateName        string          `json:"gateName"`
-	User            User            `json:"user"`
-	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
-}
-
-type getConfigInput struct {
-	ConfigName      string          `json:"configName"`
-	User            User            `json:"user"`
-	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
-}
-
 func (c *Client) checkGateImpl(user User, name string, context *evalContext) FeatureGate {
 	if !c.verifyUser(user) {
 		return *NewGate(name, false, "", "", nil)
 	}
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.evalGate(user, name, context)
-	if res.FetchFromServer {
-		serverRes := fetchGate(user, name, c.transport)
-		res = &evalResult{Value: serverRes.Value, RuleID: serverRes.RuleID}
-	} else {
-		exposure := c.logger.logGateExposure(user, name, res, context)
+	exposure := c.logger.logGateExposure(user, name, res, context)
 
-		if c.options.EvaluationCallbacks.GateEvaluationCallback != nil {
-			if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
-				c.options.EvaluationCallbacks.GateEvaluationCallback(name, res.Value, exposure)
-			} else {
-				c.options.EvaluationCallbacks.GateEvaluationCallback(name, res.Value, nil)
-			}
+	if c.options.EvaluationCallbacks.GateEvaluationCallback != nil {
+		if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
+			c.options.EvaluationCallbacks.GateEvaluationCallback(name, res.Value, exposure)
+		} else {
+			c.options.EvaluationCallbacks.GateEvaluationCallback(name, res.Value, nil)
 		}
+	}
 
-		if c.options.EvaluationCallbacks.ExposureCallback != nil {
-			if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
-				c.options.EvaluationCallbacks.ExposureCallback(name, exposure)
-			} else {
-				c.options.EvaluationCallbacks.ExposureCallback(name, nil)
-			}
+	if c.options.EvaluationCallbacks.ExposureCallback != nil {
+		if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
+			c.options.EvaluationCallbacks.ExposureCallback(name, exposure)
+		} else {
+			c.options.EvaluationCallbacks.ExposureCallback(name, nil)
 		}
 	}
 	return *NewGate(name, res.Value, res.RuleID, res.GroupName, res.EvaluationDetails)
@@ -434,32 +405,27 @@ func (c *Client) getConfigImpl(user User, name string, context *evalContext) Dyn
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.evalConfig(user, name, context)
 	config := *NewConfig(name, res.JsonValue, res.RuleID, res.GroupName, res.EvaluationDetails)
-	if res.FetchFromServer {
-		res = c.fetchConfigFromServer(user, name)
-		config = *NewConfig(name, res.JsonValue, res.RuleID, res.GroupName, res.EvaluationDetails)
-	} else {
-		exposure := c.logger.logConfigExposure(user, name, res, context)
+	exposure := c.logger.logConfigExposure(user, name, res, context)
 
-		if context.IsExperiment && c.options.EvaluationCallbacks.ExperimentEvaluationCallback != nil {
-			if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
-				c.options.EvaluationCallbacks.ExperimentEvaluationCallback(name, config, exposure)
-			} else {
-				c.options.EvaluationCallbacks.ExperimentEvaluationCallback(name, config, nil)
-			}
-		} else if c.options.EvaluationCallbacks.ConfigEvaluationCallback != nil {
-			if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
-				c.options.EvaluationCallbacks.ConfigEvaluationCallback(name, config, exposure)
-			} else {
-				c.options.EvaluationCallbacks.ConfigEvaluationCallback(name, config, nil)
-			}
+	if context.IsExperiment && c.options.EvaluationCallbacks.ExperimentEvaluationCallback != nil {
+		if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
+			c.options.EvaluationCallbacks.ExperimentEvaluationCallback(name, config, exposure)
+		} else {
+			c.options.EvaluationCallbacks.ExperimentEvaluationCallback(name, config, nil)
 		}
+	} else if c.options.EvaluationCallbacks.ConfigEvaluationCallback != nil {
+		if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
+			c.options.EvaluationCallbacks.ConfigEvaluationCallback(name, config, exposure)
+		} else {
+			c.options.EvaluationCallbacks.ConfigEvaluationCallback(name, config, nil)
+		}
+	}
 
-		if c.options.EvaluationCallbacks.ExposureCallback != nil {
-			if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
-				c.options.EvaluationCallbacks.ExposureCallback(name, exposure)
-			} else {
-				c.options.EvaluationCallbacks.ExposureCallback(name, nil)
-			}
+	if c.options.EvaluationCallbacks.ExposureCallback != nil {
+		if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
+			c.options.EvaluationCallbacks.ExposureCallback(name, exposure)
+		} else {
+			c.options.EvaluationCallbacks.ExposureCallback(name, nil)
 		}
 	}
 	return config
@@ -472,10 +438,6 @@ func (c *Client) getLayerImpl(user User, name string, context *evalContext) Laye
 
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.evalLayer(user, name, context)
-
-	if res.FetchFromServer {
-		res = c.fetchConfigFromServer(user, name)
-	}
 
 	logFunc := func(layer Layer, parameterName string) {
 		exposure := c.logger.logLayerExposure(user, layer, parameterName, res, context)
@@ -498,41 +460,6 @@ func (c *Client) getLayerImpl(user User, name string, context *evalContext) Laye
 	return *NewLayer(name, res.JsonValue, res.RuleID, res.GroupName, &logFunc, res.ConfigDelegate)
 }
 
-func fetchGate(user User, gateName string, t *transport) gateResponse {
-	input := &checkGateInput{
-		GateName:        gateName,
-		User:            user,
-		StatsigMetadata: t.metadata,
-	}
-	var res gateResponse
-	_, err := t.post("/check_gate", input, &res, RequestOptions{}, nil)
-	if err != nil {
-		return gateResponse{
-			Name:   gateName,
-			Value:  false,
-			RuleID: "",
-		}
-	}
-	return res
-}
-
-func fetchConfig(user User, configName string, t *transport) configResponse {
-	input := &getConfigInput{
-		ConfigName:      configName,
-		User:            user,
-		StatsigMetadata: t.metadata,
-	}
-	var res configResponse
-	_, err := t.post("/get_config", input, &res, RequestOptions{}, nil)
-	if err != nil {
-		return configResponse{
-			Name:   configName,
-			RuleID: "",
-		}
-	}
-	return res
-}
-
 func normalizeUser(user User, options Options) User {
 	env := make(map[string]string)
 	// Copy to avoid data race. We modify the map below.
@@ -547,12 +474,4 @@ func normalizeUser(user User, options Options) User {
 	}
 	user.StatsigEnvironment = env
 	return user
-}
-
-func (c *Client) fetchConfigFromServer(user User, configName string) *evalResult {
-	serverRes := fetchConfig(user, configName, c.transport)
-	return &evalResult{
-		JsonValue: serverRes.Value,
-		RuleID:    serverRes.RuleID,
-	}
 }

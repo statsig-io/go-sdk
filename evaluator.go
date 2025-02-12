@@ -16,7 +16,7 @@ import (
 type evalResult struct {
 	Value                         bool                   `json:"value"`
 	JsonValue                     map[string]interface{} `json:"json_value"`
-	FetchFromServer               bool                   `json:"fetch_from_server"`
+	Unsupported               	  bool                   `json:"unsupported"`
 	RuleID                        string                 `json:"rule_id"`
 	GroupName                     string                 `json:"group_name"`
 	SecondaryExposures            []SecondaryExposure    `json:"secondary_exposures"`
@@ -376,7 +376,8 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 	if spec.Enabled {
 		for _, rule := range spec.Rules {
 			r := e.evalRule(user, rule, depth+1, context)
-			if r.FetchFromServer {
+			if r.Unsupported {
+				r.EvaluationDetails = e.createEvaluationDetails(ReasonUnsupported)
 				return r
 			}
 			exposures = e.cleanExposures(append(exposures, r.SecondaryExposures...))
@@ -487,14 +488,14 @@ func getUnitID(user User, idType string) string {
 func (e *evaluator) evalRule(user User, rule configRule, depth int, context *evalContext) *evalResult {
 	var exposures = make([]SecondaryExposure, 0)
 	var deviceMetadata *DerivedDeviceMetadata
-	var finalResult = &evalResult{Value: true, FetchFromServer: false}
+	var finalResult = &evalResult{Value: true, Unsupported: false}
 	for _, cond := range rule.Conditions {
 		res := e.evalCondition(user, cond, depth+1, context)
 		if !res.Value {
 			finalResult.Value = false
 		}
-		if res.FetchFromServer {
-			finalResult.FetchFromServer = true
+		if res.Unsupported {
+			finalResult.Unsupported = true
 		}
 		deviceMetadata = assignDerivedDeviceMetadata(res, deviceMetadata)
 		exposures = append(exposures, res.SecondaryExposures...)
@@ -521,8 +522,8 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 			return &evalResult{Value: false}
 		}
 		result := e.evalGateImpl(user, dependentGateName, depth+1, context)
-		if result.FetchFromServer {
-			return &evalResult{FetchFromServer: true}
+		if result.Unsupported {
+			return &evalResult{Unsupported: true}
 		}
 		allExposures := result.SecondaryExposures
 		if !strings.HasPrefix(dependentGateName, "segment:") {
@@ -563,11 +564,11 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 	case strings.EqualFold(condType, "unit_id"):
 		value = getUnitID(user, cond.IDType)
 	default:
-		return &evalResult{FetchFromServer: true}
+		return &evalResult{Unsupported: true}
 	}
 
 	pass := false
-	server := false
+	unsupported := false
 	switch {
 	case strings.EqualFold(op, "gt"):
 		pass = compareNumbers(value, cond.TargetValue, func(x, y float64) bool { return x > y })
@@ -717,9 +718,9 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		}
 	default:
 		pass = false
-		server = true
+		unsupported = true
 	}
-	return &evalResult{Value: pass, FetchFromServer: server, DerivedDeviceMetadata: deviceMetadata}
+	return &evalResult{Value: pass, Unsupported: unsupported, DerivedDeviceMetadata: deviceMetadata}
 }
 
 func getFromUser(user User, field string) interface{} {
