@@ -705,7 +705,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		inlist := false
 		if reflect.TypeOf(cond.TargetValue).String() == "string" && reflect.TypeOf(value).String() == "string" {
 			list := e.store.getIDList(castToString(cond.TargetValue))
-			if list != nil {
+			if list != nil && list.ids != nil {
 				h := sha256.Sum256([]byte(castToString(value)))
 				_, inlist = list.ids.Load(base64.StdEncoding.EncodeToString(h[:])[:8])
 			}
