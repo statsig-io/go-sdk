@@ -94,6 +94,7 @@ type downloadConfigSpecResponse struct {
 	HashedSDKKeyUsed        string                    `json:"hashed_sdk_key_used,omitempty"`
 	SDKFlags                map[string]bool           `json:"sdk_flags,omitempty"`
 	SDKConfigs              map[string]interface{}    `json:"sdk_configs,omitempty"`
+	AppID					string                    `json:"app_id,omitempty"`
 }
 
 type configEntities struct {
@@ -145,6 +146,7 @@ type store struct {
 	isPolling               bool
 	bootstrapValues         string
 	sdkConfigs              *SDKConfigs
+	AppID                   string
 }
 
 var syncOutdatedMax = 2 * time.Minute
@@ -297,6 +299,12 @@ func (s *store) getAppIDForSDKKey(clientKey string) (string, bool) {
 	}
 	appId, ok := s.sdkKeysToAppID[clientKey]
 	return appId, ok
+}
+
+func (s *store) getAppID() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.AppID
 }
 
 func (s *store) getEntitiesForSDKKey(clientKey string) (configEntities, bool) {
@@ -496,6 +504,7 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 		s.hashedSDKKeysToAppID = specs.HashedSDKKeysToAppID
 		s.hashedSDKKeysToEntities = specs.HashedSDKKeysToEntities
 		s.lastSyncTime = specs.Time
+		s.AppID = specs.AppID
 		s.mu.Unlock()
 		return true, true
 	}

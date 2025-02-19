@@ -100,6 +100,14 @@ func getClientInitializeResponse(
 		hashAlgorithm = "sha256"
 	}
 
+	var appId string
+	if context.TargetAppID != "" {
+		appId = context.TargetAppID
+	} else {
+		appId, _ = e.store.getAppIDForSDKKey(context.ClientKey)
+		context.TargetAppID = appId
+	}
+
 	evalResultToBaseResponse := func(name string, eval *evalResult) (string, baseSpecInitializeResponse) {
 		hashedName := hashName(hashAlgorithm, name)
 		result := baseSpecInitializeResponse{
@@ -219,13 +227,6 @@ func getClientInitializeResponse(
 			}
 		}
 		return hashedName, result
-	}
-
-	var appId string
-	if context.TargetAppID != "" {
-		appId = context.TargetAppID
-	} else {
-		appId, _ = e.store.getAppIDForSDKKey(context.ClientKey)
 	}
 
 	filterByEntities := false

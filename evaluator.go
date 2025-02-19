@@ -563,6 +563,12 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		}
 	case strings.EqualFold(condType, "unit_id"):
 		value = getUnitID(user, cond.IDType)
+	case strings.EqualFold(condType, "target_app"):
+		if (context.ClientKey != "") {
+			value = context.TargetAppID
+		} else {
+			value = e.store.getAppID()
+		}
 	default:
 		return &evalResult{Unsupported: true}
 	}
