@@ -374,7 +374,7 @@ type GetLayerOptions struct {
 
 func (c *Client) checkGateImpl(user User, name string, context *evalContext) FeatureGate {
 	if !c.verifyUser(user) {
-		return *NewGate(name, false, "", "", nil)
+		return *NewGate(name, false, "", "", "", nil)
 	}
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.evalGate(user, name, context)
@@ -395,7 +395,7 @@ func (c *Client) checkGateImpl(user User, name string, context *evalContext) Fea
 			c.options.EvaluationCallbacks.ExposureCallback(name, nil)
 		}
 	}
-	return *NewGate(name, res.Value, res.RuleID, res.GroupName, res.EvaluationDetails)
+	return *NewGate(name, res.Value, res.RuleID, res.GroupName, res.IDType, res.EvaluationDetails)
 }
 
 func (c *Client) getConfigImpl(user User, name string, context *evalContext) DynamicConfig {

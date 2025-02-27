@@ -16,8 +16,9 @@ import (
 type evalResult struct {
 	Value                         bool                   `json:"value"`
 	JsonValue                     map[string]interface{} `json:"json_value"`
-	Unsupported               	  bool                   `json:"unsupported"`
+	Unsupported                   bool                   `json:"unsupported"`
 	RuleID                        string                 `json:"rule_id"`
+	IDType                        string                 `json:"id_type"`
 	GroupName                     string                 `json:"group_name"`
 	SecondaryExposures            []SecondaryExposure    `json:"secondary_exposures"`
 	UndelegatedSecondaryExposures []SecondaryExposure    `json:"undelegated_secondary_exposures"`
@@ -372,7 +373,6 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 	var exposures = make([]SecondaryExposure, 0)
 	defaultRuleID := "default"
 	var deviceMetadata *DerivedDeviceMetadata
-
 	if spec.Enabled {
 		for _, rule := range spec.Rules {
 			r := e.evalRule(user, rule, depth+1, context)
@@ -397,6 +397,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 						Value:                         pass,
 						JsonValue:                     configValue,
 						RuleID:                        rule.ID,
+						IDType:                        spec.IDType,
 						GroupName:                     rule.GroupName,
 						SecondaryExposures:            exposures,
 						UndelegatedSecondaryExposures: exposures,
@@ -413,6 +414,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 					return &evalResult{
 						Value:                 pass,
 						RuleID:                rule.ID,
+						IDType:                spec.IDType,
 						GroupName:             rule.GroupName,
 						SecondaryExposures:    exposures,
 						EvaluationDetails:     evalDetails,
@@ -432,6 +434,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 			Value:                         false,
 			JsonValue:                     configValue,
 			RuleID:                        defaultRuleID,
+			IDType:                        spec.IDType,
 			SecondaryExposures:            exposures,
 			UndelegatedSecondaryExposures: exposures,
 			EvaluationDetails:             evalDetails,
@@ -439,7 +442,8 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 			ConfigVersion:                 spec.ConfigVersion,
 		}
 	}
-	return &evalResult{Value: false, RuleID: defaultRuleID, SecondaryExposures: exposures, DerivedDeviceMetadata: deviceMetadata, ConfigVersion: spec.ConfigVersion}
+	return &evalResult{Value: false, RuleID: defaultRuleID, IDType: spec.IDType,
+		SecondaryExposures: exposures, DerivedDeviceMetadata: deviceMetadata, ConfigVersion: spec.ConfigVersion}
 }
 
 func (e *evaluator) evalDelegate(user User, rule configRule, exposures []SecondaryExposure, depth int, context *evalContext) *evalResult {
@@ -564,7 +568,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 	case strings.EqualFold(condType, "unit_id"):
 		value = getUnitID(user, cond.IDType)
 	case strings.EqualFold(condType, "target_app"):
-		if (context.ClientKey != "") {
+		if context.ClientKey != "" {
 			value = context.TargetAppID
 		} else {
 			value = e.store.getAppID()

@@ -46,6 +46,7 @@ type FeatureGate struct {
 	Name              string             `json:"name"`
 	Value             bool               `json:"value"`
 	RuleID            string             `json:"rule_id"`
+	IDType            string             `json:"id_type"`
 	GroupName         string             `json:"group_name"`
 	EvaluationDetails *EvaluationDetails `json:"evaluation_details"`
 }
@@ -61,11 +62,12 @@ type Layer struct {
 	AllocatedExperimentName string               `json:"allocated_experiment_name"`
 }
 
-func NewGate(name string, value bool, ruleID string, groupName string, evaluationDetails *EvaluationDetails) *FeatureGate {
+func NewGate(name string, value bool, ruleID string, groupName string, idType string, evaluationDetails *EvaluationDetails) *FeatureGate {
 	return &FeatureGate{
 		Name:              name,
 		Value:             value,
 		RuleID:            ruleID,
+		IDType:            idType,
 		GroupName:         groupName,
 		EvaluationDetails: evaluationDetails,
 	}
