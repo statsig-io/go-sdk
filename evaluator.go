@@ -30,6 +30,7 @@ type evalResult struct {
 	ForwardAllExposures           bool                   `json:"forward_all_exposures,omitempty"`
 	SamplingRate                  *int                   `json:"sampling_rate,omitempty"`
 	ConfigVersion                 *int                   `json:"config_version,omitempty"`
+	HasSeenAnalyticalGates        bool                   `json:"has_seen_analytical_gates,omitempty"`
 }
 
 type DerivedDeviceMetadata struct {
@@ -375,6 +376,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 	var deviceMetadata *DerivedDeviceMetadata
 	if spec.Enabled {
 		for _, rule := range spec.Rules {
+			context.EvalSamplingRate = rule.SamplingRate
 			r := e.evalRule(user, rule, depth+1, context)
 			if r.Unsupported {
 				r.EvaluationDetails = e.createEvaluationDetails(ReasonUnsupported)
@@ -405,6 +407,7 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 						DerivedDeviceMetadata:         deviceMetadata,
 						SamplingRate:                  rule.SamplingRate,
 						ConfigVersion:                 spec.ConfigVersion,
+						HasSeenAnalyticalGates:        context.EvalHasSeenAnalyticalGates,
 					}
 					if rule.IsExperimentGroup != nil {
 						result.IsExperimentGroup = rule.IsExperimentGroup
@@ -412,15 +415,16 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 					return result
 				} else {
 					return &evalResult{
-						Value:                 pass,
-						RuleID:                rule.ID,
-						IDType:                spec.IDType,
-						GroupName:             rule.GroupName,
-						SecondaryExposures:    exposures,
-						EvaluationDetails:     evalDetails,
-						DerivedDeviceMetadata: deviceMetadata,
-						SamplingRate:          rule.SamplingRate,
-						ConfigVersion:         spec.ConfigVersion,
+						Value:                  pass,
+						RuleID:                 rule.ID,
+						IDType:                 spec.IDType,
+						GroupName:              rule.GroupName,
+						SecondaryExposures:     exposures,
+						EvaluationDetails:      evalDetails,
+						DerivedDeviceMetadata:  deviceMetadata,
+						SamplingRate:           rule.SamplingRate,
+						ConfigVersion:          spec.ConfigVersion,
+						HasSeenAnalyticalGates: context.EvalHasSeenAnalyticalGates,
 					}
 				}
 			}
@@ -440,10 +444,12 @@ func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalCon
 			EvaluationDetails:             evalDetails,
 			DerivedDeviceMetadata:         deviceMetadata,
 			ConfigVersion:                 spec.ConfigVersion,
+			HasSeenAnalyticalGates:        context.EvalHasSeenAnalyticalGates,
 		}
 	}
 	return &evalResult{Value: false, RuleID: defaultRuleID, IDType: spec.IDType,
-		SecondaryExposures: exposures, DerivedDeviceMetadata: deviceMetadata, ConfigVersion: spec.ConfigVersion}
+		SecondaryExposures: exposures, DerivedDeviceMetadata: deviceMetadata, ConfigVersion: spec.ConfigVersion, HasSeenAnalyticalGates: context.EvalHasSeenAnalyticalGates,
+	}
 }
 
 func (e *evaluator) evalDelegate(user User, rule configRule, exposures []SecondaryExposure, depth int, context *evalContext) *evalResult {
@@ -537,6 +543,10 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 				RuleID:    result.RuleID,
 			}
 			allExposures = append(result.SecondaryExposures, newExposure)
+		}
+
+		if context.EvalSamplingRate == nil && !strings.HasPrefix(dependentGateName, "segment:") {
+			context.EvalHasSeenAnalyticalGates = true
 		}
 
 		if strings.EqualFold(condType, "pass_gate") {

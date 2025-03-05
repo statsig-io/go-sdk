@@ -403,6 +403,10 @@ func (l *logger) determineSampling(entityType EntityType,
 		return true, nil, nil, samplingMode
 	}
 
+	if result.HasSeenAnalyticalGates {
+		return true, nil, nil, samplingMode
+	}
+
 	samplingSetKey := fmt.Sprintf("%s_%s", name, result.RuleID)
 	if !l.samplingKeySet.Contains(samplingSetKey) {
 		l.samplingKeySet.Add(samplingSetKey)

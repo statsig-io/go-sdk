@@ -14,18 +14,20 @@ type errorContext struct {
 }
 
 type evalContext struct {
-	Caller                string `json:"tag,omitempty"`
-	ConfigName            string `json:"configName,omitempty"`
-	ClientKey             string `json:"clientKey,omitempty"`
-	Hash                  string `json:"hash,omitempty"`
-	TargetAppID           string
-	IncludeLocalOverrides bool
-	IsManualExposure      bool
-	IsExperiment          bool
-	DisableLogExposures   bool
-	PersistedValues       UserPersistedValues
-	IncludeConfigType     bool
-	ConfigTypesToInclude  []ConfigType
+	Caller                     string `json:"tag,omitempty"`
+	ConfigName                 string `json:"configName,omitempty"`
+	ClientKey                  string `json:"clientKey,omitempty"`
+	Hash                       string `json:"hash,omitempty"`
+	TargetAppID                string
+	IncludeLocalOverrides      bool
+	IsManualExposure           bool
+	IsExperiment               bool
+	DisableLogExposures        bool
+	PersistedValues            UserPersistedValues
+	IncludeConfigType          bool
+	ConfigTypesToInclude       []ConfigType
+	EvalSamplingRate           *int
+	EvalHasSeenAnalyticalGates bool
 }
 
 type initContext struct {
