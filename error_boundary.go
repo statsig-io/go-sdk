@@ -22,11 +22,12 @@ type errorBoundary struct {
 }
 
 type logExceptionRequestBody struct {
-	Exception       string          `json:"exception"`
-	Info            string          `json:"info"`
-	StatsigMetadata statsigMetadata `json:"statsigMetadata"`
-	Extra           errorContext    `json:"extra"`
-	Tag             string          `json:"tag"`
+	Exception       string                 `json:"exception"`
+	Info            string                 `json:"info"`
+	StatsigMetadata statsigMetadata        `json:"statsigMetadata"`
+	Extra           errorContext           `json:"extra"`
+	Tag             string                 `json:"tag"`
+	StatsigOptions  map[string]interface{} `json:"statsigOptions"`
 }
 
 type logExceptionResponse struct {
@@ -180,6 +181,9 @@ func (e *errorBoundary) logExceptionWithContext(exception error, context errorCo
 		StatsigMetadata: metadata,
 		Extra:           context,
 		Tag:             context.Caller,
+	}
+	if e.options != nil {
+		body.StatsigOptions = GetOptionLoggingCopy(*e.options)
 	}
 	bodyString, err := json.Marshal(body)
 	if err != nil {

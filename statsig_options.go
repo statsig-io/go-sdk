@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"net/http"
+	"reflect"
 	"time"
 )
 
@@ -35,6 +36,83 @@ func (o *Options) GetSDKEnvironmentTier() string {
 		return o.Environment.Tier
 	}
 	return "production"
+}
+
+func GetOptionLoggingCopy(options Options) map[string]interface{} {
+	loggingCopy := make(map[string]interface{})
+	val := reflect.ValueOf(options)
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Type().Field(i)
+		fieldValue := val.Field(i)
+		switch fieldValue.Kind() {
+		case reflect.String:
+			if fieldValue.String() != "" {
+				if fieldValue.Len() < 50 {
+					loggingCopy[field.Name] = fieldValue.String()
+				} else {
+					loggingCopy[field.Name] = "set"
+				}
+			}
+
+		case reflect.Bool:
+			if fieldValue.Bool() {
+				loggingCopy[field.Name] = true
+			}
+
+		case reflect.Int, reflect.Int64, reflect.Int32:
+			if fieldValue.Int() != 0 {
+				loggingCopy[field.Name] = fieldValue.Int()
+			}
+
+		case reflect.Float64, reflect.Float32:
+			if fieldValue.Float() != 0 {
+				loggingCopy[field.Name] = fieldValue.Float()
+			}
+
+		case reflect.Struct:
+			if fieldValue.Type().Name() == "Duration" {
+				loggingCopy[field.Name] = fieldValue.Interface().(time.Duration).String()
+				break
+			}
+			if field.Name == "StatsigLoggerOptions" && !fieldValue.IsZero() {
+				statsigLoggerOptions := map[string]interface{}{
+					"DisableInitDiagnostics": fieldValue.Interface().(StatsigLoggerOptions).DisableInitDiagnostics,
+					"DisableSyncDiagnostics": fieldValue.Interface().(StatsigLoggerOptions).DisableSyncDiagnostics,
+					"DisableApiDiagnostics":  fieldValue.Interface().(StatsigLoggerOptions).DisableApiDiagnostics,
+					"DisableAllLogging":      fieldValue.Interface().(StatsigLoggerOptions).DisableAllLogging,
+				}
+				loggingCopy[field.Name] = statsigLoggerOptions
+				break
+			}
+			if field.Name == "APIOverrides" && !fieldValue.IsZero() {
+				APIOptionOverrides := map[string]interface{}{
+					"DownloadConfigSpecs": fieldValue.Interface().(APIOverrides).DownloadConfigSpecs,
+					"GetIDLists":          fieldValue.Interface().(APIOverrides).GetIDLists,
+					"LogEvent":            fieldValue.Interface().(APIOverrides).LogEvent,
+				}
+				loggingCopy[field.Name] = APIOptionOverrides
+				break
+			}
+			if !fieldValue.IsZero() {
+				loggingCopy[field.Name] = "set"
+			}
+
+		case reflect.Func:
+			if !fieldValue.IsNil() {
+				loggingCopy[field.Name] = "set"
+			}
+
+		case reflect.Interface:
+			if !fieldValue.IsNil() {
+				loggingCopy[field.Name] = "set"
+			}
+
+		default:
+			// ignore other fields
+		}
+	}
+	return loggingCopy
 }
 
 type APIOverrides struct {
