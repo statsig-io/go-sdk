@@ -2,9 +2,11 @@ package statsig
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
+	"runtime"
 	"time"
 )
 
@@ -59,15 +61,19 @@ func (o *OutputLogger) LogStep(process StatsigProcess, msg string) {
 }
 
 func (o *OutputLogger) LogError(err interface{}) {
-	switch errTyped := err.(type) {
+	var errMsg error
+	switch e := err.(type) {
 	case string:
-		o.Log(errTyped, nil)
+		errMsg = errors.New(e)
 	case error:
-		o.Log("", errTyped)
+		errMsg = e
 	default:
-		sanitized := sanitize(fmt.Sprintf("%+v", err))
-		fmt.Fprintln(os.Stderr, sanitized)
+		errMsg = errors.New("unknown error type")
 	}
+
+	stack := make([]byte, 1024)
+	n := runtime.Stack(stack, false)
+	o.Log(fmt.Sprintf("Error: %s\nStack Trace:\n%s", errMsg.Error(), string(stack[:n])), errMsg)
 }
 
 func (o *OutputLogger) isInitialized() bool {
