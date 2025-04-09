@@ -1,7 +1,7 @@
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/statsig-io/ip3country-go v0.2.0 h1:4z4ovVCx7GnQAKJC753bjcOgxLQJFsrDdcCKda4I2U8=
-github.com/statsig-io/ip3country-go v0.2.0/go.mod h1:PKuA/VSpe4puBXw3BNGAHyP8IOZOiXAh/xIz+iYYoMQ=
+github.com/statsig-io/ip3country-go v0.2.1 h1:bLkWWM0PGz9OQrcGF2qqtfxQeVwxUYP46peNjJKnM+k=
+github.com/statsig-io/ip3country-go v0.2.1/go.mod h1:PKuA/VSpe4puBXw3BNGAHyP8IOZOiXAh/xIz+iYYoMQ=
 github.com/ua-parser/uap-go v0.0.0-20211112212520-00c877edfe0f h1:A+MmlgpvrHLeUP8dkBVn4Pnf5Bp5Yk2OALm7SEJLLE8=
 github.com/ua-parser/uap-go v0.0.0-20211112212520-00c877edfe0f/go.mod h1:OBcG9bn7sHtXgarhUEb3OfCnNsgtGnkVf41ilSZ3K3E=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=

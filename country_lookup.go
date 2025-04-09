@@ -3,7 +3,7 @@ package statsig
 import (
 	"sync"
 
-	"github.com/statsig-io/ip3country-go/pkg/countrylookup"
+	countrylookup "github.com/statsig-io/ip3country-go"
 )
 
 type countryLookup struct {
