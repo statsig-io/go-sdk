@@ -68,7 +68,7 @@ func (o *OutputLogger) LogError(err interface{}) {
 	case error:
 		errMsg = e
 	default:
-		errMsg = errors.New("unknown error type")
+		errMsg = errors.New(convertToString(err))
 	}
 
 	stack := make([]byte, 1024)
