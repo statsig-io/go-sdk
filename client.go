@@ -256,7 +256,7 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 		}
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.evalLayer(user, layer, context)
-		config := NewLayer(layer, res.JsonValue, res.RuleID, res.GroupName, nil, res.ConfigDelegate)
+		config := NewLayer(layer, res.JsonValue, res.RuleID, res.IDType, res.GroupName, nil, res.ConfigDelegate)
 		c.logger.logLayerExposure(user, *config, parameter, res, context)
 	}, &evalContext{Caller: "logLayerParameterExposure", ConfigName: layer, IsManualExposure: true})
 }
@@ -400,11 +400,11 @@ func (c *Client) checkGateImpl(user User, name string, context *evalContext) Fea
 
 func (c *Client) getConfigImpl(user User, name string, context *evalContext) DynamicConfig {
 	if !c.verifyUser(user) {
-		return *NewConfig(name, nil, "", "", nil)
+		return *NewConfig(name, nil, "", "", "", nil)
 	}
 	user = normalizeUser(user, *c.options)
 	res := c.evaluator.evalConfig(user, name, context)
-	config := *NewConfig(name, res.JsonValue, res.RuleID, res.GroupName, res.EvaluationDetails)
+	config := *NewConfig(name, res.JsonValue, res.RuleID, res.IDType, res.GroupName, res.EvaluationDetails)
 	exposure := c.logger.logConfigExposure(user, name, res, context)
 
 	if context.IsExperiment && c.options.EvaluationCallbacks.ExperimentEvaluationCallback != nil {
@@ -433,7 +433,7 @@ func (c *Client) getConfigImpl(user User, name string, context *evalContext) Dyn
 
 func (c *Client) getLayerImpl(user User, name string, context *evalContext) Layer {
 	if !c.verifyUser(user) {
-		return *NewLayer(name, nil, "", "", nil, "")
+		return *NewLayer(name, nil, "", "", "", nil, "")
 	}
 
 	user = normalizeUser(user, *c.options)
@@ -457,7 +457,7 @@ func (c *Client) getLayerImpl(user User, name string, context *evalContext) Laye
 		}
 	}
 
-	return *NewLayer(name, res.JsonValue, res.RuleID, res.GroupName, &logFunc, res.ConfigDelegate)
+	return *NewLayer(name, res.JsonValue, res.RuleID, res.IDType, res.GroupName, &logFunc, res.ConfigDelegate)
 }
 
 func normalizeUser(user User, options Options) User {

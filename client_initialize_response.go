@@ -26,14 +26,14 @@ type SDKInfo struct {
 type baseSpecInitializeResponse struct {
 	Name               string              `json:"name"`
 	RuleID             string              `json:"rule_id"`
+	IDType             string              `json:"id_type,omitempty"`
 	SecondaryExposures []SecondaryExposure `json:"secondary_exposures"`
 	ConfigType         ConfigType          `json:"config_type,omitempty"`
 }
 
 type GateInitializeResponse struct {
 	baseSpecInitializeResponse
-	Value  bool   `json:"value"`
-	IDType string `json:"id_type,omitempty"`
+	Value bool `json:"value"`
 }
 
 type ConfigInitializeResponse struct {
@@ -46,7 +46,6 @@ type ConfigInitializeResponse struct {
 	IsInLayer          *bool                  `json:"is_in_layer,omitempty"`
 	ExplicitParameters *[]string              `json:"explicit_parameters,omitempty"`
 	GroupName          string                 `json:"group_name,omitempty"`
-	IDType             string                 `json:"id_type,omitempty"`
 	RulePassed         bool                   `json:"passed"`
 }
 
@@ -113,6 +112,7 @@ func getClientInitializeResponse(
 		result := baseSpecInitializeResponse{
 			Name:               hashedName,
 			RuleID:             eval.RuleID,
+			IDType:             eval.IDType,
 			SecondaryExposures: eval.SecondaryExposures,
 		}
 		return hashedName, result
@@ -132,7 +132,6 @@ func getClientInitializeResponse(
 		result := GateInitializeResponse{
 			baseSpecInitializeResponse: base,
 			Value:                      evalRes.Value,
-			IDType:                     spec.IDType,
 		}
 		if context.IncludeConfigType {
 			result.ConfigType = getConfigType(spec)
@@ -156,7 +155,6 @@ func getClientInitializeResponse(
 			Value:                      evalRes.JsonValue,
 			Group:                      evalRes.RuleID,
 			IsDeviceBased:              strings.EqualFold(spec.IDType, "stableid"),
-			IDType:                     spec.IDType,
 			RulePassed:                 evalRes.Value,
 		}
 		if context.IncludeConfigType {

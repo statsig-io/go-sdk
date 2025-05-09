@@ -38,6 +38,7 @@ type configBase struct {
 	Name              string                 `json:"name"`
 	Value             map[string]interface{} `json:"value"`
 	RuleID            string                 `json:"rule_id"`
+	IDType            string                 `json:"id_type"`
 	GroupName         string                 `json:"group_name"`
 	EvaluationDetails *EvaluationDetails     `json:"evaluation_details"`
 }
@@ -73,7 +74,7 @@ func NewGate(name string, value bool, ruleID string, groupName string, idType st
 	}
 }
 
-func NewConfig(name string, value map[string]interface{}, ruleID string, groupName string, evaluationDetails *EvaluationDetails) *DynamicConfig {
+func NewConfig(name string, value map[string]interface{}, ruleID string, idType string, groupName string, evaluationDetails *EvaluationDetails) *DynamicConfig {
 	if value == nil {
 		value = make(map[string]interface{})
 	}
@@ -82,13 +83,14 @@ func NewConfig(name string, value map[string]interface{}, ruleID string, groupNa
 			Name:              name,
 			Value:             value,
 			RuleID:            ruleID,
+			IDType:            idType,
 			GroupName:         groupName,
 			EvaluationDetails: evaluationDetails,
 		},
 	}
 }
 
-func NewLayer(name string, value map[string]interface{}, ruleID string, groupName string, logExposure *func(Layer, string), allocatedExperimentName string) *Layer {
+func NewLayer(name string, value map[string]interface{}, ruleID string, idType string, groupName string, logExposure *func(Layer, string), allocatedExperimentName string) *Layer {
 	if value == nil {
 		value = make(map[string]interface{})
 	}
@@ -97,6 +99,7 @@ func NewLayer(name string, value map[string]interface{}, ruleID string, groupNam
 			Name:      name,
 			Value:     value,
 			RuleID:    ruleID,
+			IDType:    idType,
 			GroupName: groupName,
 		},
 		AllocatedExperimentName: allocatedExperimentName,

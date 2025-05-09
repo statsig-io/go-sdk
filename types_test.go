@@ -16,6 +16,9 @@ func doValidation(t *testing.T, c *configBase) {
 	if c.GroupName != "group_name" {
 		t.Errorf("Failed to set group_name")
 	}
+	if c.IDType != "id_type" {
+		t.Errorf("Failed to set id_type")
+	}
 
 	if c.GetString("String", "abc") != "str" {
 		t.Errorf("Failed to get string")
@@ -58,7 +61,9 @@ func doValidationLayer(t *testing.T, c *Layer) {
 	if c.GroupName != "group_name" {
 		t.Errorf("Failed to set group_name")
 	}
-
+	if c.IDType != "id_type" {
+		t.Errorf("Failed to set id type")
+	}
 	if c.GetString("String", "abc") != "str" {
 		t.Errorf("Failed to get string")
 	}
@@ -112,12 +117,13 @@ func TestBasic(t *testing.T) {
 		"test",
 		jsonMap,
 		"rule_id",
+		"id_type",
 		"group_name",
 		nil,
 	)
 	doValidation(t, &c.configBase)
 
-	l := NewLayer("test", jsonMap, "rule_id", "group_name", nil, "allocated_experiment_name")
+	l := NewLayer("test", jsonMap, "rule_id", "id_type", "group_name", nil, "allocated_experiment_name")
 	doValidationLayer(t, l)
 
 	fallbackValues := make([]interface{}, 0)
