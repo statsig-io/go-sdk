@@ -114,7 +114,7 @@ func TestStoreSync(t *testing.T) {
 	d := newDiagnostics(opt)
 	e := newErrorBoundary("client-key", opt, d)
 	c := newSDKConfigs()
-	s := newStoreInternal(n, time.Second, time.Second, nil, e, nil, d, "secret-123", "", c)
+	s := newStoreInternal(n, time.Second, time.Second, nil, e, nil, d, "secret-123", "", c, false)
 	s.initialize(nil)
 
 	if s.getGatesCount() != 1 {

@@ -94,7 +94,7 @@ type downloadConfigSpecResponse struct {
 	HashedSDKKeyUsed        string                    `json:"hashed_sdk_key_used,omitempty"`
 	SDKFlags                map[string]bool           `json:"sdk_flags,omitempty"`
 	SDKConfigs              map[string]interface{}    `json:"sdk_configs,omitempty"`
-	AppID					string                    `json:"app_id,omitempty"`
+	AppID                   string                    `json:"app_id,omitempty"`
 }
 
 type configEntities struct {
@@ -135,6 +135,7 @@ type store struct {
 	transport               *transport
 	configSyncInterval      time.Duration
 	idListSyncInterval      time.Duration
+	idListDisabled          bool
 	shutdown                bool
 	rulesUpdatedCallback    func(rules string, time int64)
 	errorBoundary           *errorBoundary
@@ -178,6 +179,7 @@ func newStore(
 		sdkKey,
 		options.BootstrapValues,
 		sdkConfigs,
+		options.DisableIdList,
 	)
 }
 
@@ -192,6 +194,7 @@ func newStoreInternal(
 	sdkKey string,
 	bootstrapValues string,
 	sdkConfigs *SDKConfigs,
+	idListDisabled bool,
 ) *store {
 	store := &store{
 		featureGates:         make(map[string]configSpec),
@@ -200,6 +203,7 @@ func newStoreInternal(
 		transport:            transport,
 		configSyncInterval:   configSyncInterval,
 		idListSyncInterval:   idListSyncInterval,
+		idListDisabled:       idListDisabled,
 		rulesUpdatedCallback: rulesUpdatedCallback,
 		errorBoundary:        errorBoundary,
 		source:               SourceUninitialized,
@@ -220,7 +224,9 @@ func (s *store) startPolling() {
 	defer s.mu.Unlock()
 	if !s.isPolling {
 		go s.pollForRulesetChanges()
-		go s.pollForIDListChanges()
+		if !s.idListDisabled {
+			go s.pollForIDListChanges()
+		}
 		s.isPolling = true
 	}
 }
@@ -252,14 +258,17 @@ func (s *store) initialize(context *initContext) {
 	s.mu.Lock()
 	s.initialSyncTime = s.lastSyncTime
 	s.mu.Unlock()
-	if s.dataAdapter != nil {
-		s.fetchIDListsFromAdapter()
-	} else {
-		s.fetchIDListsFromServer()
+	if !s.idListDisabled {
+		if s.dataAdapter != nil {
+			s.fetchIDListsFromAdapter()
+		} else {
+			s.fetchIDListsFromServer()
+		}
 	}
 	s.mu.Lock()
 	s.initializedIDLists = true
 	s.mu.Unlock()
+
 	s.startPolling()
 }
 

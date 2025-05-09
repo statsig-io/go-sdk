@@ -29,6 +29,7 @@ type Options struct {
 	UserPersistentStorage IUserPersistentStorage
 	IPCountryOptions      IPCountryOptions
 	UAParserOptions       UAParserOptions
+	DisableIdList         bool
 }
 
 func (o *Options) GetSDKEnvironmentTier() string {
