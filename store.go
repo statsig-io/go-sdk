@@ -67,6 +67,7 @@ type configRule struct {
 	ConfigDelegate    string                 `json:"configDelegate"`
 	IsExperimentGroup *bool                  `json:"isExperimentGroup,omitempty"`
 	SamplingRate      *int                   `json:"samplingRate,omitempty"`
+	IsControlGroup    *bool                  `json:"isControlGroup,omitempty"`
 }
 
 type configCondition struct {

@@ -28,6 +28,7 @@ type evalContext struct {
 	ConfigTypesToInclude       []ConfigType
 	EvalSamplingRate           *int
 	EvalHasSeenAnalyticalGates bool
+	UseControlForUsersNotInExperiment bool
 }
 
 type initContext struct {

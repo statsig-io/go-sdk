@@ -47,6 +47,7 @@ type ConfigInitializeResponse struct {
 	ExplicitParameters *[]string              `json:"explicit_parameters,omitempty"`
 	GroupName          string                 `json:"group_name,omitempty"`
 	RulePassed         bool                   `json:"passed"`
+	IsControlGroup     *bool				  `json:"is_control_group,omitempty"`
 }
 
 type LayerInitializeResponse struct {
@@ -117,6 +118,14 @@ func getClientInitializeResponse(
 		}
 		return hashedName, result
 	}
+	getExperimentControlRule := func(name string, spec configSpec) (*configRule) {
+		for _, rule := range spec.Rules {
+			if rule.IsControlGroup != nil && *rule.IsControlGroup {
+				return &rule
+			}
+		}
+		return nil
+	}
 	gateToResponse := func(gateName string, spec configSpec) (string, GateInitializeResponse) {
 		evalRes := &evalResult{}
 		if context.IncludeLocalOverrides {
@@ -168,6 +177,17 @@ func getClientInitializeResponse(
 			*result.IsUserInExperiment = evalRes.IsExperimentGroup != nil && *evalRes.IsExperimentGroup
 			result.IsExperimentActive = new(bool)
 			*result.IsExperimentActive = spec.IsActive != nil && *spec.IsActive
+			if context.UseControlForUsersNotInExperiment {
+				controlRule := getExperimentControlRule(configName, spec)
+				if controlRule != nil && !*result.IsUserInExperiment {
+					result.Value = controlRule.ReturnValueJSON
+					result.GroupName = controlRule.GroupName
+				}
+				if strings.EqualFold(controlRule.GroupName, result.GroupName) {
+					result.IsControlGroup = new(bool)
+					*result.IsControlGroup = true
+				}
+			}
 			if spec.HasSharedParams != nil && *spec.HasSharedParams {
 				result.IsInLayer = new(bool)
 				*result.IsInLayer = true

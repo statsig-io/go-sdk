@@ -341,6 +341,7 @@ func (c *Client) GetClientInitializeResponseImpl(user User, options *GCIROptions
 		Hash:                  options.HashAlgorithm,
 		IncludeConfigType:     options.IncludeConfigType,
 		ConfigTypesToInclude:  options.ConfigTypesToInclude,
+		UseControlForUsersNotInExperiment: options.UseControlForUsersNotInExperiment,
 	})
 }
 

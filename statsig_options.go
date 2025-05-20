@@ -171,6 +171,7 @@ type GCIROptions struct {
 	HashAlgorithm         string
 	IncludeConfigType     bool
 	ConfigTypesToInclude  []ConfigType
+	UseControlForUsersNotInExperiment bool
 }
 
 type ConfigType = string
