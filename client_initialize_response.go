@@ -183,7 +183,7 @@ func getClientInitializeResponse(
 					result.Value = controlRule.ReturnValueJSON
 					result.GroupName = controlRule.GroupName
 				}
-				if strings.EqualFold(controlRule.GroupName, result.GroupName) {
+				if controlRule != nil && strings.EqualFold(controlRule.GroupName, result.GroupName) {
 					result.IsControlGroup = new(bool)
 					*result.IsControlGroup = true
 				}
