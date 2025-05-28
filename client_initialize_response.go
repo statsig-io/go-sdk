@@ -23,7 +23,7 @@ type SDKInfo struct {
 	SDKVersion string `json:"sdkVersion"`
 }
 
-type baseSpecInitializeResponse struct {
+type BaseSpecInitializeResponse struct {
 	Name               string              `json:"name"`
 	RuleID             string              `json:"rule_id"`
 	IDType             string              `json:"id_type,omitempty"`
@@ -32,12 +32,12 @@ type baseSpecInitializeResponse struct {
 }
 
 type GateInitializeResponse struct {
-	baseSpecInitializeResponse
+	BaseSpecInitializeResponse
 	Value bool `json:"value"`
 }
 
 type ConfigInitializeResponse struct {
-	baseSpecInitializeResponse
+	BaseSpecInitializeResponse
 	Value              map[string]interface{} `json:"value"`
 	Group              string                 `json:"group"`
 	IsDeviceBased      bool                   `json:"is_device_based"`
@@ -51,7 +51,7 @@ type ConfigInitializeResponse struct {
 }
 
 type LayerInitializeResponse struct {
-	baseSpecInitializeResponse
+	BaseSpecInitializeResponse
 	Value                         map[string]interface{} `json:"value"`
 	Group                         string                 `json:"group"`
 	IsDeviceBased                 bool                   `json:"is_device_based"`
@@ -108,9 +108,9 @@ func getClientInitializeResponse(
 		context.TargetAppID = appId
 	}
 
-	evalResultToBaseResponse := func(name string, eval *evalResult) (string, baseSpecInitializeResponse) {
+	evalResultToBaseResponse := func(name string, eval *evalResult) (string, BaseSpecInitializeResponse) {
 		hashedName := hashName(hashAlgorithm, name)
-		result := baseSpecInitializeResponse{
+		result := BaseSpecInitializeResponse{
 			Name:               hashedName,
 			RuleID:             eval.RuleID,
 			IDType:             eval.IDType,
@@ -139,7 +139,7 @@ func getClientInitializeResponse(
 		}
 		hashedName, base := evalResultToBaseResponse(gateName, evalRes)
 		result := GateInitializeResponse{
-			baseSpecInitializeResponse: base,
+			BaseSpecInitializeResponse: base,
 			Value:                      evalRes.Value,
 		}
 		if context.IncludeConfigType {
@@ -160,7 +160,7 @@ func getClientInitializeResponse(
 		}
 		hashedName, base := evalResultToBaseResponse(configName, evalRes)
 		result := ConfigInitializeResponse{
-			baseSpecInitializeResponse: base,
+			BaseSpecInitializeResponse: base,
 			Value:                      evalRes.JsonValue,
 			Group:                      evalRes.RuleID,
 			IsDeviceBased:              strings.EqualFold(spec.IDType, "stableid"),
@@ -209,7 +209,7 @@ func getClientInitializeResponse(
 		evalResult := e.eval(user, spec, 0, &evalContext{Hash: hashAlgorithm})
 		hashedName, base := evalResultToBaseResponse(layerName, evalResult)
 		result := LayerInitializeResponse{
-			baseSpecInitializeResponse:    base,
+			BaseSpecInitializeResponse:    base,
 			Value:                         evalResult.JsonValue,
 			Group:                         evalResult.RuleID,
 			IsDeviceBased:                 strings.EqualFold(spec.IDType, "stableid"),
