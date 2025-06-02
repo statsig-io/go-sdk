@@ -149,8 +149,10 @@ func getClientInitializeResponse(
 	}
 	configToResponse := func(configName string, spec configSpec) (string, ConfigInitializeResponse) {
 		evalRes := &evalResult{}
+		hasExpOverride := false
 		if context.IncludeLocalOverrides {
 			if configOverride, hasOverride := e.getConfigOverrideEval(configName); hasOverride {
+				hasExpOverride = true
 				evalRes = configOverride
 			} else {
 				evalRes = e.eval(user, spec, 0, context)
@@ -179,7 +181,7 @@ func getClientInitializeResponse(
 			*result.IsExperimentActive = spec.IsActive != nil && *spec.IsActive
 			if context.UseControlForUsersNotInExperiment {
 				controlRule := getExperimentControlRule(configName, spec)
-				if controlRule != nil && !*result.IsUserInExperiment {
+				if controlRule != nil && !*result.IsUserInExperiment && !hasExpOverride {
 					result.Value = controlRule.ReturnValueJSON
 					result.GroupName = controlRule.GroupName
 				}
