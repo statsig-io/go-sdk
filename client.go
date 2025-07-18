@@ -325,7 +325,7 @@ func (c *Client) GetClientInitializeResponseImpl(user User, options *GCIROptions
 			return *new(ClientInitializeResponse)
 		}
 		user = normalizeUser(user, *c.options)
-		response := c.evaluator.getClientInitializeResponse(user, context)
+		response := c.evaluator.getClientInitializeResponse(user, context, options)
 		if response.Time == 0 {
 			c.errorBoundary.logExceptionWithContext(
 				errors.New("empty response from server"),
@@ -334,13 +334,13 @@ func (c *Client) GetClientInitializeResponseImpl(user User, options *GCIROptions
 		}
 		return response
 	}, &evalContext{
-		Caller:                "getClientInitializeResponse",
-		IncludeLocalOverrides: options.IncludeLocalOverrides,
-		ClientKey:             options.ClientKey,
-		TargetAppID:           options.TargetAppID,
-		Hash:                  options.HashAlgorithm,
-		IncludeConfigType:     options.IncludeConfigType,
-		ConfigTypesToInclude:  options.ConfigTypesToInclude,
+		Caller:                            "getClientInitializeResponse",
+		IncludeLocalOverrides:             options.IncludeLocalOverrides,
+		ClientKey:                         options.ClientKey,
+		TargetAppID:                       options.TargetAppID,
+		Hash:                              options.HashAlgorithm,
+		IncludeConfigType:                 options.IncludeConfigType,
+		ConfigTypesToInclude:              options.ConfigTypesToInclude,
 		UseControlForUsersNotInExperiment: options.UseControlForUsersNotInExperiment,
 	})
 }

@@ -173,10 +173,13 @@
           "returnValue": {
             "experiment_param": "test",
             "layer_param": true,
-            "second_layer_param": true
+            "second_layer_param": true,
+            "bool": true
           },
           "id": "2RamGujUou6h2bVNQWhtNZ",
-          "salt": "2RamGujUou6h2bVNQWhtNZ"
+          "salt": "2RamGujUou6h2bVNQWhtNZ",
+          "isExperimentGroup": true
+
         }
       ]
     },

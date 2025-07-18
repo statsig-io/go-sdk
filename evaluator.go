@@ -338,13 +338,139 @@ func (e *evaluator) OverrideLayer(layer string, val map[string]interface{}) {
 	e.layerOverrides[layer] = val
 }
 
+func (e *evaluator) getGateOverrideEvalForGCIR(gateName string, options *GCIROptions) (*evalResult, bool) {
+	if options.Overrides != nil && options.Overrides.FeatureGate != nil {
+		gateOptionOverride := options.Overrides.FeatureGate
+		if gateOptionOverride != nil {
+			if value, exists := gateOptionOverride[gateName]; exists {
+				return &evalResult{
+					Value:  value,
+					RuleID: "override",
+				}, true
+			}
+		}
+	}
+
+	if options.IncludeLocalOverrides {
+
+		return e.getGateOverrideEval(gateName)
+	}
+
+	return &evalResult{}, false
+}
+
+func (e *evaluator) getConfigOverrideEvalForGCIR(spec configSpec, options *GCIROptions) (*evalResult, bool) {
+
+	if options.Overrides != nil && options.Overrides.DynamicConfigs != nil {
+		expOptions, exists := options.Overrides.DynamicConfigs[spec.Name]
+
+		if !exists {
+			if options.IncludeLocalOverrides {
+				return e.getConfigOverrideEval(spec.Name)
+			}
+			return &evalResult{}, false
+		}
+
+		overrideRule := e.ruleOverrideForClientInitializeResponse(spec, expOptions.GroupName)
+
+		overrideEval := e.overrideEvalForClientInitializeResponse(expOptions.Value, overrideRule)
+		if overrideEval != nil {
+			return overrideEval, true
+		}
+	} else {
+		if options.IncludeLocalOverrides {
+			return e.getConfigOverrideEval(spec.Name)
+		}
+		return &evalResult{}, false
+	}
+
+	return &evalResult{}, false
+}
+
+func (e *evaluator) getLayerOverrideEvalForGCIR(spec configSpec, options *GCIROptions) (*evalResult, bool) {
+	if options.Overrides != nil && options.Overrides.Layers != nil {
+		layerOptions, exists := options.Overrides.Layers[spec.Name]
+
+		if !exists {
+			if options.IncludeLocalOverrides {
+				return e.getLayerOverrideEval(spec.Name)
+			}
+			return &evalResult{}, false
+		}
+
+		overrideEval := e.overrideEvalForClientInitializeResponse(layerOptions.Value, nil)
+		if overrideEval != nil {
+			return overrideEval, true
+		}
+	} else {
+		if options.IncludeLocalOverrides {
+			return e.getLayerOverrideEval(spec.Name)
+		}
+		return &evalResult{}, false
+	}
+
+	return &evalResult{}, false
+}
+
+func (e *evaluator) ruleOverrideForClientInitializeResponse(spec configSpec, groupName string) *configRule {
+	if groupName == "" {
+		return nil
+	}
+
+	for i := range spec.Rules {
+		rule := &spec.Rules[i]
+		if rule.GroupName == groupName && rule.IsExperimentGroup != nil && *rule.IsExperimentGroup {
+			return rule
+		}
+	}
+
+	return nil
+}
+
+func (e *evaluator) overrideEvalForClientInitializeResponse(
+	valueOverride map[string]interface{},
+	ruleOverride *configRule,
+) *evalResult {
+	var value map[string]interface{}
+
+	if valueOverride != nil {
+		value = valueOverride
+	} else if ruleOverride != nil {
+		value = ruleOverride.ReturnValueJSON
+	}
+
+	if value == nil {
+		return nil
+	}
+
+	idType := "userid"
+	if ruleOverride != nil && ruleOverride.IDType != "" {
+		idType = ruleOverride.IDType
+	}
+
+	groupName := ""
+	if ruleOverride != nil {
+		groupName = ruleOverride.GroupName
+	}
+
+	return &evalResult{
+		Value:              true,
+		RuleID:             "override",
+		GroupName:          groupName,
+		IDType:             idType,
+		SecondaryExposures: []SecondaryExposure{},
+		JsonValue:          value,
+	}
+}
+
 // Gets all evaluated values for the given user.
 // These values can then be given to a Statsig Client SDK via bootstrapping.
 func (e *evaluator) getClientInitializeResponse(
 	user User,
 	context *evalContext,
+	options *GCIROptions,
 ) ClientInitializeResponse {
-	return getClientInitializeResponse(user, e, context)
+	return getClientInitializeResponse(user, e, context, options)
 }
 
 func (e *evaluator) cleanExposures(exposures []SecondaryExposure) []SecondaryExposure {

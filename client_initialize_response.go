@@ -47,7 +47,7 @@ type ConfigInitializeResponse struct {
 	ExplicitParameters *[]string              `json:"explicit_parameters,omitempty"`
 	GroupName          string                 `json:"group_name,omitempty"`
 	RulePassed         bool                   `json:"passed"`
-	IsControlGroup     *bool				  `json:"is_control_group,omitempty"`
+	IsControlGroup     *bool                  `json:"is_control_group,omitempty"`
 }
 
 type LayerInitializeResponse struct {
@@ -94,6 +94,7 @@ func getClientInitializeResponse(
 	user User,
 	e *evaluator,
 	context *evalContext,
+	options *GCIROptions,
 ) ClientInitializeResponse {
 	hashAlgorithm := context.Hash
 	if hashAlgorithm != "none" && hashAlgorithm != "djb2" {
@@ -118,7 +119,7 @@ func getClientInitializeResponse(
 		}
 		return hashedName, result
 	}
-	getExperimentControlRule := func(name string, spec configSpec) (*configRule) {
+	getExperimentControlRule := func(name string, spec configSpec) *configRule {
 		for _, rule := range spec.Rules {
 			if rule.IsControlGroup != nil && *rule.IsControlGroup {
 				return &rule
@@ -128,8 +129,8 @@ func getClientInitializeResponse(
 	}
 	gateToResponse := func(gateName string, spec configSpec) (string, GateInitializeResponse) {
 		evalRes := &evalResult{}
-		if context.IncludeLocalOverrides {
-			if gateOverride, hasOverride := e.getGateOverrideEval(gateName); hasOverride {
+		if context.IncludeLocalOverrides || options.Overrides != nil {
+			if gateOverride, hasOverride := e.getGateOverrideEvalForGCIR(gateName, options); hasOverride {
 				evalRes = gateOverride
 			} else {
 				evalRes = e.eval(user, spec, 0, context)
@@ -147,11 +148,12 @@ func getClientInitializeResponse(
 		}
 		return hashedName, result
 	}
+
 	configToResponse := func(configName string, spec configSpec) (string, ConfigInitializeResponse) {
 		evalRes := &evalResult{}
 		hasExpOverride := false
-		if context.IncludeLocalOverrides {
-			if configOverride, hasOverride := e.getConfigOverrideEval(configName); hasOverride {
+		if context.IncludeLocalOverrides || options.Overrides != nil {
+			if configOverride, hasOverride := e.getConfigOverrideEvalForGCIR(spec, options); hasOverride {
 				hasExpOverride = true
 				evalRes = configOverride
 			} else {
@@ -208,7 +210,16 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 	layerToResponse := func(layerName string, spec configSpec) (string, LayerInitializeResponse) {
-		evalResult := e.eval(user, spec, 0, &evalContext{Hash: hashAlgorithm})
+		evalResult := &evalResult{}
+		if context.IncludeLocalOverrides || options.Overrides != nil {
+			if layerOverride, hasOverride := e.getLayerOverrideEvalForGCIR(spec, options); hasOverride {
+				evalResult = layerOverride
+			} else {
+				evalResult = e.eval(user, spec, 0, context)
+			}
+		} else {
+			evalResult = e.eval(user, spec, 0, context)
+		}
 		hashedName, base := evalResultToBaseResponse(layerName, evalResult)
 		result := LayerInitializeResponse{
 			BaseSpecInitializeResponse:    base,

@@ -298,3 +298,75 @@ func filterClientInitializeResponse(clientInitializeResponse *ClientInitializeRe
 	clientInitializeResponse.SDKInfo = SDKInfo{}
 	clientInitializeResponse.User = User{}
 }
+
+func TestClientInitializeResponseOverride(t *testing.T) {
+
+	testServer := getTestServer(testServerOptions{})
+
+	user := User{
+		UserID:    "123",
+		Email:     "test@statsig.com",
+		Country:   "US",
+		Custom:    map[string]interface{}{"test": "123"},
+		CustomIDs: map[string]string{"stableID": "12345"},
+	}
+
+	options := &Options{
+		API:                  testServer.URL,
+		Environment:          Environment{Tier: "test"},
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+	}
+
+	InitializeWithOptions("secret-key", options)
+	defer ShutdownAndDangerouslyClearInstance()
+
+	overridenGCIR := GetClientInitializeResponseWithOptions(user, &GCIROptions{
+		HashAlgorithm:         "none",
+		IncludeLocalOverrides: true,
+		Overrides: &Override{
+			FeatureGate: map[string]bool{
+				"always_on_gate": false,
+			},
+			DynamicConfigs: map[string]ClientInitializeResponseExperimentOverride{
+				"sample_experiment": {
+					GroupName: "Test",
+					Value:     map[string]interface{}{"bool": false},
+				},
+			},
+			Layers: map[string]ClientInitializeResponseLayerOverride{
+				"a_layer": {
+					Value: map[string]interface{}{"experiment_param": "new_exp", "bool": true},
+				},
+			},
+		},
+	})
+
+	noOverrideGCIR := GetClientInitializeResponseWithOptions(user, &GCIROptions{HashAlgorithm: "none"})
+
+	if noOverrideGCIR.FeatureGates["always_on_gate"].Value != true {
+		t.Errorf("Expected always_on_gate to be true, got %v", noOverrideGCIR.FeatureGates["always_on_gate"].Value)
+	}
+	if noOverrideGCIR.DynamicConfigs["sample_experiment"].Value["bool"] != true {
+		t.Errorf("Expected sample_experiment.Value.bool to be true, got %v", noOverrideGCIR.DynamicConfigs["sample_experiment"].Value["bool"])
+	}
+	if noOverrideGCIR.LayerConfigs["a_layer"].Value["experiment_param"] != "test" {
+		t.Errorf("Expected a_layer to be test, got %v", noOverrideGCIR.LayerConfigs["a_layer"].Value["experiment_param"])
+	}
+	if noOverrideGCIR.LayerConfigs["a_layer"].Value["bool"] != true {
+		t.Errorf("Expected a_layer.Value.bool to be true, got %v", noOverrideGCIR.LayerConfigs["a_layer"].Value["bool"])
+	}
+
+	if overridenGCIR.FeatureGates["always_on_gate"].Value != false {
+		t.Errorf("Expected always_on_gate to be false, got %v", overridenGCIR.FeatureGates["always_on_gate"].Value)
+	}
+	if overridenGCIR.DynamicConfigs["sample_experiment"].Value["bool"] != false {
+		t.Errorf("Expected experiment_with_holdout_and_gate to be false, got %v", overridenGCIR.DynamicConfigs["sample_experiment"].Value["bool"])
+	}
+	if overridenGCIR.LayerConfigs["a_layer"].Value["experiment_param"] != "new_exp" {
+		t.Errorf("Expected a_layer to be new_exp, got %v", overridenGCIR.LayerConfigs["a_layer"].Value["experiment_param"])
+	}
+	if overridenGCIR.LayerConfigs["a_layer"].Value["bool"] != true {
+		t.Errorf("Expected a_layer.Value.bool to be true, got %v", overridenGCIR.LayerConfigs["a_layer"].Value["bool"])
+	}
+}

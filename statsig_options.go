@@ -163,15 +163,30 @@ type Environment struct {
 	Params map[string]string `json:"params"`
 }
 
+type ClientInitializeResponseExperimentOverride struct {
+	Value     map[string]interface{}
+	GroupName string
+}
+
+type ClientInitializeResponseLayerOverride struct {
+	Value map[string]interface{}
+}
+type Override struct {
+	FeatureGate    map[string]bool
+	DynamicConfigs map[string]ClientInitializeResponseExperimentOverride
+	Layers         map[string]ClientInitializeResponseLayerOverride
+}
+
 // options for getClientInitializeResponse
 type GCIROptions struct {
-	IncludeLocalOverrides bool
-	ClientKey             string
-	TargetAppID           string
-	HashAlgorithm         string
-	IncludeConfigType     bool
-	ConfigTypesToInclude  []ConfigType
+	IncludeLocalOverrides             bool
+	ClientKey                         string
+	TargetAppID                       string
+	HashAlgorithm                     string
+	IncludeConfigType                 bool
+	ConfigTypesToInclude              []ConfigType
 	UseControlForUsersNotInExperiment bool
+	Overrides                         *Override
 }
 
 type ConfigType = string
