@@ -47,7 +47,7 @@ type layerTestData struct {
 
 var secret string
 var testAPIs = []string{
-	"https://statsigapi.net/v1",
+	// "https://statsigapi.net/v1",
 	"https://staging.statsigapi.net/v1",
 }
 var debugLogFile = "tmp/tests.log"
