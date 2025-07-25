@@ -61,7 +61,9 @@ func (opts *RequestOptions) fill_defaults() {
 }
 
 func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}, diagnostics *marker) (*http.Response, error) {
-	diagnostics.downloadConfigSpecs().networkRequest().start().mark()
+	if diagnostics != nil {
+		diagnostics.downloadConfigSpecs().networkRequest().start().mark()
+	}
 	var endpoint string
 	if transport.options.DisableCDN {
 		endpoint = fmt.Sprintf("/download_config_specs?sinceTime=%d", sinceTime)
@@ -76,7 +78,9 @@ func (transport *transport) download_config_specs(sinceTime int64, responseBody 
 }
 
 func (transport *transport) get_id_lists(responseBody interface{}, diagnostics *marker) (*http.Response, error) {
-	diagnostics.getIdListSources().networkRequest().start().mark()
+	if diagnostics != nil {
+		diagnostics.getIdListSources().networkRequest().start().mark()
+	}
 	options := RequestOptions{}
 	if transport.options.FallbackToStatsigAPI {
 		options.retries = 1
