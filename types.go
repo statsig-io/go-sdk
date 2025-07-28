@@ -90,17 +90,18 @@ func NewConfig(name string, value map[string]interface{}, ruleID string, idType 
 	}
 }
 
-func NewLayer(name string, value map[string]interface{}, ruleID string, idType string, groupName string, logExposure *func(Layer, string), allocatedExperimentName string) *Layer {
+func NewLayer(name string, value map[string]interface{}, ruleID string, idType string, groupName string, evaluationDetails *EvaluationDetails, logExposure *func(Layer, string), allocatedExperimentName string) *Layer {
 	if value == nil {
 		value = make(map[string]interface{})
 	}
 	return &Layer{
 		configBase: configBase{
-			Name:      name,
-			Value:     value,
-			RuleID:    ruleID,
-			IDType:    idType,
-			GroupName: groupName,
+			Name:              name,
+			Value:             value,
+			RuleID:            ruleID,
+			IDType:            idType,
+			GroupName:         groupName,
+			EvaluationDetails: evaluationDetails,
 		},
 		AllocatedExperimentName: allocatedExperimentName,
 		LogExposure:             logExposure,

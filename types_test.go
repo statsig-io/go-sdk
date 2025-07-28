@@ -123,7 +123,7 @@ func TestBasic(t *testing.T) {
 	)
 	doValidation(t, &c.configBase)
 
-	l := NewLayer("test", jsonMap, "rule_id", "id_type", "group_name", nil, "allocated_experiment_name")
+	l := NewLayer("test", jsonMap, "rule_id", "id_type", "group_name", nil, nil, "allocated_experiment_name")
 	doValidationLayer(t, l)
 
 	fallbackValues := make([]interface{}, 0)
