@@ -110,7 +110,7 @@ func TestEvaluation(t *testing.T) {
 
 func test_helper(apiOverride string, t *testing.T) {
 	t.Logf("Testing for %s", apiOverride)
-	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
+	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t), nil)
 	c := NewClientWithOptions(secret, &Options{API: apiOverride})
 	var d data
 	_, err := c.transport.post("/rulesets_e2e_test", nil, &d, RequestOptions{}, nil)
@@ -217,7 +217,7 @@ func TestStatsigLocalMode(t *testing.T) {
 	local := &Options{
 		LocalMode: true,
 	}
-	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
+	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t), nil)
 	local_c := NewClientWithOptions("", local)
 	network := &Options{}
 	net_c := NewClientWithOptions(secret, network)

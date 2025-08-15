@@ -32,16 +32,10 @@ func NewClientWithOptions(sdkKey string, options *Options) *Client {
 // Initializes a Statsig Client with the given sdkKey and options
 // returning the initialized client and details of initialization
 func NewClientWithDetails(sdkKey string, options *Options) (*Client, InitializeDetails) {
-	client, context := newClientImpl(sdkKey, options)
-	return client, InitializeDetails{
-		Duration: time.Since(context.Start),
-		Success:  context.Success,
-		Error:    context.Error,
-		Source:   context.Source,
-	}
+	return newClientImpl(sdkKey, options)
 }
 
-func newClientImpl(sdkKey string, options *Options) (*Client, *initContext) {
+func newClientImpl(sdkKey string, options *Options) (*Client, InitializeDetails) {
 	context := newInitContext()
 	diagnostics := newDiagnostics(options)
 	diagnostics.initialize().overall().start().mark()
@@ -53,7 +47,7 @@ func newClientImpl(sdkKey string, options *Options) (*Client, *initContext) {
 	sdkConfigs := newSDKConfigs()
 	transport := newTransport(sdkKey, options)
 	logger := newLogger(transport, options, diagnostics, errorBoundary, sdkConfigs)
-	evaluator := newEvaluator(transport, errorBoundary, options, diagnostics, sdkKey, sdkConfigs)
+	evaluator := newEvaluator(transport, errorBoundary, options, diagnostics, sdkKey, sdkConfigs, context)
 
 	client := &Client{
 		sdkKey:        sdkKey,
@@ -75,21 +69,24 @@ func newClientImpl(sdkKey string, options *Options) (*Client, *initContext) {
 		select {
 		case res := <-channel:
 			diagnostics.initialize().overall().end().success(true).mark()
-			return res, context
+			Logger().LogPostInit(options, context.toInitDetails())
+			return res, context.toInitDetails()
 		case <-time.After(options.InitTimeout):
 			Logger().LogStep(StatsigProcessInitialize, "Timed out")
 			diagnostics.initialize().overall().end().success(false).reason("timeout").mark()
 			client.initInBackground()
 			ctx := context.copy() // Goroutines are not terminated upon timeout. Clone context to avoid race condition on setting Error
 			ctx.setError(errors.New("timed out"))
-			return client, ctx
+			Logger().LogPostInit(options, ctx.toInitDetails())
+			return client, ctx.toInitDetails()
 		}
 	} else {
 		client.init(context)
 	}
 
 	diagnostics.initialize().overall().end().success(true).mark()
-	return client, context
+	Logger().LogPostInit(options, context.toInitDetails())
+	return client, context.toInitDetails()
 }
 
 func (c *Client) init(context *initContext) {
@@ -99,6 +96,7 @@ func (c *Client) init(context *initContext) {
 	c.logger.samplingKeySet.StartResetThread()
 	context.setSuccess(c.evaluator.store.source != SourceUninitialized)
 	context.setSource(c.evaluator.store.source)
+	context.setStorePopulated(c.evaluator.store.lastSyncTime != 0)
 }
 
 func (c *Client) initInBackground() {

@@ -149,6 +149,7 @@ type store struct {
 	bootstrapValues         string
 	sdkConfigs              *SDKConfigs
 	AppID                   string
+	context                 *initContext
 }
 
 var syncOutdatedMax = 2 * time.Minute
@@ -160,6 +161,7 @@ func newStore(
 	diagnostics *diagnostics,
 	sdkKey string,
 	sdkConfigs *SDKConfigs,
+	context *initContext,
 ) *store {
 	configSyncInterval := 10 * time.Second
 	idListSyncInterval := time.Minute
@@ -181,6 +183,7 @@ func newStore(
 		options.BootstrapValues,
 		sdkConfigs,
 		options.DisableIdList,
+		context,
 	)
 }
 
@@ -196,6 +199,7 @@ func newStoreInternal(
 	bootstrapValues string,
 	sdkConfigs *SDKConfigs,
 	idListDisabled bool,
+	context *initContext,
 ) *store {
 	store := &store{
 		featureGates:         make(map[string]configSpec),
@@ -216,6 +220,7 @@ func newStoreInternal(
 		isPolling:            false,
 		bootstrapValues:      bootstrapValues,
 		sdkConfigs:           sdkConfigs,
+		context:              context,
 	}
 	return store
 }
@@ -382,7 +387,7 @@ func (s *store) fetchConfigSpecsFromServer(context *initContext) {
 		return
 	}
 	var specs downloadConfigSpecResponse
-	res, err := s.transport.download_config_specs(s.lastSyncTime, &specs, s.addDiagnostics())
+	res, err := s.transport.download_config_specs(s.lastSyncTime, &specs, s.addDiagnostics(), context)
 	if res == nil || err != nil {
 		s.handleSyncError(err, context)
 		return
@@ -409,6 +414,7 @@ func (s *store) fetchConfigSpecsFromServer(context *initContext) {
 }
 
 func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *marker) (bool, bool) {
+	prevLcut := s.lastSyncTime
 	diagnosticsMarker.process().start().mark()
 	specs := downloadConfigSpecResponse{}
 	parsed, updated := false, false
@@ -423,6 +429,16 @@ func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *m
 	default:
 		parsed, updated = false, false
 	}
+	sourceAPI := ""
+	if s.context != nil {
+		sourceAPI = s.context.SourceAPI
+	}
+	Logger().LogConfigSyncUpdate(s.source != SourceUninitialized,
+		updated,
+		s.lastSyncTime,
+		prevLcut,
+		s.source.String(),
+		sourceAPI)
 	diagnosticsMarker.process().end().success(updated).mark()
 	return parsed, updated
 }

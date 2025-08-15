@@ -37,8 +37,8 @@ func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 		}, nil
 	}
 
-	if strings.Contains(req.URL.Host, "statsigcdn.com") || strings.Contains(req.URL.Host, "statsigapi.net") || 
-	   req.URL.Host == m.fallbackServer.URL[7:] {
+	if strings.Contains(req.URL.Host, "statsigcdn.com") || strings.Contains(req.URL.Host, "statsigapi.net") ||
+		req.URL.Host == m.fallbackServer.URL[7:] {
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			m.counter.cdnDCSCount++
 			response := downloadConfigSpecResponse{
@@ -101,7 +101,7 @@ func TestFallbackToStatsigAPI_DownloadConfigSpecs_HTTP500(t *testing.T) {
 	transport := newTransport("secret-123", opt)
 
 	var responseBody downloadConfigSpecResponse
-	_, err := transport.download_config_specs(0, &responseBody, nil)
+	_, err := transport.download_config_specs(0, &responseBody, nil, nil)
 
 	if err != nil {
 		t.Errorf("Expected successful fallback but got error: %v", err)
@@ -150,7 +150,7 @@ func TestFallbackToStatsigAPI_DownloadConfigSpecs_NetworkError(t *testing.T) {
 	transport := newTransport("secret-123", opt)
 
 	var responseBody downloadConfigSpecResponse
-	_, err := transport.download_config_specs(0, &responseBody, nil)
+	_, err := transport.download_config_specs(0, &responseBody, nil, nil)
 
 	if err != nil {
 		t.Errorf("Expected successful fallback but got error: %v", err)
@@ -214,7 +214,6 @@ func TestFallbackToStatsigAPI_GetIDLists_HTTP500(t *testing.T) {
 	}
 }
 
-
 func TestFallbackToStatsigAPI_Disabled(t *testing.T) {
 	counter := &fallbackTestCounter{}
 
@@ -245,7 +244,7 @@ func TestFallbackToStatsigAPI_Disabled(t *testing.T) {
 	transport := newTransport("secret-123", opt)
 
 	var responseBody downloadConfigSpecResponse
-	_, err := transport.download_config_specs(0, &responseBody, nil)
+	_, err := transport.download_config_specs(0, &responseBody, nil, nil)
 
 	if err == nil {
 		t.Errorf("Expected error when fallback is disabled but got nil")
@@ -305,7 +304,7 @@ func TestFallbackToStatsigAPI_SuccessfulProxy(t *testing.T) {
 	transport := newTransport("secret-123", opt)
 
 	var responseBody downloadConfigSpecResponse
-	_, err := transport.download_config_specs(0, &responseBody, nil)
+	_, err := transport.download_config_specs(0, &responseBody, nil, nil)
 
 	if err != nil {
 		t.Errorf("Expected successful request but got error: %v", err)

@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"time"
 )
 
 type events []map[string]interface{}
@@ -22,6 +23,8 @@ type testServerOptions struct {
 	withSampling    bool
 	isLayerExposure bool
 	uaBasedRules    bool
+	useCurrentTime  bool
+	noUpdateOnSync  bool
 }
 
 func getTestServer(opts testServerOptions) *httptest.Server {
@@ -49,6 +52,30 @@ func getTestServer(opts testServerOptions) *httptest.Server {
 				dcsFile = "download_config_specs_ua_gates.json"
 			}
 			bytes, _ := os.ReadFile(dcsFile)
+
+			if opts.useCurrentTime {
+				var configData map[string]interface{}
+				if err := json.Unmarshal(bytes, &configData); err == nil {
+					configData["time"] = time.Now().UnixNano() / int64(time.Millisecond)
+					if updatedBytes, err := json.Marshal(configData); err == nil {
+						bytes = updatedBytes
+					}
+				}
+			}
+
+			if opts.noUpdateOnSync {
+				sinceTime := req.URL.Query().Get("sinceTime")
+				if opts.noUpdateOnSync && sinceTime != "0" {
+					var configData map[string]interface{}
+					if err := json.Unmarshal(bytes, &configData); err == nil {
+						configData["has_updates"] = false
+						if updatedBytes, err := json.Marshal(configData); err == nil {
+							bytes = updatedBytes
+						}
+					}
+				}
+			}
+
 			_, _ = res.Write(bytes)
 			if opts.onDCS != nil {
 				opts.onDCS()

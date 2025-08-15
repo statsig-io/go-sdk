@@ -22,12 +22,14 @@ func Logger() *OutputLogger {
 	return global.logger
 }
 
-func InitializeGlobalOutputLogger(options OutputLoggerOptions) {
+func InitializeGlobalOutputLogger(options OutputLoggerOptions, observabilityClient IObservabilityClient) {
 	global.mu.Lock()
 	defer global.mu.Unlock()
 	global.logger = &OutputLogger{
-		options: options,
+		options:             options,
+		observabilityClient: observabilityClient,
 	}
+	global.logger.Initialize()
 }
 
 func SessionID() string {

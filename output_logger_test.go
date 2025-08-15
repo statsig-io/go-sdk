@@ -52,7 +52,7 @@ func TestLogEventErrors(t *testing.T) {
 		t.Errorf("Expected output to stderr")
 	}
 
-	InitializeGlobalOutputLogger(opts.OutputLoggerOptions)
+	InitializeGlobalOutputLogger(opts.OutputLoggerOptions, nil)
 	logger.logCustom(event)
 	logger.flush(true)
 

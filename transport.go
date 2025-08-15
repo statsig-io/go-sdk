@@ -60,7 +60,7 @@ func (opts *RequestOptions) fill_defaults() {
 	}
 }
 
-func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}, diagnostics *marker) (*http.Response, error) {
+func (transport *transport) download_config_specs(sinceTime int64, responseBody interface{}, diagnostics *marker, context *initContext) (*http.Response, error) {
 	if diagnostics != nil {
 		diagnostics.downloadConfigSpecs().networkRequest().start().mark()
 	}
@@ -74,7 +74,7 @@ func (transport *transport) download_config_specs(sinceTime int64, responseBody 
 	if transport.options.FallbackToStatsigAPI {
 		options.retries = 1
 	}
-	return transport.get(endpoint, responseBody, options, diagnostics)
+	return transport.get(endpoint, responseBody, options, diagnostics, context)
 }
 
 func (transport *transport) get_id_lists(responseBody interface{}, diagnostics *marker) (*http.Response, error) {
@@ -141,7 +141,7 @@ func (transport *transport) post(
 	options RequestOptions,
 	diagnostics *marker,
 ) (*http.Response, error) {
-	return transport.doRequest("POST", endpoint, body, responseBody, options, diagnostics)
+	return transport.doRequest("POST", endpoint, body, responseBody, options, diagnostics, nil)
 }
 
 func (transport *transport) get(
@@ -149,11 +149,12 @@ func (transport *transport) get(
 	responseBody interface{},
 	options RequestOptions,
 	diagnostics *marker,
+	context *initContext,
 ) (*http.Response, error) {
-	return transport.doRequest("GET", endpoint, nil, responseBody, options, diagnostics)
+	return transport.doRequest("GET", endpoint, nil, responseBody, options, diagnostics, context)
 }
 
-func (transport *transport) buildRequest(method, endpoint string, body interface{}, header map[string]string) (*http.Request, error) {
+func (transport *transport) buildRequest(method, endpoint string, body interface{}, header map[string]string, context *initContext) (*http.Request, error) {
 	if transport.options.LocalMode {
 		return nil, nil
 	}
@@ -178,7 +179,7 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 			bodyBuf = bytes.NewBufferString("{}")
 		}
 	}
-	url, err := transport.buildURL(endpoint, false)
+	url, err := transport.buildURL(endpoint, false, context)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +205,7 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 	return req, nil
 }
 
-func (t *transport) buildURL(path string, isRetry bool) (*url.URL, error) {
+func (t *transport) buildURL(path string, isRetry bool, context *initContext) (*url.URL, error) {
 	var api string
 	useDefaultAPI := isRetry && t.options.FallbackToStatsigAPI
 	endpoint := strings.TrimPrefix(path, "/v1")
@@ -213,6 +214,9 @@ func (t *transport) buildURL(path string, isRetry bool) (*url.URL, error) {
 			api = StatsigCDN
 		} else {
 			api = defaultString(t.options.APIOverrides.DownloadConfigSpecs, defaultString(t.options.API, StatsigCDN))
+		}
+		if context != nil {
+			context.setSourceAPI(api)
 		}
 	} else if strings.Contains(endpoint, "get_id_list") {
 		if useDefaultAPI {
@@ -236,8 +240,8 @@ func (t *transport) buildURL(path string, isRetry bool) (*url.URL, error) {
 	return url.Parse(strings.TrimSuffix(api, "/") + endpoint)
 }
 
-func (t *transport) updateRequestForRetry(r *http.Request) *http.Request {
-	retryURL, err := t.buildURL(r.URL.Path, true)
+func (t *transport) updateRequestForRetry(r *http.Request, context *initContext) *http.Request {
+	retryURL, err := t.buildURL(r.URL.Path, true, context)
 	if err == nil && strings.Compare(r.URL.Host, retryURL.Host) != 0 {
 		retryRequest, err := http.NewRequest(r.Method, retryURL.String(), r.Body)
 		if err == nil {
@@ -254,8 +258,9 @@ func (transport *transport) doRequest(
 	out interface{},
 	options RequestOptions,
 	diagnostics *marker,
+	context *initContext,
 ) (*http.Response, error) {
-	request, err := transport.buildRequest(method, endpoint, in, options.header)
+	request, err := transport.buildRequest(method, endpoint, in, options.header, context)
 	if request == nil || err != nil {
 		if err != nil {
 			return nil, &TransportError{Err: err}
@@ -283,7 +288,7 @@ func (transport *transport) doRequest(
 			return response, response != nil, err
 		}
 
-		retryRequest := transport.updateRequestForRetry(request)
+		retryRequest := transport.updateRequestForRetry(request, context)
 		if retryRequest != nil {
 			request = retryRequest
 		}

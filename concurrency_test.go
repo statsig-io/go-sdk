@@ -178,7 +178,7 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 		ConfigSyncInterval: time.Millisecond * 10,
 		IDListSyncInterval: time.Millisecond * 10,
 	}
-	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
+	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t), nil)
 	client := NewClientWithOptions("secret-Key", options)
 
 	const (
@@ -239,7 +239,7 @@ func TestOverrideAPIsConcurrency(t *testing.T) {
 			Tier: "awesome_land",
 		},
 	}
-	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
+	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t), nil)
 	client := NewClientWithOptions("secret-Key", options)
 
 	const (

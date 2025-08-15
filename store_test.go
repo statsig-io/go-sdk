@@ -109,12 +109,12 @@ func TestStoreSync(t *testing.T) {
 	opt := &Options{
 		API: testServer.URL,
 	}
-	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t))
+	InitializeGlobalOutputLogger(getOutputLoggerOptionsForTest(t), nil)
 	n := newTransport("secret-123", opt)
 	d := newDiagnostics(opt)
 	e := newErrorBoundary("client-key", opt, d)
 	c := newSDKConfigs()
-	s := newStoreInternal(n, time.Second, time.Second, nil, e, nil, d, "secret-123", "", c, false)
+	s := newStoreInternal(n, time.Second, time.Second, nil, e, nil, d, "secret-123", "", c, false, nil)
 	s.initialize(nil)
 
 	if s.getGatesCount() != 1 {

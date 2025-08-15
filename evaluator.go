@@ -107,8 +107,9 @@ func newEvaluator(
 	diagnostics *diagnostics,
 	sdkKey string,
 	sdkConfigs *SDKConfigs,
+	context *initContext,
 ) *evaluator {
-	store := newStore(transport, errorBoundary, options, diagnostics, sdkKey, sdkConfigs)
+	store := newStore(transport, errorBoundary, options, diagnostics, sdkKey, sdkConfigs, context)
 	defer func() {
 		if err := recover(); err != nil {
 			errorBoundary.logException(toError(err))

@@ -30,6 +30,7 @@ type Options struct {
 	IPCountryOptions      IPCountryOptions
 	UAParserOptions       UAParserOptions
 	DisableIdList         bool
+	ObservabilityClient   IObservabilityClient
 }
 
 func (o *Options) GetSDKEnvironmentTier() string {

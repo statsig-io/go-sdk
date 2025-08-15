@@ -148,3 +148,10 @@ func getNumericValue(a interface{}) (float64, bool) {
 	}
 	return 0, false
 }
+
+func intAbs(a int64) int64 {
+	if a < 0 {
+		return -a
+	}
+	return a
+}

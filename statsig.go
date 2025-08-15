@@ -8,10 +8,12 @@ import (
 )
 
 type InitializeDetails struct {
-	Duration time.Duration
-	Success  bool
-	Error    error
-	Source   EvaluationSource
+	Duration       time.Duration
+	Success        bool
+	Error          error
+	Source         EvaluationSource
+	SourceAPI      string
+	StorePopulated bool
 }
 
 var instance *Client
@@ -28,21 +30,16 @@ func Initialize(sdkKey string) InitializeDetails {
 
 // Initializes the global Statsig instance with the given sdkKey and options
 func InitializeWithOptions(sdkKey string, options *Options) InitializeDetails {
-	InitializeGlobalOutputLogger(options.OutputLoggerOptions)
+	InitializeGlobalOutputLogger(options.OutputLoggerOptions, options.ObservabilityClient)
 	InitializeGlobalSessionID()
 	if IsInitialized() {
 		Logger().Log("Statsig is already initialized.", nil)
 		return InitializeDetails{Success: true, Source: instance.evaluator.store.source}
 	}
 
-	var context *initContext
-	instance, context = newClientImpl(sdkKey, options)
-	return InitializeDetails{
-		Duration: time.Since(context.Start),
-		Success:  context.Success,
-		Error:    context.Error,
-		Source:   context.Source,
-	}
+	newInstance, initDetails := newClientImpl(sdkKey, options)
+	instance = newInstance
+	return initDetails
 }
 
 // Checks the value of a Feature Gate for the given user
