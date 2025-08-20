@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -31,6 +33,7 @@ type evalResult struct {
 	SamplingRate                  *int                   `json:"sampling_rate,omitempty"`
 	ConfigVersion                 *int                   `json:"config_version,omitempty"`
 	HasSeenAnalyticalGates        bool                   `json:"has_seen_analytical_gates,omitempty"`
+	TargetAppIDs                  []string               `json:"target_app_ids,omitempty"`
 }
 
 type DerivedDeviceMetadata struct {
@@ -175,8 +178,14 @@ func (e *evaluator) evalConfigImpl(user User, configName string, depth int, cont
 	if configOverrideEval, hasOverride := e.getConfigOverrideEval(configName); hasOverride {
 		return configOverrideEval
 	}
+
 	config, hasConfig := e.store.getDynamicConfig(configName)
 	if !hasConfig {
+		_, hasCMAB := e.store.getCMABConfig(configName)
+		if hasCMAB {
+			return e.evalCMABImpl(user, configName, depth, context)
+		}
+
 		emptyEvalResult := new(evalResult)
 		emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(ReasonUnrecognized)
 		emptyEvalResult.SecondaryExposures = make([]SecondaryExposure, 0)
@@ -233,6 +242,90 @@ func (e *evaluator) evalLayerImpl(user User, name string, depth int, context *ev
 		}
 		return evaluation
 	}
+}
+
+func (e *evaluator) evalCMABImpl(user User, cmabName string, depth int, context *evalContext) *evalResult {
+	cmab, hasCMAB := e.store.getCMABConfig(cmabName)
+	if !hasCMAB {
+		emptyEvalResult := new(evalResult)
+		emptyEvalResult.EvaluationDetails = e.createEvaluationDetails(ReasonUnrecognized)
+		emptyEvalResult.SecondaryExposures = make([]SecondaryExposure, 0)
+		return emptyEvalResult
+	}
+
+	if !cmab.Enabled || len(cmab.Groups) == 0 {
+		result := &evalResult{
+			JsonValue:         cmab.DefaultValueJSON,
+			RuleID:            "prestart",
+			EvaluationDetails: e.createEvaluationDetails(ReasonNone),
+		}
+		e.finalizeCMABEvalResult(&cmab, result, false)
+		return result
+	}
+
+	targetingGateName := cmab.TargetingGateName
+
+	var exposures []SecondaryExposure
+	if targetingGateName != nil && *targetingGateName != "" {
+		gateResult := e.evalGateImpl(user, *targetingGateName, depth+1, context)
+		if !context.DisableLogExposures {
+			newExposure := SecondaryExposure{
+				Gate:      *targetingGateName,
+				GateValue: strconv.FormatBool(gateResult.Value),
+				RuleID:    gateResult.RuleID,
+			}
+			exposures = append(exposures, newExposure)
+		}
+
+		if !gateResult.Value {
+			result := &evalResult{
+				JsonValue:          cmab.DefaultValueJSON,
+				RuleID:             "inlineTargetingRules",
+				SecondaryExposures: exposures,
+				EvaluationDetails:  e.createEvaluationDetails(ReasonNone),
+			}
+			e.finalizeCMABEvalResult(&cmab, result, false)
+			return result
+		}
+	}
+
+	unitID := getUnitID(user, cmab.IDType)
+	salt := cmab.Salt
+	if salt == "" {
+		salt = cmabName
+	}
+	hash := getHashUint64Encoding(salt + "." + unitID)
+
+	cmabConfig := cmab.Config
+	if cmabConfig == nil {
+		denom := math.Max(1.0, float64(len(cmab.Groups)))
+		groupSize := 10000.0 / denom
+		groupIndex := int(float64(hash%10000) / groupSize)
+		group := cmab.Groups[groupIndex]
+		isExperimentGroup := true
+		result := &evalResult{
+			JsonValue:          group.ParameterValuesJSON,
+			RuleID:             group.ID + ":explore",
+			GroupName:          group.Name,
+			IsExperimentGroup:  &isExperimentGroup,
+			SecondaryExposures: exposures,
+			EvaluationDetails:  e.createEvaluationDetails(ReasonNone),
+		}
+		e.finalizeCMABEvalResult(&cmab, result, true)
+		return result
+	}
+
+	shouldSample := float64(hash%10000) < cmab.SampleRate*10000
+	if shouldSample {
+		if samplingResult := e.applyCMABSampling(&cmab, cmabConfig, exposures); samplingResult != nil {
+			e.finalizeCMABEvalResult(&cmab, samplingResult, true)
+			return samplingResult
+		}
+	}
+
+	bestGroupResult := e.applyCMABBestGroup(&cmab, cmabConfig, user, exposures)
+	e.finalizeCMABEvalResult(&cmab, bestGroupResult, true)
+	return bestGroupResult
 }
 
 func (e *evaluator) allocatedExperimentExistsAndIsActive(evaluation *evalResult) bool {
@@ -1215,4 +1308,118 @@ func assignDerivedDeviceMetadata(res *evalResult, deviceMetadata *DerivedDeviceM
 		deviceMetadata.BrowserVersion = res.DerivedDeviceMetadata.BrowserVersion
 	}
 	return deviceMetadata
+}
+
+func (e *evaluator) applyCMABSampling(cmab *configSpec, cmabConfig map[string]cmabGroupConfig, exposures []SecondaryExposure) *evalResult {
+	totalRecords := 0.0
+	for _, group := range cmab.Groups {
+		groupID := group.ID
+		config, exists := cmabConfig[groupID]
+		curCount := 1.0
+		if exists {
+			curCount += float64(config.Records)
+		}
+		totalRecords += 1.0 / curCount
+	}
+
+	sum := 0.0
+	value := rand.Float64()
+	for _, group := range cmab.Groups {
+		groupID := group.ID
+		config, exists := cmabConfig[groupID]
+		curCount := 1.0
+		if exists {
+			curCount += float64(config.Records)
+		}
+		sum += 1.0 / (curCount / totalRecords)
+		if value < sum {
+			result := &evalResult{
+				JsonValue:          group.ParameterValuesJSON,
+				RuleID:             group.ID + ":explore",
+				GroupName:          group.Name,
+				SecondaryExposures: exposures,
+				EvaluationDetails:  e.createEvaluationDetails(ReasonNone),
+			}
+			isExperimentGroup := true
+			result.IsExperimentGroup = &isExperimentGroup
+			return result
+		}
+	}
+	return nil
+}
+
+func (e *evaluator) applyCMABBestGroup(cmab *configSpec, cmabConfig map[string]cmabGroupConfig, user User, exposures []SecondaryExposure) *evalResult {
+	higherBetter := cmab.HigherIsBetter
+	var bestScore float64
+	if higherBetter {
+		bestScore = -1000000000
+	} else {
+		bestScore = 1000000000
+	}
+	hasScore := false
+	var bestGroup cmabGroup
+
+	for _, group := range cmab.Groups {
+		groupID := group.ID
+		config, exists := cmabConfig[groupID]
+		if !exists {
+			continue
+		}
+
+		weightsNumerical := config.WeightsNumerical
+		weightsCategorical := config.WeightsCategorical
+		if len(weightsNumerical) == 0 && len(weightsCategorical) == 0 {
+			continue
+		}
+
+		score := 0.0
+		score += config.Alpha + config.Intercept
+
+		for key, weight := range weightsCategorical {
+			untypedVal := getFromUser(user, key)
+			value, ok := untypedVal.(string)
+			if !ok || value == "" {
+				continue
+			}
+			if w, exists := weight[value]; exists {
+				score += w
+			}
+		}
+
+		for key, weight := range weightsNumerical {
+			untypedVal := getFromUser(user, key)
+			value, ok := untypedVal.(float64)
+			if ok {
+				score += value * weight
+			}
+		}
+
+		if !hasScore || (higherBetter && score > bestScore) || (!higherBetter && score < bestScore) {
+			bestScore = score
+			bestGroup = group
+			hasScore = true
+		}
+	}
+
+	if !hasScore {
+		randIndex := rand.Intn(len(cmab.Groups))
+		bestGroup = cmab.Groups[randIndex]
+	}
+
+	isExperimentGroup := true
+	return &evalResult{
+		Value:              true,
+		JsonValue:          bestGroup.ParameterValuesJSON,
+		RuleID:             bestGroup.ID,
+		GroupName:          bestGroup.Name,
+		IsExperimentGroup:  &isExperimentGroup,
+		SecondaryExposures: exposures,
+	}
+}
+
+func (e *evaluator) finalizeCMABEvalResult(cmab *configSpec, result *evalResult, didPass bool) {
+	result.Value = didPass
+	result.IDType = cmab.IDType
+	result.TargetAppIDs = cmab.TargetAppIDs
+	result.ConfigVersion = cmab.ConfigVersion
 }

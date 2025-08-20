@@ -149,6 +149,25 @@ func getClientInitializeResponse(
 		return hashedName, result
 	}
 
+	cmabToResponse := func(cmabName string, spec configSpec) (string, ConfigInitializeResponse) {
+		evalRes := &evalResult{}
+		if context.IncludeLocalOverrides || options.Overrides != nil {
+			if configOverride, hasOverride := e.getConfigOverrideEvalForGCIR(spec, options); hasOverride {
+				evalRes = configOverride
+			} else {
+				evalRes = e.evalCMABImpl(user, cmabName, 0, context)
+			}
+		} else {
+			evalRes = e.evalCMABImpl(user, cmabName, 0, context)
+		}
+		hashedName, base := evalResultToBaseResponse(cmabName, evalRes)
+		result := ConfigInitializeResponse{
+			BaseSpecInitializeResponse: base,
+			Value: evalRes.JsonValue,
+		}
+		return hashedName, result
+	}
+
 	configToResponse := func(configName string, spec configSpec) (string, ConfigInitializeResponse) {
 		evalRes := &evalResult{}
 		hasExpOverride := false
@@ -336,7 +355,21 @@ func getClientInitializeResponse(
 		hashedName, res := layerToResponse(name, spec)
 		layerConfigs[hashedName] = res
 	}
-
+	for name, spec := range e.store.cmabConfigs {
+		if !spec.hasTargetAppID(appId) {
+			continue
+		}
+		if shouldFilterConfigType(getConfigType(spec)) {
+			continue
+		}
+		if filterByEntities {
+			if _, ok := configsLookup[name]; !ok {
+				continue
+			}
+		}
+		hashedName, res := cmabToResponse(name, spec)
+		dynamicConfigs[hashedName] = res
+	}
 	meta := getStatsigMetadata()
 
 	response := ClientInitializeResponse{

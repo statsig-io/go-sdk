@@ -23,22 +23,42 @@ const (
 )
 
 type configSpec struct {
+	Name                string                     `json:"name"`
+	Type                string                     `json:"type"`
+	Salt                string                     `json:"salt"`
+	Enabled             bool                       `json:"enabled"`
+	Rules               []configRule               `json:"rules"`
+	DefaultValue        json.RawMessage            `json:"defaultValue"`
+	DefaultValueJSON    map[string]interface{}     `json:"-"`
+	DefaultValueBool    *bool                      `json:"-"`
+	IDType              string                     `json:"idType"`
+	ExplicitParameters  []string                   `json:"explicitParameters"`
+	Entity              string                     `json:"entity"`
+	IsActive            *bool                      `json:"isActive,omitempty"`
+	HasSharedParams     *bool                      `json:"hasSharedParams,omitempty"`
+	TargetAppIDs        []string                   `json:"targetAppIDs,omitempty"`
+	ForwardAllExposures *bool                      `json:"forwardAllExposures,omitempty"`
+	ConfigVersion       *int                       `json:"version,omitempty"`
+	SampleRate          float64                    `json:"sampleRate,omitempty"`
+	HigherIsBetter      bool                       `json:"higherIsBetter,omitempty"`
+	TargetingGateName   *string                    `json:"targetingGateName,omitempty"`
+	Groups              []cmabGroup                `json:"groups,omitempty"`
+	Config              map[string]cmabGroupConfig `json:"config,omitempty"`
+}
+
+type cmabGroup struct {
 	Name                string                 `json:"name"`
-	Type                string                 `json:"type"`
-	Salt                string                 `json:"salt"`
-	Enabled             bool                   `json:"enabled"`
-	Rules               []configRule           `json:"rules"`
-	DefaultValue        json.RawMessage        `json:"defaultValue"`
-	DefaultValueJSON    map[string]interface{} `json:"-"`
-	DefaultValueBool    *bool                  `json:"-"`
-	IDType              string                 `json:"idType"`
-	ExplicitParameters  []string               `json:"explicitParameters"`
-	Entity              string                 `json:"entity"`
-	IsActive            *bool                  `json:"isActive,omitempty"`
-	HasSharedParams     *bool                  `json:"hasSharedParams,omitempty"`
-	TargetAppIDs        []string               `json:"targetAppIDs,omitempty"`
-	ForwardAllExposures *bool                  `json:"forwardAllExposures,omitempty"`
-	ConfigVersion       *int                   `json:"version,omitempty"`
+	ID                  string                 `json:"id"`
+	ParameterValues     json.RawMessage        `json:"parameterValues"`
+	ParameterValuesJSON map[string]interface{} `json:"-"`
+}
+
+type cmabGroupConfig struct {
+	Alpha              float64                       `json:"alpha"`
+	Intercept          float64                       `json:"intercept"`
+	Records            int64                         `json:"records"`
+	WeightsNumerical   map[string]float64            `json:"weightsNumerical"`
+	WeightsCategorical map[string]map[string]float64 `json:"weightsCategorical"`
 }
 
 func (c configSpec) hasTargetAppID(appId string) bool {
@@ -86,6 +106,7 @@ type downloadConfigSpecResponse struct {
 	FeatureGates            []configSpec              `json:"feature_gates"`
 	DynamicConfigs          []configSpec              `json:"dynamic_configs"`
 	LayerConfigs            []configSpec              `json:"layer_configs"`
+	CMABConfigs             map[string]configSpec     `json:"cmab_configs"`
 	Layers                  map[string][]string       `json:"layers"`
 	IDLists                 map[string]bool           `json:"id_lists"`
 	DiagnosticsSampleRates  map[string]int            `json:"diagnostics"`
@@ -124,6 +145,7 @@ type store struct {
 	featureGates            map[string]configSpec
 	dynamicConfigs          map[string]configSpec
 	layerConfigs            map[string]configSpec
+	cmabConfigs             map[string]configSpec
 	experimentToLayer       map[string]string
 	sdkKeysToAppID          map[string]string
 	hashedSDKKeysToAppID    map[string]string
@@ -204,6 +226,8 @@ func newStoreInternal(
 	store := &store{
 		featureGates:         make(map[string]configSpec),
 		dynamicConfigs:       make(map[string]configSpec),
+		layerConfigs:         make(map[string]configSpec),
+		cmabConfigs:          make(map[string]configSpec),
 		idLists:              make(map[string]*idList),
 		transport:            transport,
 		configSyncInterval:   configSyncInterval,
@@ -297,6 +321,13 @@ func (s *store) getLayerConfig(name string) (configSpec, bool) {
 	defer s.mu.RUnlock()
 	layer, ok := s.layerConfigs[name]
 	return layer, ok
+}
+
+func (s *store) getCMABConfig(name string) (configSpec, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	cmab, ok := s.cmabConfigs[name]
+	return cmab, ok
 }
 
 func (s *store) getExperimentLayer(experimentName string) (string, bool) {
@@ -443,6 +474,17 @@ func (s *store) processConfigSpecs(configSpecs interface{}, diagnosticsMarker *m
 	return parsed, updated
 }
 
+func (s *store) parseJSONValueFromCMABGroup(spec *configSpec) {
+	for i, group := range spec.Groups {
+		var parameterValues map[string]interface{}
+		err := json.Unmarshal(group.ParameterValues, &parameterValues)
+		if err != nil {
+			parameterValues = make(map[string]interface{})
+		}
+		spec.Groups[i].ParameterValuesJSON = parameterValues
+	}
+}
+
 func (s *store) parseJSONValuesFromSpec(spec *configSpec) {
 	var defaultValue map[string]interface{}
 	err := json.Unmarshal(spec.DefaultValue, &defaultValue)
@@ -512,6 +554,14 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 			newLayers[layer.Name] = layer
 		}
 
+		newCMABs := make(map[string]configSpec)
+		for name, cmab := range specs.CMABConfigs {
+			s.parseTargetValueMapFromSpec(&cmab)
+			s.parseJSONValuesFromSpec(&cmab)
+			s.parseJSONValueFromCMABGroup(&cmab)
+			newCMABs[name] = cmab
+		}
+
 		newExperimentToLayer := make(map[string]string)
 		for layerName, experiments := range specs.Layers {
 			for _, experimentName := range experiments {
@@ -525,6 +575,7 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 		s.featureGates = newGates
 		s.dynamicConfigs = newConfigs
 		s.layerConfigs = newLayers
+		s.cmabConfigs = newCMABs
 		s.experimentToLayer = newExperimentToLayer
 		s.sdkKeysToAppID = specs.SDKKeysToAppID
 		s.hashedSDKKeysToAppID = specs.HashedSDKKeysToAppID
