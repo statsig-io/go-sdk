@@ -66,9 +66,17 @@ func (transport *transport) download_config_specs(sinceTime int64, responseBody 
 	}
 	var endpoint string
 	if transport.options.DisableCDN {
-		endpoint = fmt.Sprintf("/download_config_specs?sinceTime=%d", sinceTime)
+		if sinceTime == 0 {
+			endpoint = "/download_config_specs"
+		} else {
+			endpoint = fmt.Sprintf("/download_config_specs?sinceTime=%d", sinceTime)
+		}
 	} else {
-		endpoint = fmt.Sprintf("/download_config_specs/%s.json?sinceTime=%d", transport.sdkKey, sinceTime)
+		if sinceTime == 0 {
+			endpoint = fmt.Sprintf("/download_config_specs/%s.json", transport.sdkKey)
+		} else {
+			endpoint = fmt.Sprintf("/download_config_specs/%s.json?sinceTime=%d", transport.sdkKey, sinceTime)
+		}
 	}
 	options := RequestOptions{}
 	if transport.options.FallbackToStatsigAPI {

@@ -65,6 +65,9 @@ func getTestServer(opts testServerOptions) *httptest.Server {
 
 			if opts.noUpdateOnSync {
 				sinceTime := req.URL.Query().Get("sinceTime")
+				if sinceTime == "" {
+					sinceTime = "0"
+				}
 				if opts.noUpdateOnSync && sinceTime != "0" {
 					var configData map[string]interface{}
 					if err := json.Unmarshal(bytes, &configData); err == nil {
