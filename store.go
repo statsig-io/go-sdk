@@ -61,6 +61,19 @@ type cmabGroupConfig struct {
 	WeightsCategorical map[string]map[string]float64 `json:"weightsCategorical"`
 }
 
+type SessionReplayTrigger struct {
+	SamplingRate *float64  `json:"sampling_rate"`
+	Values       *[]string `json:"values"`
+}
+
+type SessionReplayInfo struct {
+	SamplingRate                     *float64                         `json:"sampling_rate"`
+	TargetingGate                    *string                          `json:"targeting_gate"`
+	RecordingBlocked                 *bool                            `json:"recording_blocked"`
+	SessionRecordingEventTriggers    *map[string]SessionReplayTrigger `json:"session_recording_event_triggers"`
+	SessionRecordingExposureTriggers *map[string]SessionReplayTrigger `json:"session_recording_exposure_triggers"`
+}
+
 func (c configSpec) hasTargetAppID(appId string) bool {
 	if appId == "" {
 		return true
@@ -117,6 +130,7 @@ type downloadConfigSpecResponse struct {
 	SDKFlags                map[string]bool           `json:"sdk_flags,omitempty"`
 	SDKConfigs              map[string]interface{}    `json:"sdk_configs,omitempty"`
 	AppID                   string                    `json:"app_id,omitempty"`
+	SessionReplayInfo       *SessionReplayInfo        `json:"session_replay_info,omitempty"`
 }
 
 type configEntities struct {
@@ -172,6 +186,7 @@ type store struct {
 	sdkConfigs              *SDKConfigs
 	AppID                   string
 	context                 *initContext
+	sessionReplayInfo       *SessionReplayInfo
 }
 
 var syncOutdatedMax = 2 * time.Minute
@@ -358,6 +373,12 @@ func (s *store) getEntitiesForSDKKey(clientKey string) (configEntities, bool) {
 	defer s.mu.RUnlock()
 	entities, ok := s.hashedSDKKeysToEntities[getDJB2Hash(clientKey)]
 	return entities, ok
+}
+
+func (s *store) getSessionReplayInfo() *SessionReplayInfo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.sessionReplayInfo
 }
 
 func (s *store) fetchConfigSpecsFromAdapter(context *initContext) {
@@ -582,6 +603,7 @@ func (s *store) setConfigSpecs(specs downloadConfigSpecResponse) (bool, bool) {
 		s.hashedSDKKeysToEntities = specs.HashedSDKKeysToEntities
 		s.lastSyncTime = specs.Time
 		s.AppID = specs.AppID
+		s.sessionReplayInfo = specs.SessionReplayInfo
 		s.mu.Unlock()
 		return true, true
 	}

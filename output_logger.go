@@ -20,7 +20,7 @@ const (
 )
 
 var HIGH_CARDINALITY_TAGS = map[string]bool{
-	"lcut": true,
+	"lcut":      true,
 	"prev_lcut": true,
 }
 
@@ -205,11 +205,11 @@ func (o *OutputLogger) LogConfigSyncUpdate(initialized bool, hasUpdate bool, lcu
 	}
 	lcutDiff := prevLcut - lcut
 	absLcutDiff := intAbs(lcutDiff)
-		o.Distribution("config_propagation_diff", float64(absLcutDiff), map[string]interface{}{
-			"source":     source,
-			"source_api": api,
-			"lcut":       lcut,
-			"prev_lcut":  prevLcut,
+	o.Distribution("config_propagation_diff", float64(absLcutDiff), map[string]interface{}{
+		"source":     source,
+		"source_api": api,
+		"lcut":       lcut,
+		"prev_lcut":  prevLcut,
 	})
 }
 

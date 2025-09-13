@@ -1,21 +1,33 @@
 package statsig
 
 import (
+	"math/rand"
 	"strings"
 )
 
+type GCIRSessionReplayTrigger struct {
+	Values         *[]string `json:"values,omitempty"`
+	PassesSampling *bool     `json:"passes_sampling,omitempty"`
+}
+
 type ClientInitializeResponse struct {
-	FeatureGates   map[string]GateInitializeResponse   `json:"feature_gates"`
-	DynamicConfigs map[string]ConfigInitializeResponse `json:"dynamic_configs"`
-	LayerConfigs   map[string]LayerInitializeResponse  `json:"layer_configs"`
-	SdkParams      map[string]string                   `json:"sdkParams"`
-	HasUpdates     bool                                `json:"has_updates"`
-	Generator      string                              `json:"generator"`
-	EvaluatedKeys  map[string]interface{}              `json:"evaluated_keys"`
-	Time           int64                               `json:"time"`
-	SDKInfo        SDKInfo                             `json:"sdkInfo"`
-	User           User                                `json:"user"`
-	HashUsed       string                              `json:"hash_used"`
+	FeatureGates                     map[string]GateInitializeResponse    `json:"feature_gates"`
+	DynamicConfigs                   map[string]ConfigInitializeResponse  `json:"dynamic_configs"`
+	LayerConfigs                     map[string]LayerInitializeResponse   `json:"layer_configs"`
+	SdkParams                        map[string]string                    `json:"sdkParams"`
+	HasUpdates                       bool                                 `json:"has_updates"`
+	Generator                        string                               `json:"generator"`
+	EvaluatedKeys                    map[string]interface{}               `json:"evaluated_keys"`
+	Time                             int64                                `json:"time"`
+	SDKInfo                          SDKInfo                              `json:"sdkInfo"`
+	User                             User                                 `json:"user"`
+	HashUsed                         string                               `json:"hash_used"`
+	CanRecordSession                 *bool                                `json:"can_record_session,omitempty"`
+	SessionRecordingRate             *float64                             `json:"session_recording_rate,omitempty"`
+	RecordingBlocked                 *bool                                `json:"recording_blocked,omitempty"`
+	PassesSessionRecordingTargeting  *bool                                `json:"passes_session_recording_targeting,omitempty"`
+	SessionRecordingEventTriggers    *map[string]GCIRSessionReplayTrigger `json:"session_recording_event_triggers,omitempty"`
+	SessionRecordingExposureTriggers *map[string]GCIRSessionReplayTrigger `json:"session_recording_exposure_triggers,omitempty"`
 }
 
 type SDKInfo struct {
@@ -148,7 +160,6 @@ func getClientInitializeResponse(
 		}
 		return hashedName, result
 	}
-
 	cmabToResponse := func(cmabName string, spec configSpec) (string, ConfigInitializeResponse) {
 		evalRes := &evalResult{}
 		if context.IncludeLocalOverrides || options.Overrides != nil {
@@ -163,11 +174,10 @@ func getClientInitializeResponse(
 		hashedName, base := evalResultToBaseResponse(cmabName, evalRes)
 		result := ConfigInitializeResponse{
 			BaseSpecInitializeResponse: base,
-			Value: evalRes.JsonValue,
+			Value:                      evalRes.JsonValue,
 		}
 		return hashedName, result
 	}
-
 	configToResponse := func(configName string, spec configSpec) (string, ConfigInitializeResponse) {
 		evalRes := &evalResult{}
 		hasExpOverride := false
@@ -385,5 +395,62 @@ func getClientInitializeResponse(
 		User:           *user.getCopyForLogging(),
 		HashUsed:       hashAlgorithm,
 	}
+
+	sessionReplayInfo := e.store.getSessionReplayInfo()
+	if sessionReplayInfo == nil {
+		return response
+	}
+
+	response.RecordingBlocked = sessionReplayInfo.RecordingBlocked
+	canRecord := !*sessionReplayInfo.RecordingBlocked
+	response.CanRecordSession = &canRecord
+	if sessionReplayInfo.SamplingRate != nil {
+		response.SessionRecordingRate = sessionReplayInfo.SamplingRate
+		if rand.Float64() > *sessionReplayInfo.SamplingRate {
+			canRecord = false
+			response.CanRecordSession = &canRecord
+		}
+	}
+	if sessionReplayInfo.TargetingGate != nil {
+		res := response.FeatureGates[hashName(hashAlgorithm, *sessionReplayInfo.TargetingGate)]
+		passesTargeting := res.Value
+		if !passesTargeting {
+			canRecord = false
+			response.CanRecordSession = &canRecord
+		}
+		response.PassesSessionRecordingTargeting = &passesTargeting
+	}
+	if sessionReplayInfo.SessionRecordingEventTriggers != nil {
+		resultEventTriggers := make(map[string]GCIRSessionReplayTrigger)
+		for eventName, trigger := range *sessionReplayInfo.SessionRecordingEventTriggers {
+			resultEventTrigger := GCIRSessionReplayTrigger{}
+			if trigger.Values != nil {
+				resultEventTrigger.Values = trigger.Values
+			}
+			if trigger.SamplingRate != nil {
+				passesSampling := rand.Float64() <= *trigger.SamplingRate
+				resultEventTrigger.PassesSampling = &passesSampling
+			}
+			resultEventTriggers[eventName] = resultEventTrigger
+		}
+		response.SessionRecordingEventTriggers = &resultEventTriggers
+	}
+
+	if sessionReplayInfo.SessionRecordingExposureTriggers != nil {
+		resultExposureTriggers := make(map[string]GCIRSessionReplayTrigger)
+		for exposureName, trigger := range *sessionReplayInfo.SessionRecordingExposureTriggers {
+			resultExposureTrigger := GCIRSessionReplayTrigger{}
+			if trigger.Values != nil {
+				resultExposureTrigger.Values = trigger.Values
+			}
+			if trigger.SamplingRate != nil {
+				passesSampling := rand.Float64() <= *trigger.SamplingRate
+				resultExposureTrigger.PassesSampling = &passesSampling
+			}
+			resultExposureTriggers[hashName(hashAlgorithm, exposureName)] = resultExposureTrigger
+		}
+		response.SessionRecordingExposureTriggers = &resultExposureTriggers
+	}
+
 	return response
 }
