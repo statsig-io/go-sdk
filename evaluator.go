@@ -749,7 +749,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 	case strings.EqualFold(condType, "fail_gate") || strings.EqualFold(condType, "pass_gate"):
 		dependentGateName, ok := cond.TargetValue.(string)
 		if !ok {
-			return &evalResult{Value: false}
+			return &evalResult{Value: strings.EqualFold(condType, "fail_gate")}
 		}
 		result := e.evalGateImpl(user, dependentGateName, depth+1, context)
 		if result.Unsupported {
