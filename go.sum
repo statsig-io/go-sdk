@@ -3,8 +3,8 @@ github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+
 github.com/hashicorp/golang-lru v0.5.4/go.mod h1:iADmTwqILo4mZ8BN3D2Q6+9jd8WM5uGBxy+E8yxSoD4=
 github.com/hashicorp/golang-lru v1.0.2 h1:dV3g9Z/unq5DpblPpw+Oqcv4dU/1omnb4Ok8iPY6p1c=
 github.com/hashicorp/golang-lru v1.0.2/go.mod h1:iADmTwqILo4mZ8BN3D2Q6+9jd8WM5uGBxy+E8yxSoD4=
-github.com/statsig-io/ip3country-go v0.2.1 h1:bLkWWM0PGz9OQrcGF2qqtfxQeVwxUYP46peNjJKnM+k=
-github.com/statsig-io/ip3country-go v0.2.1/go.mod h1:PKuA/VSpe4puBXw3BNGAHyP8IOZOiXAh/xIz+iYYoMQ=
+github.com/statsig-io/ip3country-go v0.3.0 h1:cW7uvcxw5DprDF/qzoK2VhZ2IraaLSTeDBVlMURaKvA=
+github.com/statsig-io/ip3country-go v0.3.0/go.mod h1:1GiVAjwHE8/figN74OCdXW3zDvSDk+8NPxnT1LwPh04=
 github.com/ua-parser/uap-go v0.0.0-20250326153904-a60dd5b540d2 h1:db8jCFPlKfodWMt/0wp1LDy1cNiRvt3YqTytE9ewpzM=
 github.com/ua-parser/uap-go v0.0.0-20250326153904-a60dd5b540d2/go.mod h1:BUbeWZiieNxAuuADTBNb3/aeje6on3DhU3rpWsQSB1E=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
