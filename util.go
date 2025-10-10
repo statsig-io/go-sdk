@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"io"
 	"reflect"
 	"strconv"
 	"testing"
@@ -154,4 +155,12 @@ func intAbs(a int64) int64 {
 		return -a
 	}
 	return a
+}
+
+// a wrapper around io.Closer.Close() that ignores errors for linter warnings
+func CloseBodyIgnoreErrors(c io.Closer) {
+	if c == nil {
+		return
+	}
+	_ = c.Close()
 }

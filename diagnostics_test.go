@@ -354,7 +354,7 @@ func TestDiagnosticsSampling(t *testing.T) {
 	mu.RLock()
 	numEvents := len(events)
 	mu.RUnlock()
-	if !(numEvents > 0 && numEvents < 10) {
+	if numEvents <= 0 || numEvents >= 10 {
 		t.Errorf("Expected between %d and %d events, received %d", 0, 10, numEvents)
 	}
 
@@ -367,7 +367,7 @@ func TestDiagnosticsSampling(t *testing.T) {
 	mu.RLock()
 	numEvents = len(events)
 	mu.RUnlock()
-	if !(numEvents > 0 && numEvents < 10) {
+	if numEvents <= 0 || numEvents >= 10 {
 		t.Errorf("Expected between %d and %d events, received %d", 0, 10, numEvents)
 	}
 }
@@ -503,17 +503,17 @@ func TestDisableDiagnostics(t *testing.T) {
 }
 
 func assertMarkerEqual(t *testing.T, marker map[string]interface{}, key string, step string, action string, tags ...Pair) {
-	if marker["key"] != key && !(marker["key"] == nil && key == "") {
+	if marker["key"] != key && (marker["key"] != nil || key != "") {		
 		t.Errorf("Expected key to be %s but got %s", key, marker["key"])
 	}
-	if marker["step"] != step && !(marker["step"] == nil && step == "") {
+	if marker["step"] != step && (marker["step"] != nil || step != "") {
 		t.Errorf("Expected step to be %s but got %s", step, marker["step"])
 	}
-	if marker["action"] != action && !(marker["action"] == nil && action == "") {
+	if marker["action"] != action && (marker["action"] != nil || action != "") {
 		t.Errorf("Expected action to be %s but got %s", action, marker["action"])
 	}
 	for _, tag := range tags {
-		if marker[tag.A] != tag.B && !(marker[tag.A] == nil && tag.B == "") {
+		if marker[tag.A] != tag.B && (marker[tag.A] != nil || tag.B != "") {
 			println(key, step)
 			t.Errorf("Expected %s to be %+v but got %+v", tag.A, tag.B, marker[tag.A])
 		}

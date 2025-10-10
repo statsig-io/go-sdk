@@ -179,7 +179,7 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 			var compressedBody bytes.Buffer
 			gz := gzip.NewWriter(&compressedBody)
 			_, _ = gz.Write(bodyBytes)
-			gz.Close()
+			_ = gz.Close()
 			bodyBuf = &compressedBody
 		}
 	} else {
@@ -276,7 +276,7 @@ func (transport *transport) doRequest(
 		return nil, nil
 	}
 	options.fill_defaults()
-	response, err, attempts := retry(options.retries, time.Duration(options.backoff), func() (*http.Response, bool, error) {
+	response, attempts, err := retry(options.retries, time.Duration(options.backoff), func() (*http.Response, bool, error) {
 		response, err := transport.client.Do(request)
 
 		if diagnostics != nil {
@@ -305,7 +305,7 @@ func (transport *transport) doRequest(
 			if response.Body != nil {
 				// Drain body to re-use the same connection
 				_, _ = io.Copy(io.Discard, response.Body)
-				response.Body.Close()
+				CloseBodyIgnoreErrors(response.Body)
 			}
 		}
 		defer drainAndCloseBody()
@@ -341,12 +341,12 @@ func (transport *transport) parseResponse(response *http.Response, out interface
 	return json.NewDecoder(response.Body).Decode(&out)
 }
 
-func retry(retries int, backoff time.Duration, fn func() (*http.Response, bool, error)) (*http.Response, error, int) {
+func retry(retries int, backoff time.Duration, fn func() (*http.Response, bool, error)) (*http.Response, int, error) {
 	attempts := 0
 	for {
 		if response, retry, err := fn(); retry {
 			if retries <= 0 {
-				return response, err, attempts
+				return response, attempts, err
 			}
 
 			retries--
@@ -354,7 +354,7 @@ func retry(retries int, backoff time.Duration, fn func() (*http.Response, bool, 
 			time.Sleep(backoff)
 			backoff = backoff * backoffMultiplier
 		} else {
-			return response, err, attempts
+			return response, attempts, err
 		}
 	}
 }

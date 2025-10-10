@@ -582,7 +582,7 @@ func (e *evaluator) cleanExposures(exposures []SecondaryExposure) []SecondaryExp
 
 func (e *evaluator) eval(user User, spec configSpec, depth int, context *evalContext) *evalResult {
 	if depth > maxRecursiveDepth {
-		panic(errors.New("Statsig Evaluation Depth Exceeded"))
+		panic(errors.New("statsig evaluation depth exceeded"))
 	}
 	var configValue map[string]interface{}
 	evalDetails := e.createEvaluationDetails(ReasonNone)
@@ -861,7 +861,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 	case strings.EqualFold(op, "array_contains_any"):
 		targetArr, okTarget := cond.TargetValue.([]interface{})
 		valArr, okVal := value.([]interface{})
-		if !(okTarget && okVal) {
+		if !okTarget || !okVal {
 			pass = false
 		} else {
 			pass = arrayContainsAny(targetArr, valArr)
@@ -869,7 +869,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 	case strings.EqualFold(op, "array_contains_none"):
 		targetArr, okTarget := cond.TargetValue.([]interface{})
 		valArr, okVal := value.([]interface{})
-		if !(okTarget && okVal) {
+		if !okTarget || !okVal {
 			pass = false
 		} else {
 			pass = !arrayContainsAny(targetArr, valArr)
@@ -878,7 +878,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		targetArr, okTarget := cond.TargetValue.([]interface{})
 		valArr, okVal := value.([]interface{})
 
-		if !(okTarget && okVal) {
+		if !okTarget || !okVal {
 			pass = false
 		} else {
 			pass = arrayContainsAll(targetArr, valArr)
@@ -887,7 +887,7 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		targetArr, okTarget := cond.TargetValue.([]interface{})
 		valArr, okVal := value.([]interface{})
 
-		if !(okTarget && okVal) {
+		if !okTarget || !okVal {
 			pass = false
 		} else {
 			pass = !arrayContainsAll(targetArr, valArr)

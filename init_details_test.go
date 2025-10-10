@@ -15,7 +15,7 @@ func TestInitDetails(t *testing.T) {
 
 	t.Run("Network - success", func(t *testing.T) {
 		testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-			defer req.Body.Close()
+			defer CloseBodyIgnoreErrors(req.Body)
 			res.WriteHeader(http.StatusOK)
 			if strings.Contains(req.URL.Path, "download_config_specs") {
 				_, _ = res.Write(configSpecBytes)
@@ -135,7 +135,7 @@ func TestInitDetails(t *testing.T) {
 
 	t.Run("Bootstrap - failure (fallback to network success)", func(t *testing.T) {
 		testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-			defer req.Body.Close()
+			defer CloseBodyIgnoreErrors(req.Body)
 			res.WriteHeader(http.StatusOK)
 			if strings.Contains(req.URL.Path, "download_config_specs") {
 				_, _ = res.Write(configSpecBytes)
@@ -158,7 +158,7 @@ func TestInitDetails(t *testing.T) {
 		if !details.Success {
 			t.Errorf("Expected initalize success to be true")
 		}
-		if details.Error.Error() != "Failed to parse bootstrap values" {
+		if details.Error.Error() != "failed to parse bootstrap values" {
 			t.Errorf("Expected initalize to have bootstrap parsing error")
 		}
 		if details.Source != SourceNetwork {
@@ -228,7 +228,7 @@ func TestInitDetails(t *testing.T) {
 
 	t.Run("Data Adapter - failure (fallback to network success)", func(t *testing.T) {
 		testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-			defer req.Body.Close()
+			defer CloseBodyIgnoreErrors(req.Body)
 			res.WriteHeader(http.StatusOK)
 			if strings.Contains(req.URL.Path, "download_config_specs") {
 				_, _ = res.Write(configSpecBytes)

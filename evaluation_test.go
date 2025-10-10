@@ -63,9 +63,9 @@ func getOutputLoggerOptionsForTest(t *testing.T) OutputLoggerOptions {
 			if e != nil {
 				fmt.Println(e.Error())
 			}
-			defer f.Close()
+			defer CloseBodyIgnoreErrors(f)
 			mu.Lock()
-			_, e = f.WriteString(fmt.Sprintf("(%s) %s", t.Name(), message))
+			_, e = fmt.Fprintf(f, "(%s) %s", t.Name(), message)
 			fmt.Fprint(os.Stderr, err)
 			mu.Unlock()
 			if e != nil {
@@ -95,7 +95,7 @@ func TestMain(m *testing.M) {
 		}
 		secret = string(bytes)
 	}
-	os.Remove(debugLogFile)
+	_ = os.Remove(debugLogFile)
 	swallow_stderr(func() {
 		os.Exit(m.Run())
 	})

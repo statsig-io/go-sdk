@@ -50,7 +50,7 @@ func TestInitializeResponseConsistency(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to get a valid response from %s", endpoint)
 			}
-			defer response.Body.Close()
+			defer CloseBodyIgnoreErrors(response.Body)
 
 			if response.StatusCode < 200 || response.StatusCode >= 300 {
 				t.Errorf("Request to %s failed with status %d", endpoint, response.StatusCode)
@@ -117,11 +117,12 @@ func TestClientInitializeResponseOptions(t *testing.T) {
 		}
 	}
 	for _, c := range response.DynamicConfigs {
-		if c.Name == "test_custom_config" {
+		switch c.Name {
+		case "test_custom_config":
 			dynamicConfig = c
-		} else if c.Name == "test_experiment_with_targeting" {
+		case "test_experiment_with_targeting":
 			experiment = c
-		} else if c.Name == "test_autotune" {
+		case "test_autotune":
 			autotune = c
 		}
 	}
@@ -225,11 +226,12 @@ func TestClientInitializeResponseFilterOptions(t *testing.T) {
 				}
 			}
 			for _, c := range response.DynamicConfigs {
-				if c.Name == "test_custom_config" {
+				switch c.Name {
+				case "test_custom_config":
 					dynamicConfig = c
-				} else if c.Name == "test_experiment_with_targeting" {
+				case "test_experiment_with_targeting":
 					experiment = c
-				} else if c.Name == "test_autotune" {
+				case "test_autotune":
 					autotune = c
 				}
 			}

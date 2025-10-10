@@ -29,12 +29,12 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 				StatsigMetadata statsigMetadata `json:"statsigMetadata"`
 			}
 			input := &requestInput{}
-			defer req.Body.Close()
+			defer CloseBodyIgnoreErrors(req.Body)
 			if req.Header.Get("Content-Encoding") == "gzip" {
 				gz, _ := gzip.NewReader(req.Body)
 				bodyBytes, _ := io.ReadAll(gz)
 				_ = json.Unmarshal(bodyBytes, &input)
-				gz.Close()
+				_ = gz.Close()
 			} else {
 				buf := new(bytes.Buffer)
 				_, _ = buf.ReadFrom(req.Body)
@@ -143,7 +143,7 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 	idListSize := len(idListContent)
 
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		defer req.Body.Close()
+		defer CloseBodyIgnoreErrors(req.Body)
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			configSyncCount++
@@ -221,7 +221,7 @@ func TestUpdatingRulesAndFetchingValuesConcurrently(t *testing.T) {
 
 func TestOverrideAPIsConcurrency(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		defer req.Body.Close()
+		defer CloseBodyIgnoreErrors(req.Body)
 		res.WriteHeader(http.StatusOK)
 		if strings.Contains(req.URL.Path, "download_config_specs") {
 			bytes, _ := os.ReadFile("download_config_specs.json")

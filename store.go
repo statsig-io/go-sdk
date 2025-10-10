@@ -291,7 +291,7 @@ func (s *store) initialize(context *initContext) {
 				s.mu.Unlock()
 			}
 		} else {
-			context.setError(errors.New("Failed to parse bootstrap values"))
+			context.setError(errors.New("failed to parse bootstrap values"))
 		}
 	}
 	if s.lastSyncTime == 0 {
@@ -460,7 +460,7 @@ func (s *store) fetchConfigSpecsFromServer(context *initContext) {
 		}
 	} else {
 		if context != nil {
-			context.setError(errors.New("Failed to parse config specs"))
+			context.setError(errors.New("failed to parse config specs"))
 		}
 	}
 }
@@ -682,7 +682,7 @@ func (s *store) saveIDListsToAdapter(idLists map[string]*idList) {
 			list := s.getIDList(name)
 			list.mu.Lock()
 			list.ids.Range(func(key, value interface{}) bool {
-				buf.WriteString(fmt.Sprintf("+%s\n", key))
+				fmt.Fprintf(buf, "+%s\n", key)
 				return true
 			})
 			list.mu.Unlock()
@@ -740,12 +740,13 @@ func (s *store) processIDLists(idLists map[string]idList, source DataSource) {
 		wg.Add(1)
 		go func(name string, l *idList) {
 			defer wg.Done()
-			if source == NetworkDataSource {
+			switch source {
+			case NetworkDataSource:
 				s.downloadSingleIDListFromServer(l)
-			} else if source == AdapterDataSource {
+			case AdapterDataSource:
 				s.getSingleIDListFromAdapter(l)
-			} else {
-				s.errorBoundary.logException(errors.New("Invalid ID list data source"))
+			default:
+				s.errorBoundary.logException(errors.New("invalid ID list data source"))
 			}
 		}(name, localList)
 	}
@@ -769,7 +770,7 @@ func (s *store) downloadSingleIDListFromServer(list *idList) {
 		s.errorBoundary.logException(err)
 		return
 	}
-	defer res.Body.Close()
+	defer CloseBodyIgnoreErrors(res.Body)
 	s.addDiagnostics().getIdList().networkRequest().end().name(list.Name).url(list.URL).
 		success(true).statusCode(res.StatusCode).sdkRegion(safeGetFirst(res.Header["X-Statsig-Region"])).mark()
 	s.processSingleIDListFromNetwork(list, res)
@@ -833,9 +834,10 @@ func (s *store) processSingleIDList(list *idList, content string, length int) {
 		}
 		id := line[1:]
 		op := string(line[0])
-		if op == "+" {
+		switch op {
+		case "+":
 			list.ids.Store(id, true)
-		} else if op == "-" {
+		case "-":
 			list.ids.Delete(id)
 		}
 	}

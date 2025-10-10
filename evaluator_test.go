@@ -14,7 +14,7 @@ func TestStringComparsigon(t *testing.T) {
 	if !compareStrings(true, "true", true, eq) {
 		t.Error("Expected boolean to string equality check to pass")
 	}
-	var numInt int = 1
+	var numInt = 1
 	if !compareStrings(numInt, "1", true, eq) {
 		t.Error("Expected integer to string equality check to pass")
 	}
@@ -39,7 +39,7 @@ func TestStringComparsigon(t *testing.T) {
 func TestNumericComparsigon(t *testing.T) {
 	eq := func(x, y float64) bool { return x == y }
 
-	var numInt int = 1
+	var numInt = 1
 	if !compareNumbers(numInt, 1, eq) {
 		t.Error("Expected int equality check to pass")
 	}

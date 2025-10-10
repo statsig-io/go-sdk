@@ -64,9 +64,10 @@ func TestRetries(t *testing.T) {
 		defer func() {
 			tries = tries + 1
 		}()
-		if tries == 0 {
+		switch tries {
+		case 0:
 			res.WriteHeader(http.StatusInternalServerError)
-		} else if tries == 1 {
+		case 1:
 			output := ServerResponse{
 				Name: "test",
 			}

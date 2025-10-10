@@ -269,7 +269,7 @@ func swallow_stderr(task func()) string {
 	r, w, _ := os.Pipe()
 	os.Stderr = w
 	task()
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	_, _ = io.Copy(&buf, r)
 	os.Stderr = stderr

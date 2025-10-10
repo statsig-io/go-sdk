@@ -2,7 +2,6 @@ package statsig
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -148,8 +147,7 @@ func (d *diagnosticsBase) updateSamplingRates(samplingRates map[string]int) {
 }
 
 func sample(rate_over_ten_thousand int) bool {
-	rand.Seed(time.Now().UnixNano())
-	return int(math.Floor(rand.Float64()*10_000)) < rate_over_ten_thousand
+	return int(rand.Float64()*10_000) < rate_over_ten_thousand
 }
 
 func (d *diagnosticsBase) clearMarkers() {
@@ -372,26 +370,30 @@ func (m *marker) logProcess() {
 	}
 
 	if *m.Key == OverallKey {
-		if *m.Action == StartAction {
-			msg = "Starting..."
-		} else if *m.Action == EndAction {
-			msg = "Done"
-		}
+	switch *m.Action {
+	case StartAction:
+		msg = "Starting..."
+	case EndAction:
+		msg = "Done"
+	}
 	} else {
-		if *m.Step == NetworkRequestStep || *m.Step == FetchStep {
-			if *m.Action == StartAction {
+		switch *m.Step {
+		case NetworkRequestStep, FetchStep:
+			switch *m.Action {
+			case StartAction:
 				msg = fmt.Sprintf("Loading %s from %s...", dataType, dataSource)
-			} else if *m.Action == EndAction {
+			case EndAction:
 				if *m.Success {
 					msg = fmt.Sprintf("Done loading %s from %s", dataType, dataSource)
 				} else {
 					msg = fmt.Sprintf("Failed to load %s from %s", dataType, dataSource)
 				}
 			}
-		} else if *m.Step == ProcessStep {
-			if *m.Action == StartAction {
+		case ProcessStep:
+			switch *m.Action {
+			case StartAction:
 				msg = fmt.Sprintf("Processing %s from %s", dataType, dataSource)
-			} else if *m.Action == EndAction {
+			case EndAction:
 				if *m.Success {
 					msg = fmt.Sprintf("Done processing %s from %s", dataType, dataSource)
 				} else {

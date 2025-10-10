@@ -89,12 +89,12 @@ func getTestServer(opts testServerOptions) *httptest.Server {
 				StatsigMetadata statsigMetadata          `json:"statsigMetadata"`
 			}
 			input := &requestInput{}
-			defer req.Body.Close()
+			defer CloseBodyIgnoreErrors(req.Body)
 			if req.Header.Get("Content-Encoding") == "gzip" {
 				gz, _ := gzip.NewReader(req.Body)
 				bodyBytes, _ := io.ReadAll(gz)
 				_ = json.Unmarshal(bodyBytes, &input)
-				gz.Close()
+				_ = gz.Close()
 			} else {
 				buf := new(bytes.Buffer)
 				_, _ = buf.ReadFrom(req.Body)
