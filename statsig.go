@@ -162,6 +162,13 @@ func GetExperimentWithOptions(user User, experiment string, options *GetExperime
 	return instance.GetExperimentWithOptions(user, experiment, options)
 }
 
+func GetExperimentByGroupName(experimentName string, groupName string) DynamicConfig {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetExperimentByGroupName"))
+	}
+	return instance.GetExperimentByGroupName(experimentName, groupName)
+}
+
 // Logs an exposure event for the experiment
 func ManuallyLogExperimentExposure(user User, experiment string) {
 	if !IsInitialized() {

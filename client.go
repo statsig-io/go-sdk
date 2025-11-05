@@ -204,6 +204,16 @@ func (c *Client) GetExperimentWithOptions(user User, experiment string, options 
 	})
 }
 
+func (c *Client) GetExperimentByGroupName(experimentName string, groupName string) DynamicConfig {
+	return c.errorBoundary.captureGetConfig(func(context *evalContext) DynamicConfig {
+		return c.getExperimentByGroupNameImpl(experimentName, groupName)
+	}, &evalContext{
+		Caller:              "getExperimentByGroupName",
+		ConfigName:          experimentName,
+		IsExperiment:        true,
+	})
+}
+
 // Logs an exposure event for the experiment
 func (c *Client) ManuallyLogExperimentExposure(user User, experiment string) {
 	c.ManuallyLogConfigExposure(user, experiment)
@@ -428,6 +438,19 @@ func (c *Client) getConfigImpl(user User, name string, context *evalContext) Dyn
 		}
 	}
 	return config
+}
+
+func (c *Client) getExperimentByGroupNameImpl(experimentName string, groupName string) DynamicConfig {
+	config, ok := c.evaluator.getDynamicConfig(experimentName)
+	if !ok {
+		return *NewConfig(experimentName, nil, "", "", "", c.evaluator.createEvaluationDetails(ReasonUnrecognized))
+	}
+	for _, rule := range config.Rules {
+		if rule.GroupName == groupName {
+			return *NewConfig(experimentName, rule.ReturnValueJSON, rule.ID, rule.IDType, rule.GroupName, c.evaluator.createEvaluationDetails(ReasonNone))
+		}
+	}
+	return *NewConfig(experimentName, nil, "", "", "", c.evaluator.createEvaluationDetails(ReasonUnrecognized))
 }
 
 func (c *Client) getLayerImpl(user User, name string, context *evalContext) Layer {

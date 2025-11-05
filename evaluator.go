@@ -153,6 +153,10 @@ func (e *evaluator) createEvaluationDetails(reason EvaluationReason) *Evaluation
 	return newEvaluationDetails(e.store.source, reason, e.store.lastSyncTime, e.store.initialSyncTime)
 }
 
+func (e *evaluator) getDynamicConfig(configName string) (configSpec, bool) {
+	return e.store.getDynamicConfig(configName)
+}
+
 func (e *evaluator) evalGate(user User, gateName string, context *evalContext) *evalResult {
 	return e.evalGateImpl(user, gateName, 0, context)
 }
