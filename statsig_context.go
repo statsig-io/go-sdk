@@ -36,6 +36,7 @@ type initContext struct {
 	Success        bool
 	Error          error
 	Source         EvaluationSource
+	CurrentSourceAPI string
 	SourceAPI      string
 	StorePopulated bool
 	mu             sync.RWMutex
@@ -67,6 +68,12 @@ func (c *initContext) setSourceAPI(sourceAPI string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.SourceAPI = sourceAPI
+}
+
+func (c *initContext) setCurrentSourceAPI(currentSourceAPI string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.CurrentSourceAPI = currentSourceAPI
 }
 
 func (c *initContext) setStorePopulated(populated bool) {

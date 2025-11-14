@@ -454,6 +454,9 @@ func (s *store) fetchConfigSpecsFromServer(context *initContext) {
 				v, _ := json.Marshal(specs)
 				s.rulesUpdatedCallback(string(v[:]), specs.Time)
 			}
+			if context != nil {
+				context.setSourceAPI(context.CurrentSourceAPI)
+			}
 			s.saveConfigSpecsToAdapter(specs)
 		} else {
 			s.source = SourceNetworkNotModified

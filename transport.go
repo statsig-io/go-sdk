@@ -224,7 +224,7 @@ func (t *transport) buildURL(path string, isRetry bool, context *initContext) (*
 			api = defaultString(t.options.APIOverrides.DownloadConfigSpecs, defaultString(t.options.API, StatsigCDN))
 		}
 		if context != nil {
-			context.setSourceAPI(api)
+			context.setCurrentSourceAPI(api)
 		}
 	} else if strings.Contains(endpoint, "get_id_list") {
 		if useDefaultAPI {
@@ -253,6 +253,9 @@ func (t *transport) updateRequestForRetry(r *http.Request, context *initContext)
 	if err == nil && strings.Compare(r.URL.Host, retryURL.Host) != 0 {
 		retryRequest, err := http.NewRequest(r.Method, retryURL.String(), r.Body)
 		if err == nil {
+			for k, v := range r.Header {
+				retryRequest.Header[k] = v
+			}
 			return retryRequest
 		}
 	}
@@ -292,13 +295,16 @@ func (transport *transport) doRequest(
 			diagnostics.mark()
 		}
 
-		if err != nil {
-			return response, response != nil, err
-		}
-
+		// Check if we can fallback to default API (before handling errors)
 		retryRequest := transport.updateRequestForRetry(request, context)
+		canFallbackToDefault := retryRequest != nil
 		if retryRequest != nil {
 			request = retryRequest
+		}
+
+		if err != nil {
+			shouldRetry := transport.shouldRetryRequest(err, response, canFallbackToDefault)
+			return response, shouldRetry, err
 		}
 
 		drainAndCloseBody := func() {
@@ -314,7 +320,8 @@ func (transport *transport) doRequest(
 			return response, false, transport.parseResponse(response, out)
 		}
 
-		return response, retryableStatusCode(response.StatusCode), fmt.Errorf("%s", response.Status)
+		shouldRetry := transport.shouldRetryRequest(nil, response, canFallbackToDefault)
+		return response, shouldRetry, fmt.Errorf("%s", response.Status)
 	})
 
 	if err != nil {
@@ -332,6 +339,23 @@ func (transport *transport) doRequest(
 	}
 
 	return response, nil
+}
+
+func (transport *transport) shouldRetryRequest(err error, response *http.Response, canFallbackToDefault bool) bool {
+	// If there's an error, retry only if we can fallback to default API
+	if err != nil {
+		return transport.options.FallbackToStatsigAPI && canFallbackToDefault
+	}
+
+	// If successful status code, no need to retry
+	if successfulStatusCode(response.StatusCode) {
+		return false
+	}
+
+	// For non-successful status codes, retry if:
+	// 1. Status code is retryable (408, 500, 502, 503, 504, 522, 524, 599), OR
+	// 2. We can fallback to default API (allows retry even for non-retryable codes like 404)
+	return retryableStatusCode(response.StatusCode) || (transport.options.FallbackToStatsigAPI && canFallbackToDefault)
 }
 
 func (transport *transport) parseResponse(response *http.Response, out interface{}) error {
