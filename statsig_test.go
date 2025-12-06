@@ -151,3 +151,35 @@ func TestGetExperimentByGroupName(t *testing.T) {
 
 	ShutdownAndDangerouslyClearInstance()
 }
+
+func TestGetExperimentByGroupIDAdvanced(t *testing.T) {
+	testServer := getTestServer(testServerOptions{
+	})
+	defer testServer.Close()
+	opt := &Options{
+		API:                  testServer.URL,
+		OutputLoggerOptions:  getOutputLoggerOptionsForTest(t),
+		StatsigLoggerOptions: getStatsigLoggerOptionsForTest(t),
+	}
+	InitializeWithOptions("secret-key", opt)
+	experiment := GetExperimentByGroupIDAdvanced("sample_experiment", "2RamGsERWbWMIMnSfOlQuX")
+	if experiment.GroupName != "Control" {
+		t.Errorf("Expected group name Control. Received: %s", experiment.GroupName)
+	}
+	if experiment.Value["experiment_param"] != "control" {
+		t.Errorf("Expected experiment param control. Received: %s", experiment.Value["experiment_param"])
+	}
+
+	naExperiment := GetExperimentByGroupIDAdvanced("sample_experiment", "Not a group")
+	if naExperiment.Name != "sample_experiment" {
+		t.Errorf("Expected experiment name sample_experiment. Received: %s", naExperiment.Name)
+	}
+	if naExperiment.Value["experiment_param"] != nil {
+		t.Errorf("Expected experiment param to be nil. Received: %s", naExperiment.Value["experiment_param"])
+	}
+	if naExperiment.EvaluationDetails.Reason != ReasonUnrecognized {
+		t.Errorf("Expected evaluation details reason Unrecognized. Received: %s", naExperiment.EvaluationDetails.Reason)
+	}
+
+	ShutdownAndDangerouslyClearInstance()
+}

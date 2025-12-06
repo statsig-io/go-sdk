@@ -169,6 +169,13 @@ func GetExperimentByGroupName(experimentName string, groupName string) DynamicCo
 	return instance.GetExperimentByGroupName(experimentName, groupName)
 }
 
+func GetExperimentByGroupIDAdvanced(experimentName string, groupId string) DynamicConfig {
+	if !IsInitialized() {
+		panic(fmt.Errorf("must Initialize() statsig before calling GetExperimentByGroupIDAdvanced"))
+	}
+	return instance.GetExperimentByGroupIDAdvanced(experimentName, groupId)
+}
+
 // Logs an exposure event for the experiment
 func ManuallyLogExperimentExposure(user User, experiment string) {
 	if !IsInitialized() {

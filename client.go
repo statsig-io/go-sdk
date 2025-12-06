@@ -214,6 +214,16 @@ func (c *Client) GetExperimentByGroupName(experimentName string, groupName strin
 	})
 }
 
+func (c *Client) GetExperimentByGroupIDAdvanced(experimentName string, groupId string) DynamicConfig {
+	return c.errorBoundary.captureGetConfig(func(context *evalContext) DynamicConfig {
+		return c.getExperimentByGroupIDAdvancedImpl(experimentName, groupId)
+	}, &evalContext{
+		Caller:              "getExperimentByGroupIDAdvanced",
+		ConfigName:          experimentName,
+		IsExperiment:        true,
+	})
+}
+
 // Logs an exposure event for the experiment
 func (c *Client) ManuallyLogExperimentExposure(user User, experiment string) {
 	c.ManuallyLogConfigExposure(user, experiment)
@@ -447,6 +457,19 @@ func (c *Client) getExperimentByGroupNameImpl(experimentName string, groupName s
 	}
 	for _, rule := range config.Rules {
 		if rule.GroupName == groupName {
+			return *NewConfig(experimentName, rule.ReturnValueJSON, rule.ID, rule.IDType, rule.GroupName, c.evaluator.createEvaluationDetails(ReasonNone))
+		}
+	}
+	return *NewConfig(experimentName, nil, "", "", "", c.evaluator.createEvaluationDetails(ReasonUnrecognized))
+}
+
+func (c *Client) getExperimentByGroupIDAdvancedImpl(experimentName string, groupId string) DynamicConfig {
+	config, ok := c.evaluator.getDynamicConfig(experimentName)
+	if !ok {
+		return *NewConfig(experimentName, nil, "", "", "", c.evaluator.createEvaluationDetails(ReasonUnrecognized))
+	}
+	for _, rule := range config.Rules {
+		if rule.ID == groupId {
 			return *NewConfig(experimentName, rule.ReturnValueJSON, rule.ID, rule.IDType, rule.GroupName, c.evaluator.createEvaluationDetails(ReasonNone))
 		}
 	}
