@@ -1335,7 +1335,7 @@ func (e *evaluator) applyCMABSampling(cmab *configSpec, cmabConfig map[string]cm
 		if exists {
 			curCount += float64(config.Records)
 		}
-		sum += 1.0 / (curCount / totalRecords)
+		sum += 1.0 / curCount / totalRecords
 		if value < sum {
 			result := &evalResult{
 				JsonValue:          group.ParameterValuesJSON,
