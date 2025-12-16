@@ -1,4 +1,4 @@
-module github.com/statsig-io/go-sdk
+module github.com/statsig-io/go-sdk/v2
 
 go 1.24
 
