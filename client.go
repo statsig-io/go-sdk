@@ -148,7 +148,7 @@ func (c *Client) ManuallyLogGateExposure(user User, gate string) {
 func (c *Client) GetConfig(user User, config string) DynamicConfig {
 	return c.errorBoundary.captureGetConfig(func(context *evalContext) DynamicConfig {
 		return c.getConfigImpl(user, config, context)
-	}, &evalContext{Caller: "getConfig", ConfigName: config})
+	}, &evalContext{Caller: "getConfig", ConfigName: config, Statsig: c})
 }
 
 // Gets the DynamicConfig value for the given user without logging an exposure event
@@ -174,21 +174,21 @@ func (c *Client) ManuallyLogConfigExposure(user User, config string) {
 func (c *Client) GetExperimentLayer(experiment string) (string, bool) {
 	return c.errorBoundary.captureGetExperimentLayer(func(context *evalContext) (string, bool) {
 		return c.evaluator.store.getExperimentLayer(experiment)
-	}, &evalContext{Caller: "getExperimentLayer", ConfigName: experiment})
+	}, &evalContext{Caller: "getExperimentLayer", ConfigName: experiment, Statsig: c})
 }
 
 // Gets the DynamicConfig value of an Experiment for the given user
 func (c *Client) GetExperiment(user User, experiment string) DynamicConfig {
 	return c.errorBoundary.captureGetConfig(func(context *evalContext) DynamicConfig {
 		return c.getConfigImpl(user, experiment, context)
-	}, &evalContext{Caller: "getExperiment", ConfigName: experiment, IsExperiment: true})
+	}, &evalContext{Caller: "getExperiment", ConfigName: experiment, IsExperiment: true, Statsig: c})
 }
 
 // Gets the DynamicConfig value of an Experiment for the given user without logging an exposure event
 func (c *Client) GetExperimentWithExposureLoggingDisabled(user User, experiment string) DynamicConfig {
 	return c.errorBoundary.captureGetConfig(func(context *evalContext) DynamicConfig {
 		return c.getConfigImpl(user, experiment, context)
-	}, &evalContext{Caller: "getExperimentWithExposureLoggingDisabled", ConfigName: experiment, IsExperiment: true, DisableLogExposures: true})
+	}, &evalContext{Caller: "getExperimentWithExposureLoggingDisabled", ConfigName: experiment, IsExperiment: true, DisableLogExposures: true, Statsig: c})
 }
 
 // Gets the DynamicConfig value of an Experiment for the given user with configurable options
@@ -201,6 +201,7 @@ func (c *Client) GetExperimentWithOptions(user User, experiment string, options 
 		IsExperiment:        true,
 		DisableLogExposures: options.DisableLogExposures,
 		PersistedValues:     options.PersistedValues,
+		Statsig:             c,
 	})
 }
 
@@ -244,14 +245,14 @@ func (c *Client) GetUserPersistedValues(user User, idType string) UserPersistedV
 func (c *Client) GetLayer(user User, layer string) Layer {
 	return c.errorBoundary.captureGetLayer(func(context *evalContext) Layer {
 		return c.getLayerImpl(user, layer, context)
-	}, &evalContext{Caller: "getLayer", ConfigName: layer})
+	}, &evalContext{Caller: "getLayer", ConfigName: layer, Statsig: c})
 }
 
 // Gets the Layer object for the given user without logging an exposure event
 func (c *Client) GetLayerWithExposureLoggingDisabled(user User, layer string) Layer {
 	return c.errorBoundary.captureGetLayer(func(context *evalContext) Layer {
 		return c.getLayerImpl(user, layer, context)
-	}, &evalContext{Caller: "getLayerWithExposureLoggingDisabled", ConfigName: layer, DisableLogExposures: true})
+	}, &evalContext{Caller: "getLayerWithExposureLoggingDisabled", ConfigName: layer, DisableLogExposures: true, Statsig: c})
 }
 
 // Gets the Layer object for the given user with configurable options
@@ -263,6 +264,7 @@ func (c *Client) GetLayerWithOptions(user User, layer string, options *GetLayerO
 		ConfigName:          layer,
 		DisableLogExposures: options.DisableLogExposures,
 		PersistedValues:     options.PersistedValues,
+		Statsig:             c,
 	})
 }
 
@@ -276,7 +278,7 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 		res := c.evaluator.evalLayer(user, layer, context)
 		config := NewLayer(layer, res.JsonValue, res.RuleID, res.IDType, res.GroupName, res.EvaluationDetails, nil, res.ConfigDelegate)
 		c.logger.logLayerExposure(user, *config, parameter, res, context)
-	}, &evalContext{Caller: "logLayerParameterExposure", ConfigName: layer, IsManualExposure: true})
+	}, &evalContext{Caller: "logLayerParameterExposure", ConfigName: layer, IsManualExposure: true, Statsig: c})
 }
 
 // Logs an event to Statsig for analysis in the Statsig Console

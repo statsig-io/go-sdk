@@ -29,6 +29,7 @@ type evalContext struct {
 	EvalSamplingRate                  *int
 	EvalHasSeenAnalyticalGates        bool
 	UseControlForUsersNotInExperiment bool
+	Statsig                           *Client
 }
 
 type initContext struct {

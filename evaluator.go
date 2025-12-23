@@ -778,6 +778,8 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		} else {
 			return &evalResult{Value: !result.Value, SecondaryExposures: allExposures, DerivedDeviceMetadata: result.DerivedDeviceMetadata}
 		}
+	case strings.EqualFold(condType, "experiment_group"):
+		value = e.evaluateExperimentGroup(user, cond.Field, context)
 	case strings.EqualFold(condType, "ip_based"):
 		value = getFromUser(user, cond.Field)
 		if value == nil || value == "" {
@@ -965,6 +967,15 @@ func (e *evaluator) evalCondition(user User, cond configCondition, depth int, co
 		unsupported = true
 	}
 	return &evalResult{Value: pass, Unsupported: unsupported, DerivedDeviceMetadata: deviceMetadata}
+}
+
+func (e *evaluator) evaluateExperimentGroup(user User, experimentName string, context *evalContext) string {
+	var groupName string
+	if context.Statsig != nil {
+		config := context.Statsig.getConfigImpl(user, experimentName, context)
+		groupName = config.GroupName
+	}
+	return groupName
 }
 
 func getFromUser(user User, field string) interface{} {
