@@ -277,8 +277,8 @@ func (c *Client) ManuallyLogLayerParameterExposure(user User, layer string, para
 		user = normalizeUser(user, *c.options)
 		res := c.evaluator.evalLayer(user, layer, context)
 		config := NewLayer(layer, res.JsonValue, res.RuleID, res.IDType, res.GroupName, res.EvaluationDetails, nil, res.ConfigDelegate)
-		c.logger.logLayerExposure(user, *config, parameter, res, context)
-	}, &evalContext{Caller: "logLayerParameterExposure", ConfigName: layer, IsManualExposure: true, Statsig: c})
+		c.logger.logLayerParameterExposure(user, *config, parameter, res, context)
+	}, &evalContext{Caller: "logLayerParameterExposure", ConfigName: layer, IsManualExposure: true})
 }
 
 // Logs an event to Statsig for analysis in the Statsig Console
@@ -487,7 +487,7 @@ func (c *Client) getLayerImpl(user User, name string, context *evalContext) Laye
 	res := c.evaluator.evalLayer(user, name, context)
 
 	logFunc := func(layer Layer, parameterName string) {
-		exposure := c.logger.logLayerExposure(user, layer, parameterName, res, context)
+		exposure := c.logger.logLayerParameterExposure(user, layer, parameterName, res, context)
 		if c.options.EvaluationCallbacks.LayerEvaluationCallback != nil {
 			if c.options.EvaluationCallbacks.IncludeDisabledExposures || !context.DisableLogExposures {
 				c.options.EvaluationCallbacks.LayerEvaluationCallback(name, parameterName, DynamicConfig{layer.configBase}, exposure)

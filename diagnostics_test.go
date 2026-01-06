@@ -2,6 +2,7 @@ package statsig
 
 import (
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -435,8 +436,8 @@ func TestDiagnosticsMaxMarkers(t *testing.T) {
 		},
 	}
 	InitializeWithOptions("secret-key", options)
-	user := User{UserID: "123"}
 	for i := 0; i < 10; i++ {
+		user := User{UserID: "123" + strconv.Itoa(i)}
 		CheckGate(user, "non_existent_gate")
 		GetConfig(user, "non_existent_config")
 		GetExperiment(user, "non_existent_experiment")

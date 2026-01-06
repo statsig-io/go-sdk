@@ -81,18 +81,21 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 		g := g
 		go func() {
 			defer wg.Done()
-			statsigUser := User{
-				UserID:            fmt.Sprintf("statsig_u_%d", g),
-				Email:             "u@statsig.com",
-				PrivateAttributes: map[string]interface{}{"private": "shh"},
-				Custom:            map[string]interface{}{"key": "value"},
-				CustomIDs:         map[string]string{"randomID": "123456"},
-			}
-			user := User{
-				UserID: "regular_user_id",
-				Email:  "u@gmail.com",
-			}
+
 			for i := 0; i < loops; i++ {
+				statsigUser := User{
+					UserID:            fmt.Sprintf("statsig_u_%d", g),
+					Email:             "u@statsig.com",
+					PrivateAttributes: map[string]interface{}{"private": "shh"},
+					Custom:            map[string]interface{}{"key": "value"},
+					CustomIDs:         map[string]string{"randomID": "123456", "iterID": fmt.Sprintf("%d_%d", g, i)},
+				}
+				user := User{
+					UserID:    "regular_user_id",
+					Email:     "u@gmail.com",
+					CustomIDs: map[string]string{"iterID": fmt.Sprintf("%d_%d", g, i)},
+				}
+
 				LogEvent(Event{EventName: "test_event", User: user})
 				if CheckGate(statsigUser, "on_for_id_list") || !CheckGate(user, "on_for_id_list") {
 					t.Error("statsigUser should fail and regular user should pass for on_for_id_list gate")
@@ -125,7 +128,7 @@ func TestCallingAPIsConcurrently(t *testing.T) {
 
 	// only 100 should still be in the logger now because the first 1000 would have been cut and triggered a flush
 	if len(instance.logger.events) != 100 {
-		t.Error("Incorrect number of events batched in the logger")
+		t.Error("Incorrect number of events batched in the logger expected 100 but got ", len(instance.logger.events))
 	}
 
 	ShutdownAndDangerouslyClearInstance()

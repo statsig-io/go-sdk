@@ -33,7 +33,7 @@ func TestExposureLogging(t *testing.T) {
 	t.Run("logs exposures for all API", func(t *testing.T) {
 		start()
 		gateValue := CheckGate(user, "always_on_gate")
-		gate := GetGate(user, "always_on_gate")
+		gate := GetGate(User{UserID: "some_user_id_again", Email: "someuser@statsig.com"}, "always_on_gate")
 		config := GetConfig(user, "test_config")
 		experiment := GetExperiment(user, "sample_experiment")
 		layer := GetLayer(user, "a_layer")

@@ -54,6 +54,7 @@ type logger struct {
 	diagnostics    *diagnostics
 	options        *Options
 	errorBoundary  *errorBoundary
+	dedupeKeySet   *TTLSet
 	samplingKeySet *TTLSet
 	SDKConfigs     *SDKConfigs
 }
@@ -78,6 +79,7 @@ func newLogger(transport *transport, options *Options, diagnostics *diagnostics,
 		options:        options,
 		errorBoundary:  errorBoundary,
 		samplingKeySet: NewTTLSet(),
+		dedupeKeySet:   NewTTLSet(),
 		SDKConfigs:     sdkConfigs,
 	}
 
@@ -128,7 +130,10 @@ func (l *logger) logGateExposure(
 	res *evalResult,
 	context *evalContext,
 ) *ExposureEvent {
-	shouldLog, samplingRate, shadowLogged, samplingMode := l.determineSampling(EntityGate, gateName, res, &user, "", "")
+	exposureKey := l.createExposureKey(EntityGate, gateName, res, &user, "", "")
+	shouldDedupe := l.shouldDedupeExposure(exposureKey)
+	shouldLog, samplingRate, shadowLogged, samplingMode := l.determineSampling(gateName, res, exposureKey)
+
 	metadata := map[string]string{
 		"gate":      gateName,
 		"gateValue": strconv.FormatBool(res.Value),
@@ -151,9 +156,11 @@ func (l *logger) logGateExposure(
 	l.addEvaluationDetailsToExposureEvent(evt, res.EvaluationDetails)
 	l.addDeviceMetadataToExposureEvent(evt, res.DerivedDeviceMetadata)
 	l.addSamplingMetadataToExposureEvent(evt, samplingRate, shadowLogged, samplingMode)
-	if shouldLog && (context == nil || !context.DisableLogExposures) {
+
+	if !shouldDedupe && shouldLog && (context == nil || !context.DisableLogExposures) {
 		l.logExposure(*evt)
 	}
+
 	return evt
 }
 
@@ -210,7 +217,10 @@ func (l *logger) logConfigExposure(
 	res *evalResult,
 	context *evalContext,
 ) *ExposureEvent {
-	shouldLog, samplingRate, shadowLogged, samplingMode := l.determineSampling(EntityConfig, configName, res, &user, "", "")
+	exposureKey := l.createExposureKey(EntityConfig, configName, res, &user, "", "")
+	shouldDedupe := l.shouldDedupeExposure(exposureKey)
+	shouldLog, samplingRate, shadowLogged, samplingMode := l.determineSampling(configName, res, exposureKey)
+
 	metadata := map[string]string{
 		"config":     configName,
 		"ruleID":     res.RuleID,
@@ -231,13 +241,15 @@ func (l *logger) logConfigExposure(
 	l.addEvaluationDetailsToExposureEvent(evt, res.EvaluationDetails)
 	l.addDeviceMetadataToExposureEvent(evt, res.DerivedDeviceMetadata)
 	l.addSamplingMetadataToExposureEvent(evt, samplingRate, shadowLogged, samplingMode)
-	if shouldLog && (context == nil || !context.DisableLogExposures) {
+
+	if !shouldDedupe && shouldLog && (context == nil || !context.DisableLogExposures) {
 		l.logExposure(*evt)
 	}
+
 	return evt
 }
 
-func (l *logger) logLayerExposure(
+func (l *logger) logLayerParameterExposure(
 	user User,
 	config Layer,
 	parameterName string,
@@ -257,6 +269,7 @@ func (l *logger) logLayerExposure(
 		allocatedExperiment = evalResult.ConfigDelegate
 		exposures = evalResult.SecondaryExposures
 	}
+
 	metadata := map[string]string{
 		"config":              config.Name,
 		"ruleID":              config.RuleID,
@@ -279,18 +292,23 @@ func (l *logger) logLayerExposure(
 		Metadata:           metadata,
 		SecondaryExposures: exposures,
 	}
-	shouldLog, samplingRate, shadowLogged, samplingMode := l.determineSampling(EntityLayer, config.Name, evalResult, &user, parameterName, allocatedExperiment)
+	exposureKey := l.createExposureKey(EntityLayer, config.Name, evalResult, &user, parameterName, allocatedExperiment)
+	shouldDedupe := l.shouldDedupeExposure(exposureKey)
+	shouldLog, samplingRate, shadowLogged, samplingMode := l.determineSampling(config.Name, evalResult, exposureKey)
 	l.addEvaluationDetailsToExposureEvent(evt, evalResult.EvaluationDetails)
 	l.addDeviceMetadataToExposureEvent(evt, evalResult.DerivedDeviceMetadata)
 	l.addSamplingMetadataToExposureEvent(evt, samplingRate, shadowLogged, samplingMode)
-	if shouldLog && (context == nil || !context.DisableLogExposures) {
+
+	if !shouldDedupe && shouldLog && (context == nil || !context.DisableLogExposures) {
 		l.logExposure(*evt)
 	}
+
 	return evt
 }
 
 func (l *logger) shutdown() {
 	l.samplingKeySet.Shutdown()
+	l.dedupeKeySet.Shutdown()
 	l.flush(true)
 }
 
@@ -365,12 +383,42 @@ func (l *logger) logDiagnosticsEvent(d *diagnosticsBase) {
 	l.logInternal(event)
 }
 
-func (l *logger) determineSampling(entityType EntityType,
+func (l *logger) createExposureKey(
+	entityType EntityType,
 	name string,
 	result *evalResult,
 	user *User,
 	paramName string,
 	allocatedExperiment string,
+) string {
+	var exposureKey string
+	switch entityType {
+	case EntityGate:
+		exposureKey = computeDedupeKeyForGate(name, result.RuleID, result.Value,
+			user.UserID, user.CustomIDs)
+	case EntityConfig:
+		exposureKey = computeDedupeKeyForConfig(name, result.RuleID, user.UserID, user.CustomIDs)
+	case EntityLayer:
+		exposureKey = computeDedupeKeyForLayer(name, allocatedExperiment, paramName,
+			result.RuleID, user.UserID, user.CustomIDs)
+	}
+
+	return exposureKey
+}
+
+func (l *logger) shouldDedupeExposure(exposureKey string) bool {
+	if l.dedupeKeySet.Contains(exposureKey) {
+		return true
+	}
+
+	l.dedupeKeySet.Add(exposureKey)
+	return false
+}
+
+func (l *logger) determineSampling(
+	name string,
+	result *evalResult,
+	exposureKey string,
 ) (shouldLog bool, loggedSamplingRate *int, shadowLogged *string, samplingMode string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -416,18 +464,6 @@ func (l *logger) determineSampling(entityType EntityType,
 	shouldSample := result.SamplingRate != nil || specialCaseRules[result.RuleID]
 	if !shouldSample {
 		return true, nil, nil, samplingMode
-	}
-
-	var exposureKey string
-	switch entityType {
-	case EntityGate:
-		exposureKey = computeDedupeKeyForGate(name, result.RuleID, result.Value,
-			user.UserID, user.CustomIDs)
-	case EntityConfig:
-		exposureKey = computeDedupeKeyForConfig(name, result.RuleID, user.UserID, user.CustomIDs)
-	case EntityLayer:
-		exposureKey = computeDedupeKeyForLayer(name, allocatedExperiment, paramName,
-			result.RuleID, user.UserID, user.CustomIDs)
 	}
 
 	if result.SamplingRate != nil {

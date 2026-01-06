@@ -28,28 +28,28 @@ func TestDerivedDeviceMetadata(t *testing.T) {
 	}
 	InitializeWithOptions("secret-key", options)
 
-	browserNamePassUser := User{UserID: "browser_name_user",
+	browserNamePassUser := User{UserID: "browser_name_user_pass",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
 	CheckGate(browserNamePassUser, "test_ua_browser_name")
-	browserNameFailUser := User{UserID: "browser_name_user",
+	browserNameFailUser := User{UserID: "browser_name_user_fail",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.3"}
 	CheckGate(browserNameFailUser, "test_ua_browser_name")
-	browserVersionPassUser := User{UserID: "browser_version_user",
+	browserVersionPassUser := User{UserID: "browser_version_user_pass",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
 	CheckGate(browserVersionPassUser, "test_ua_browser_version")
-	browserVersionFailUser := User{UserID: "browser_version_user",
+	browserVersionFailUser := User{UserID: "browser_version_user_fail",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/1.0 Safari/537.3"}
 	CheckGate(browserVersionFailUser, "test_ua_browser_version")
-	osNamePassUser := User{UserID: "os_name_user",
+	osNamePassUser := User{UserID: "os_name_user_pass",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
 	CheckGate(osNamePassUser, "test_ua_os_name")
-	osNameFailUser := User{UserID: "os_name_user",
+	osNameFailUser := User{UserID: "os_name_user_fail",
 		UserAgent: "Mozilla/5.0 (iOS 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
 	CheckGate(osNameFailUser, "test_ua_os_name")
-	osVersionPassUser := User{UserID: "os_version_user",
+	osVersionPassUser := User{UserID: "os_version_user_pass",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
 	CheckGate(osVersionPassUser, "test_ua_os_version")
-	osVersionFailUser := User{UserID: "os_version_user",
+	osVersionFailUser := User{UserID: "os_version_user_fail",
 		UserAgent: "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
 	CheckGate(osVersionFailUser, "test_ua_os_version")
 
