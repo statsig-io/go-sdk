@@ -132,6 +132,15 @@ func (c *Client) GetGateWithExposureLoggingDisabled(user User, gate string) Feat
 	}, &evalContext{Caller: "getGateWithExposureLoggingDisabled", ConfigName: gate, DisableLogExposures: true})
 }
 
+type ExposureHook func(user User, configName string, exposure ExposureEvent) (shouldEmit bool)
+
+// Checks the value of a Feature Gate for the given user without logging an exposure event
+func (c *Client) GetGateWithExposureHook(user User, gate string, exposureHook ExposureHook) FeatureGate {
+	return c.errorBoundary.captureCheckGate(func(context *evalContext) FeatureGate {
+		return c.checkGateImpl(user, gate, context)
+	}, &evalContext{Caller: "getGateWithExposureLoggingDisabled", ConfigName: gate, ExposureHook: exposureHook})
+}
+
 // Logs an exposure event for the dynamic config
 func (c *Client) ManuallyLogGateExposure(user User, gate string) {
 	c.errorBoundary.captureVoid(func(context *evalContext) {
@@ -209,9 +218,9 @@ func (c *Client) GetExperimentByGroupName(experimentName string, groupName strin
 	return c.errorBoundary.captureGetConfig(func(context *evalContext) DynamicConfig {
 		return c.getExperimentByGroupNameImpl(experimentName, groupName)
 	}, &evalContext{
-		Caller:              "getExperimentByGroupName",
-		ConfigName:          experimentName,
-		IsExperiment:        true,
+		Caller:       "getExperimentByGroupName",
+		ConfigName:   experimentName,
+		IsExperiment: true,
 	})
 }
 
@@ -219,9 +228,9 @@ func (c *Client) GetExperimentByGroupIDAdvanced(experimentName string, groupId s
 	return c.errorBoundary.captureGetConfig(func(context *evalContext) DynamicConfig {
 		return c.getExperimentByGroupIDAdvancedImpl(experimentName, groupId)
 	}, &evalContext{
-		Caller:              "getExperimentByGroupIDAdvanced",
-		ConfigName:          experimentName,
-		IsExperiment:        true,
+		Caller:       "getExperimentByGroupIDAdvanced",
+		ConfigName:   experimentName,
+		IsExperiment: true,
 	})
 }
 
@@ -290,6 +299,17 @@ func (c *Client) LogEvent(event Event) {
 		}
 		c.logger.logCustom(event)
 	}, &evalContext{Caller: "logEvent"})
+}
+
+// Logs an exposure event for the dynamic config
+func (c *Client) LogExposureEvent(event ExposureEvent) {
+	c.errorBoundary.captureVoid(func(context *evalContext) {
+		event.User = normalizeUser(event.User, *c.options)
+		if event.EventName == "" {
+			return
+		}
+		c.logger.logExposure(event)
+	}, &evalContext{Caller: "logExposureEvent", IsManualExposure: true})
 }
 
 // Override the value of a Feature Gate for all users

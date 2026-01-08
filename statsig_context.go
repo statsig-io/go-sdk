@@ -12,7 +12,6 @@ type errorContext struct {
 	LogToOutput  bool
 	EventCount   int
 }
-
 type evalContext struct {
 	Caller                            string `json:"tag,omitempty"`
 	ConfigName                        string `json:"configName,omitempty"`
@@ -30,17 +29,29 @@ type evalContext struct {
 	EvalHasSeenAnalyticalGates        bool
 	UseControlForUsersNotInExperiment bool
 	Statsig                           *Client
+	ExposureHook                      ExposureHook
+}
+
+func (c *evalContext) shouldLogExposure(user User, configName string, evt *ExposureEvent) bool {
+	if c == nil {
+		return true
+	}
+	if c.DisableLogExposures {
+		return false
+	}
+	exposureHook := c.ExposureHook
+	return exposureHook == nil || exposureHook(user, configName, *evt)
 }
 
 type initContext struct {
-	Start          time.Time
-	Success        bool
-	Error          error
-	Source         EvaluationSource
+	Start            time.Time
+	Success          bool
+	Error            error
+	Source           EvaluationSource
 	CurrentSourceAPI string
-	SourceAPI      string
-	StorePopulated bool
-	mu             sync.RWMutex
+	SourceAPI        string
+	StorePopulated   bool
+	mu               sync.RWMutex
 }
 
 func newInitContext() *initContext {

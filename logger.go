@@ -151,7 +151,7 @@ func (l *logger) logGateExposure(
 	l.addEvaluationDetailsToExposureEvent(evt, res.EvaluationDetails)
 	l.addDeviceMetadataToExposureEvent(evt, res.DerivedDeviceMetadata)
 	l.addSamplingMetadataToExposureEvent(evt, samplingRate, shadowLogged, samplingMode)
-	if shouldLog && (context == nil || !context.DisableLogExposures) {
+	if shouldLog && context.shouldLogExposure(user, gateName, evt) {
 		l.logExposure(*evt)
 	}
 	return evt
