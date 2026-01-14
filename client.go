@@ -138,7 +138,7 @@ type ExposureHook func(user User, configName string, exposure ExposureEvent) (sh
 func (c *Client) GetGateWithExposureHook(user User, gate string, exposureHook ExposureHook) FeatureGate {
 	return c.errorBoundary.captureCheckGate(func(context *evalContext) FeatureGate {
 		return c.checkGateImpl(user, gate, context)
-	}, &evalContext{Caller: "getGateWithExposureLoggingDisabled", ConfigName: gate, ExposureHook: exposureHook})
+	}, &evalContext{Caller: "getGateWithExposureHook", ConfigName: gate, ExposureHook: exposureHook})
 }
 
 // Logs an exposure event for the dynamic config
