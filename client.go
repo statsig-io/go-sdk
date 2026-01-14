@@ -134,7 +134,7 @@ func (c *Client) GetGateWithExposureLoggingDisabled(user User, gate string) Feat
 
 type ExposureHook func(user User, configName string, exposure ExposureEvent) (shouldEmit bool)
 
-// Checks the value of a Feature Gate for the given user without logging an exposure event
+// Checks the value of a Feature Gate for the given user. If the evaluation would result in an exposure, the hook will be called with the exposure event. If the hook returns true, the exposure will be logged as usual.
 func (c *Client) GetGateWithExposureHook(user User, gate string, exposureHook ExposureHook) FeatureGate {
 	return c.errorBoundary.captureCheckGate(func(context *evalContext) FeatureGate {
 		return c.checkGateImpl(user, gate, context)
