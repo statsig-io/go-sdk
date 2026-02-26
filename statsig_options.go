@@ -11,6 +11,8 @@ type Options struct {
 	API                   string       `json:"api"`
 	APIOverrides          APIOverrides `json:"api_overrides"`
 	FallbackToStatsigAPI  bool
+	HTTPClient            *http.Client
+	NetworkTimeout        time.Duration
 	Transport             http.RoundTripper
 	Environment           Environment `json:"environment"`
 	LocalMode             bool        `json:"localMode"`
@@ -106,6 +108,11 @@ func GetOptionLoggingCopy(options Options) map[string]interface{} {
 			}
 
 		case reflect.Interface:
+			if !fieldValue.IsNil() {
+				loggingCopy[field.Name] = "set"
+			}
+
+		case reflect.Ptr:
 			if !fieldValue.IsNil() {
 				loggingCopy[field.Name] = "set"
 			}

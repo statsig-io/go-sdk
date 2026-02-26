@@ -21,6 +21,7 @@ const (
 const (
 	maxRetries        = 5
 	backoffMultiplier = 10
+	defaultTimeout    = 3 * time.Second
 )
 
 type transport struct {
@@ -28,6 +29,22 @@ type transport struct {
 	metadata statsigMetadata // Safe to read from but not thread safe to write into. If value needs to change, please ensure thread safety.
 	client   *http.Client
 	options  *Options
+}
+
+func newHTTPClient(options *Options) *http.Client {
+	if options.HTTPClient != nil {
+		return options.HTTPClient
+	}
+
+	timeout := options.NetworkTimeout
+	if timeout == 0 {
+		timeout = defaultTimeout
+	}
+
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: options.Transport,
+	}
 }
 
 func newTransport(secret string, options *Options) *transport {
@@ -40,11 +57,8 @@ func newTransport(secret string, options *Options) *transport {
 	return &transport{
 		metadata: getStatsigMetadata(),
 		sdkKey:   secret,
-		client: &http.Client{
-			Timeout:   time.Second * 3,
-			Transport: options.Transport,
-		},
-		options: options,
+		client:   newHTTPClient(options),
+		options:  options,
 	}
 }
 

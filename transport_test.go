@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 )
 
 type Empty struct{}
@@ -105,5 +106,101 @@ func TestProxy(t *testing.T) {
 	_, _ = n.post("/123", in, &out, RequestOptions{}, nil)
 	if !testServerHit {
 		t.Errorf("Expected request to hit proxy server")
+	}
+}
+
+func TestDefaultNetworkTimeout(t *testing.T) {
+	n := newTransport("secret-123", &Options{})
+	if n.client.Timeout != defaultTimeout {
+		t.Errorf("Expected default timeout %s, got %s", defaultTimeout, n.client.Timeout)
+	}
+}
+
+func TestCustomNetworkTimeout(t *testing.T) {
+	timeout := 5 * time.Second
+	n := newTransport("secret-123", &Options{NetworkTimeout: timeout})
+	if n.client.Timeout != timeout {
+		t.Errorf("Expected timeout %s, got %s", timeout, n.client.Timeout)
+	}
+}
+
+func TestCustomHTTPClient(t *testing.T) {
+	customTransport := &http.Transport{}
+	customClient := &http.Client{
+		Timeout:   7 * time.Second,
+		Transport: customTransport,
+	}
+
+	n := newTransport("secret-123", &Options{
+		HTTPClient:     customClient,
+		NetworkTimeout: time.Second,
+		Transport:      &http.Transport{},
+	})
+
+	if n.client != customClient {
+		t.Errorf("Expected transport to use provided HTTP client")
+	}
+	if n.client.Timeout != 7*time.Second {
+		t.Errorf("Expected provided client timeout to be preserved")
+	}
+	if n.client.Transport != customTransport {
+		t.Errorf("Expected provided client transport to be preserved")
+	}
+}
+
+func TestNetworkTimeoutAffectsRequests(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		res.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(res).Encode(ServerResponse{Name: "slow"})
+	}))
+	defer testServer.Close()
+
+	n := newTransport("secret-123", &Options{
+		API:            testServer.URL,
+		NetworkTimeout: 20 * time.Millisecond,
+	})
+
+	start := time.Now()
+	_, err := n.post("/123", Empty{}, &ServerResponse{}, RequestOptions{}, nil)
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Errorf("Expected request to time out")
+	}
+	if elapsed >= 150*time.Millisecond {
+		t.Errorf("Expected timeout before server response, got %s", elapsed)
+	}
+}
+
+func TestCustomHTTPClientOverridesNetworkTimeoutForRequests(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		time.Sleep(50 * time.Millisecond)
+		res.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(res).Encode(ServerResponse{Name: "ok"})
+	}))
+	defer testServer.Close()
+
+	n := newTransport("secret-123", &Options{
+		API:            testServer.URL,
+		NetworkTimeout: 10 * time.Millisecond,
+		HTTPClient: &http.Client{
+			Timeout: 200 * time.Millisecond,
+		},
+	})
+
+	var out ServerResponse
+	start := time.Now()
+	_, err := n.post("/123", Empty{}, &out, RequestOptions{}, nil)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Errorf("Expected request to succeed with custom HTTP client, got %v", err)
+	}
+	if out.Name != "ok" {
+		t.Errorf("Expected response body to be decoded")
+	}
+	if elapsed < 50*time.Millisecond {
+		t.Errorf("Expected request to wait for server response, got %s", elapsed)
 	}
 }
