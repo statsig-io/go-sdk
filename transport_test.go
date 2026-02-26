@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -202,5 +203,34 @@ func TestCustomHTTPClientOverridesNetworkTimeoutForRequests(t *testing.T) {
 	}
 	if elapsed < 50*time.Millisecond {
 		t.Errorf("Expected request to wait for server response, got %s", elapsed)
+	}
+}
+
+func TestDownloadConfigSpecsLogsRequestBuildErrors(t *testing.T) {
+	InitializeGlobalOutputLogger(OutputLoggerOptions{}, nil)
+
+	n := newTransport("secret-123", &Options{
+		APIOverrides: APIOverrides{
+			DownloadConfigSpecs: "http://[::1",
+		},
+	})
+
+	var out downloadConfigSpecResponse
+	var err error
+	stderrLogs := swallow_stderr(func() {
+		_, err = n.download_config_specs(0, &out, nil, nil)
+	})
+
+	if err == nil {
+		t.Fatalf("Expected request build failure for invalid download_config_specs override")
+	}
+	if !strings.Contains(stderrLogs, "download_config_specs") {
+		t.Errorf("Expected stderr logs to mention download_config_specs, got %q", stderrLogs)
+	}
+	if !strings.Contains(stderrLogs, "base_api=http://[::1") {
+		t.Errorf("Expected stderr logs to mention invalid base API, got %q", stderrLogs)
+	}
+	if !strings.Contains(stderrLogs, "endpoint=/download_config_specs/secret-****.json") {
+		t.Errorf("Expected stderr logs to mention the endpoint path, got %q", stderrLogs)
 	}
 }

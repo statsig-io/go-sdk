@@ -181,6 +181,7 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 		return nil, nil
 	}
 
+	baseAPI := transport.getBaseAPI(endpoint, false)
 	var bodyBuf io.Reader
 	if body != nil {
 		bodyBytes, err := json.Marshal(body)
@@ -203,10 +204,12 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 	}
 	url, err := transport.buildURL(endpoint, false, context)
 	if err != nil {
+		transport.logDownloadConfigSpecsRequestError(endpoint, baseAPI, err)
 		return nil, err
 	}
 	req, err := http.NewRequest(method, url.String(), bodyBuf)
 	if err != nil {
+		transport.logDownloadConfigSpecsRequestError(endpoint, baseAPI, err)
 		return nil, err
 	}
 
@@ -227,39 +230,56 @@ func (transport *transport) buildRequest(method, endpoint string, body interface
 	return req, nil
 }
 
-func (t *transport) buildURL(path string, isRetry bool, context *initContext) (*url.URL, error) {
-	var api string
+func (t *transport) getBaseAPI(path string, isRetry bool) string {
 	useDefaultAPI := isRetry && t.options.FallbackToStatsigAPI
 	endpoint := strings.TrimPrefix(path, "/v1")
 	if strings.Contains(endpoint, "download_config_specs") {
 		if useDefaultAPI {
-			api = StatsigCDN
+			return StatsigCDN
 		} else {
-			api = defaultString(t.options.APIOverrides.DownloadConfigSpecs, defaultString(t.options.API, StatsigCDN))
-		}
-		if context != nil {
-			context.setCurrentSourceAPI(api)
+			return defaultString(t.options.APIOverrides.DownloadConfigSpecs, defaultString(t.options.API, StatsigCDN))
 		}
 	} else if strings.Contains(endpoint, "get_id_list") {
 		if useDefaultAPI {
-			api = StatsigAPI
+			return StatsigAPI
 		} else {
-			api = defaultString(t.options.APIOverrides.GetIDLists, defaultString(t.options.API, StatsigAPI))
+			return defaultString(t.options.APIOverrides.GetIDLists, defaultString(t.options.API, StatsigAPI))
 		}
 	} else if strings.Contains(endpoint, "log_event") {
 		if useDefaultAPI {
-			api = StatsigAPI
+			return StatsigAPI
 		} else {
-			api = defaultString(t.options.APIOverrides.LogEvent, defaultString(t.options.API, StatsigAPI))
+			return defaultString(t.options.APIOverrides.LogEvent, defaultString(t.options.API, StatsigAPI))
 		}
 	} else {
 		if useDefaultAPI {
-			api = StatsigAPI
+			return StatsigAPI
 		} else {
-			api = defaultString(t.options.API, StatsigAPI)
+			return defaultString(t.options.API, StatsigAPI)
 		}
 	}
+}
+
+func (t *transport) buildURL(path string, isRetry bool, context *initContext) (*url.URL, error) {
+	api := t.getBaseAPI(path, isRetry)
+	endpoint := strings.TrimPrefix(path, "/v1")
+	if strings.Contains(endpoint, "download_config_specs") && context != nil {
+		context.setCurrentSourceAPI(api)
+	}
 	return url.Parse(strings.TrimSuffix(api, "/") + endpoint)
+}
+
+func (t *transport) logDownloadConfigSpecsRequestError(endpoint string, baseAPI string, err error) {
+	if err == nil || !strings.Contains(endpoint, "download_config_specs") {
+		return
+	}
+
+	Logger().LogError(fmt.Errorf(
+		"failed to build download_config_specs request (base_api=%s, endpoint=%s): %w",
+		baseAPI,
+		endpoint,
+		err,
+	))
 }
 
 func (t *transport) updateRequestForRetry(r *http.Request, context *initContext) *http.Request {
