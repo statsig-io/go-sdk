@@ -24,6 +24,19 @@ const (
 	defaultTimeout    = 3 * time.Second
 )
 
+const (
+	maxRequestPathLength         = 64
+	downloadConfigSpecsEndpoint  = "download_config_specs"
+	getIDListsEndpoint           = "get_id_lists"
+	downloadIDListFileEndpoint   = "download_id_list_file"
+	networkRequestLatencyMetric  = "network_request.latency"
+	requestPathTag               = "request_path"
+	statusCodeTag                = "status_code"
+	isSuccessTag                 = "is_success"
+	sdkKeyTag                    = "sdk_key"
+	sourceServiceTag             = "source_service"
+)
+
 type transport struct {
 	sdkKey   string
 	metadata statsigMetadata // Safe to read from but not thread safe to write into. If value needs to change, please ensure thread safety.
@@ -120,7 +133,16 @@ func (transport *transport) get_id_list(url string, headers map[string]string) (
 		req.Header.Set(k, v)
 	}
 
+	requestStart := time.Now()
 	res, err := transport.client.Do(req)
+	durationMs := float64(time.Since(requestStart).Milliseconds())
+	statusCode := "none"
+	success := false
+	if res != nil {
+		statusCode = strconv.Itoa(res.StatusCode)
+		success = successfulStatusCode(res.StatusCode)
+	}
+	transport.logNetworkRequestLatency(url, statusCode, success, durationMs)
 
 	if err != nil {
 		var statusCode int
@@ -312,6 +334,85 @@ func getAPIFromURL(rawURL string) string {
 	return base
 }
 
+func isVersionSegment(segment string) bool {
+	if len(segment) <= 1 || segment[0] != 'v' {
+		return false
+	}
+	for i := 1; i < len(segment); i++ {
+		if segment[i] < '0' || segment[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func isLatencyLoggableEndpoint(endpoint string) bool {
+	return endpoint == downloadConfigSpecsEndpoint ||
+		endpoint == getIDListsEndpoint ||
+		endpoint == downloadIDListFileEndpoint
+}
+
+func getNetworkSourceServiceAndRequestPath(rawURL string) (string, string) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", "/"
+	}
+
+	sourceService := parsed.Scheme + "://" + parsed.Host
+	normalizedPath := strings.Trim(parsed.EscapedPath(), "/")
+	if normalizedPath == "" {
+		return sourceService, "/"
+	}
+
+	segments := strings.Split(normalizedPath, "/")
+	for idx, segment := range segments {
+		if !isLatencyLoggableEndpoint(segment) {
+			continue
+		}
+
+		if idx > 0 && isVersionSegment(segments[idx-1]) {
+			requestPath := "/" + segments[idx-1] + "/" + segment
+			if idx-1 > 0 {
+				sourceService = sourceService + "/" + strings.Join(segments[:idx-1], "/")
+			}
+			return sourceService, requestPath
+		}
+
+		return sourceService, "/" + segment
+	}
+
+	fallbackPath := normalizedPath
+	if len(fallbackPath) > maxRequestPathLength {
+		fallbackPath = fallbackPath[:maxRequestPathLength]
+	}
+	return sourceService, "/" + fallbackPath
+}
+
+func shouldLogNetworkRequestLatency(rawURL string) bool {
+	_, requestPath := getNetworkSourceServiceAndRequestPath(rawURL)
+	return requestPath == "/"+downloadConfigSpecsEndpoint ||
+		requestPath == "/"+getIDListsEndpoint ||
+		requestPath == "/"+downloadIDListFileEndpoint ||
+		requestPath == "/v1/"+downloadConfigSpecsEndpoint ||
+		requestPath == "/v1/"+getIDListsEndpoint ||
+		requestPath == "/v1/"+downloadIDListFileEndpoint
+}
+
+func (transport *transport) logNetworkRequestLatency(rawURL string, statusCode string, success bool, durationMs float64) {
+	if !shouldLogNetworkRequestLatency(rawURL) {
+		return
+	}
+
+	sourceService, requestPath := getNetworkSourceServiceAndRequestPath(rawURL)
+	Logger().Distribution(networkRequestLatencyMetric, durationMs, map[string]interface{}{
+		requestPathTag:   requestPath,
+		statusCodeTag:    statusCode,
+		isSuccessTag:     strconv.FormatBool(success),
+		sdkKeyTag:        getLoggableSDKKey(transport.sdkKey),
+		sourceServiceTag: sourceService,
+	})
+}
+
 func (t *transport) logDownloadConfigSpecsRequestError(endpoint string, baseAPI string, err error) {
 	if err == nil || !strings.Contains(endpoint, "download_config_specs") {
 		return
@@ -357,7 +458,17 @@ func (transport *transport) doRequest(
 	}
 	options.fill_defaults()
 	response, attempts, err := retry(options.retries, time.Duration(options.backoff), func() (*http.Response, bool, error) {
+		requestStart := time.Now()
 		response, err := transport.client.Do(request)
+		durationMs := float64(time.Since(requestStart).Milliseconds())
+
+		statusCode := "none"
+		success := false
+		if response != nil {
+			statusCode = strconv.Itoa(response.StatusCode)
+			success = successfulStatusCode(response.StatusCode)
+		}
+		transport.logNetworkRequestLatency(request.URL.String(), statusCode, success, durationMs)
 
 		if diagnostics != nil {
 			diagnostics.end()

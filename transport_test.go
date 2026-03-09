@@ -236,8 +236,8 @@ func TestDownloadConfigSpecsLogsRequestBuildErrors(t *testing.T) {
 }
 
 func TestGetAPIFromURLForVersionedPath(t *testing.T) {
-	got := getAPIFromURL("http://localhost:8080/v2/download_config_specs")
-	if got != "http://localhost:8080/v2" {
+	got := getAPIFromURL("http://localhost:8080/v1/download_config_specs")
+	if got != "http://localhost:8080/v1" {
 		t.Errorf("Expected version-normalized API, got %q", got)
 	}
 }
@@ -246,6 +246,28 @@ func TestGetAPIFromURLForNonVersionedPath(t *testing.T) {
 	got := getAPIFromURL("http://localhost:8080/download_config_specs")
 	if got != "http://localhost:8080" {
 		t.Errorf("Expected host-only API for non-versioned path, got %q", got)
+	}
+}
+
+func TestGetNetworkSourceServiceAndRequestPathVersioned(t *testing.T) {
+	sourceService, requestPath := getNetworkSourceServiceAndRequestPath("http://localhost:8080/v1/download_config_specs/secret-key.json")
+	if sourceService != "http://localhost:8080" {
+		t.Errorf("Expected source service to be host root, got %q", sourceService)
+	}
+	if requestPath != "/v1/download_config_specs" {
+		t.Errorf("Expected versioned request path, got %q", requestPath)
+	}
+}
+
+func TestShouldLogNetworkRequestLatencyForLegacyNonVersionedEndpoint(t *testing.T) {
+	if !shouldLogNetworkRequestLatency("http://localhost:8080/download_config_specs/secret-key.json") {
+		t.Errorf("Expected non-versioned download_config_specs URL to be loggable")
+	}
+}
+
+func TestShouldNotLogNetworkRequestLatencyForNonV1VersionedEndpoint(t *testing.T) {
+	if shouldLogNetworkRequestLatency("http://localhost:8080/v3/download_config_specs/secret-key.json") {
+		t.Errorf("Expected non-v1 download_config_specs URL to be non-loggable in legacy go")
 	}
 }
 
@@ -267,7 +289,7 @@ func TestGetAPIFromURLEdgeCases(t *testing.T) {
 		},
 		{
 			name: "version prefix with suffix returns host",
-			in:   "https://example.com/v2beta/download_config_specs",
+			in:   "https://example.com/v1beta/download_config_specs",
 			want: "https://example.com",
 		},
 		{
@@ -290,7 +312,7 @@ func TestGetAPIFromURLEdgeCases(t *testing.T) {
 func TestBuildURLSetsNormalizedCurrentSourceAPI(t *testing.T) {
 	n := newTransport("secret-123", &Options{
 		APIOverrides: APIOverrides{
-			DownloadConfigSpecs: "http://localhost:8080/v2/download_config_specs",
+			DownloadConfigSpecs: "http://localhost:8080/v1/download_config_specs",
 		},
 	})
 
@@ -300,7 +322,7 @@ func TestBuildURLSetsNormalizedCurrentSourceAPI(t *testing.T) {
 		t.Fatalf("Expected buildURL to succeed, got %v", err)
 	}
 
-	if context.CurrentSourceAPI != "http://localhost:8080/v2" {
+	if context.CurrentSourceAPI != "http://localhost:8080/v1" {
 		t.Errorf("Expected normalized source API to include only version prefix, got %q", context.CurrentSourceAPI)
 	}
 }

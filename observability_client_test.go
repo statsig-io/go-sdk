@@ -6,6 +6,15 @@ import (
 	"time"
 )
 
+func findMetricByName(metrics []Metric, metricName string) *Metric {
+	for i := range metrics {
+		if metrics[i].Name == metricName {
+			return &metrics[i]
+		}
+	}
+	return nil
+}
+
 func TestObservabilityClientExample(t *testing.T) {
 	t.Run("able to get initialization metrics", func(t *testing.T) {
 		testServer := getTestServer(testServerOptions{})
@@ -23,9 +32,9 @@ func TestObservabilityClientExample(t *testing.T) {
 			t.Errorf("Expected to receive distribution metrics for initialization")
 		}
 
-		initMetric := distributionMetrics[0]
-		if initMetric.Name != "statsig.sdk.initialization" {
-			t.Errorf("Expected metric to have name 'initialization'")
+		initMetric := findMetricByName(distributionMetrics, "statsig.sdk.initialization")
+		if initMetric == nil {
+			t.Fatalf("Expected to receive initialization metric")
 		}
 		if initMetric.Value <= 0 {
 			t.Errorf("Expected metric to have a value")
@@ -54,6 +63,31 @@ func TestObservabilityClientExample(t *testing.T) {
 		if initMetric.Tags["sdk_type"] != "statsig-server-go" {
 			t.Errorf("Expected sdk_type to be statsig-server-go")
 		}
+		networkLatencyMetricFound := false
+		for _, metric := range distributionMetrics {
+			if metric.Name == "statsig.sdk.network_request.latency" {
+				networkLatencyMetricFound = true
+				if metric.Tags["request_path"] == "" {
+					t.Errorf("Expected network_request.latency request_path tag")
+				}
+				if metric.Tags["status_code"] == "" {
+					t.Errorf("Expected network_request.latency status_code tag")
+				}
+				if metric.Tags["is_success"] == "" {
+					t.Errorf("Expected network_request.latency is_success tag")
+				}
+				if metric.Tags["sdk_key"] == "" {
+					t.Errorf("Expected network_request.latency sdk_key tag")
+				}
+				if metric.Tags["source_service"] == "" {
+					t.Errorf("Expected network_request.latency source_service tag")
+				}
+				break
+			}
+		}
+		if !networkLatencyMetricFound {
+			t.Errorf("Expected to receive network_request.latency metric")
+		}
 
 	})
 
@@ -76,9 +110,9 @@ func TestObservabilityClientExample(t *testing.T) {
 		if len(distributionMetrics) == 0 {
 			t.Errorf("Expected to receive distribution metrics for config sync")
 		}
-		configSyncMetric := distributionMetrics[1]
-		if configSyncMetric.Name != "statsig.sdk.config_propagation_diff" {
-			t.Errorf("Expected metric to have name 'config_propagation_diff'")
+		configSyncMetric := findMetricByName(distributionMetrics, "statsig.sdk.config_propagation_diff")
+		if configSyncMetric == nil {
+			t.Fatalf("Expected metric to have name 'config_propagation_diff'")
 		}
 		if configSyncMetric.Value <= 0 {
 			t.Errorf("Expected metric to have a positive value")
@@ -185,9 +219,9 @@ func TestObservabilityClientWithBootstrap(t *testing.T) {
 		if len(metrics) == 0 {
 			t.Errorf("Expected to receive metrics from observability client")
 		}
-		initMetric := metrics[0]
-		if initMetric.Name != "statsig.sdk.initialization" {
-			t.Errorf("Expected metric to have name 'initialization'")
+		initMetric := findMetricByName(metrics, "statsig.sdk.initialization")
+		if initMetric == nil {
+			t.Fatalf("Expected metric to have name 'initialization'")
 		}
 		if initMetric.Tags["source"] != string(SourceDataAdapter) {
 			t.Errorf("Expected metric to have source tag as 'data_adapter'")
