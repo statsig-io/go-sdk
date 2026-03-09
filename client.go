@@ -69,7 +69,7 @@ func newClientImpl(sdkKey string, options *Options) (*Client, InitializeDetails)
 		select {
 		case res := <-channel:
 			diagnostics.initialize().overall().end().success(true).mark()
-			Logger().LogPostInit(options, context.toInitDetails())
+			Logger().LogPostInit(options, sdkKey, context.toInitDetails())
 			return res, context.toInitDetails()
 		case <-time.After(options.InitTimeout):
 			Logger().LogStep(StatsigProcessInitialize, "Timed out")
@@ -77,7 +77,7 @@ func newClientImpl(sdkKey string, options *Options) (*Client, InitializeDetails)
 			client.initInBackground()
 			ctx := context.copy() // Goroutines are not terminated upon timeout. Clone context to avoid race condition on setting Error
 			ctx.setError(errors.New("timed out"))
-			Logger().LogPostInit(options, ctx.toInitDetails())
+			Logger().LogPostInit(options, sdkKey, ctx.toInitDetails())
 			return client, ctx.toInitDetails()
 		}
 	} else {
@@ -85,7 +85,7 @@ func newClientImpl(sdkKey string, options *Options) (*Client, InitializeDetails)
 	}
 
 	diagnostics.initialize().overall().end().success(true).mark()
-	Logger().LogPostInit(options, context.toInitDetails())
+	Logger().LogPostInit(options, sdkKey, context.toInitDetails())
 	return client, context.toInitDetails()
 }
 

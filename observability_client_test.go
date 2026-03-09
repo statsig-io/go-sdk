@@ -39,11 +39,20 @@ func TestObservabilityClientExample(t *testing.T) {
 		if initMetric.Tags["init_source_api"] != testServer.URL {
 			t.Errorf("Expected metric to have correct source_api tag")
 		}
-		if initMetric.Tags["store_populated"] != true {
-			t.Errorf("Expected store_populated to be true")
+		if initMetric.Tags["store_populated"] != "true" {
+			t.Errorf("Expected store_populated to be 'true'")
 		}
-		if initMetric.Tags["init_success"] != true {
-			t.Errorf("Expected init success to be true")
+		if initMetric.Tags["init_success"] != "true" {
+			t.Errorf("Expected init success to be 'true'")
+		}
+		if initMetric.Tags["sdk_key"] != "secret-key" {
+			t.Errorf("Expected sdk_key to be loggable sdk key")
+		}
+		if initMetric.Tags["sdk_version"] == "" {
+			t.Errorf("Expected sdk_version to be present")
+		}
+		if initMetric.Tags["sdk_type"] != "statsig-server-go" {
+			t.Errorf("Expected sdk_type to be statsig-server-go")
 		}
 
 	})
@@ -80,10 +89,10 @@ func TestObservabilityClientExample(t *testing.T) {
 		if configSyncMetric.Tags["source_api"] != testServer.URL {
 			t.Errorf("Expected metric to have correct source_api tag")
 		}
-		if configSyncMetric.Tags["lcut"] == 0 {
+		if _, ok := configSyncMetric.Tags["lcut"].(string); !ok {
 			t.Errorf("Expected metric to have lcut tag")
 		}
-		if configSyncMetric.Tags["prev_lcut"] == 0 {
+		if _, ok := configSyncMetric.Tags["prev_lcut"].(string); !ok {
 			t.Errorf("Expected metric to have prev_lcut tag")
 		}
 	})
@@ -186,8 +195,8 @@ func TestObservabilityClientWithBootstrap(t *testing.T) {
 		if initMetric.Tags["init_source_api"] != "" {
 			t.Errorf("Expected metric to have empty init_source_api tag")
 		}
-		if initMetric.Tags["store_populated"] != true {
-			t.Errorf("Expected store_populated to be true")
+		if initMetric.Tags["store_populated"] != "true" {
+			t.Errorf("Expected store_populated to be 'true'")
 		}
 	})
 }

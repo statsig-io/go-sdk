@@ -264,9 +264,52 @@ func (t *transport) buildURL(path string, isRetry bool, context *initContext) (*
 	api := t.getBaseAPI(path, isRetry)
 	endpoint := strings.TrimPrefix(path, "/v1")
 	if strings.Contains(endpoint, "download_config_specs") && context != nil {
-		context.setCurrentSourceAPI(api)
+		context.setCurrentSourceAPI(getAPIFromURL(api))
 	}
 	return url.Parse(strings.TrimSuffix(api, "/") + endpoint)
+}
+
+// getAPIFromURL normalizes a URL for observability tags:
+// if the path starts with /v<digits>, keep only that version prefix.
+func getAPIFromURL(rawURL string) string {
+	schemeEnd := strings.Index(rawURL, "://")
+	if schemeEnd == -1 {
+		return rawURL
+	}
+
+	afterScheme := rawURL[schemeEnd+3:]
+	slash := strings.Index(afterScheme, "/")
+	if slash == -1 {
+		return rawURL
+	}
+
+	base := rawURL[:schemeEnd+3+slash]
+	path := rawURL[schemeEnd+3+slash:]
+
+	if !strings.HasPrefix(path, "/v") {
+		return base
+	}
+
+	rest := path[2:]
+	if len(rest) == 0 {
+		return base
+	}
+
+	digitCount := 0
+	for ; digitCount < len(rest); digitCount++ {
+		if rest[digitCount] < '0' || rest[digitCount] > '9' {
+			break
+		}
+	}
+	if digitCount == 0 {
+		return base
+	}
+
+	if digitCount == len(rest) || rest[digitCount] == '/' {
+		return base + "/v" + rest[:digitCount]
+	}
+
+	return base
 }
 
 func (t *transport) logDownloadConfigSpecsRequestError(endpoint string, baseAPI string, err error) {

@@ -234,3 +234,73 @@ func TestDownloadConfigSpecsLogsRequestBuildErrors(t *testing.T) {
 		t.Errorf("Expected stderr logs to mention the endpoint path, got %q", stderrLogs)
 	}
 }
+
+func TestGetAPIFromURLForVersionedPath(t *testing.T) {
+	got := getAPIFromURL("http://localhost:8080/v2/download_config_specs")
+	if got != "http://localhost:8080/v2" {
+		t.Errorf("Expected version-normalized API, got %q", got)
+	}
+}
+
+func TestGetAPIFromURLForNonVersionedPath(t *testing.T) {
+	got := getAPIFromURL("http://localhost:8080/download_config_specs")
+	if got != "http://localhost:8080" {
+		t.Errorf("Expected host-only API for non-versioned path, got %q", got)
+	}
+}
+
+func TestGetAPIFromURLEdgeCases(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "base URL only remains unchanged",
+			in:   "https://example.com",
+			want: "https://example.com",
+		},
+		{
+			name: "version path with no digits returns host",
+			in:   "https://example.com/v/download_config_specs",
+			want: "https://example.com",
+		},
+		{
+			name: "version prefix with suffix returns host",
+			in:   "https://example.com/v2beta/download_config_specs",
+			want: "https://example.com",
+		},
+		{
+			name: "version path only keeps version",
+			in:   "https://example.com/v10",
+			want: "https://example.com/v10",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := getAPIFromURL(tc.in)
+			if got != tc.want {
+				t.Errorf("Expected %q, got %q", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestBuildURLSetsNormalizedCurrentSourceAPI(t *testing.T) {
+	n := newTransport("secret-123", &Options{
+		APIOverrides: APIOverrides{
+			DownloadConfigSpecs: "http://localhost:8080/v2/download_config_specs",
+		},
+	})
+
+	context := newInitContext()
+	_, err := n.buildURL("/v1/download_config_specs/secret-123.json", false, context)
+	if err != nil {
+		t.Fatalf("Expected buildURL to succeed, got %v", err)
+	}
+
+	if context.CurrentSourceAPI != "http://localhost:8080/v2" {
+		t.Errorf("Expected normalized source API to include only version prefix, got %q", context.CurrentSourceAPI)
+	}
+}

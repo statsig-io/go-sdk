@@ -155,7 +155,15 @@ func (o *OutputLogger) Shutdown() {
 	}
 }
 
-func (o *OutputLogger) LogPostInit(statsigOptions *Options, initDetails InitializeDetails) {
+func getLoggableSDKKey(sdkKey string) string {
+	const loggableKeyPrefixLength = 13
+	if len(sdkKey) <= loggableKeyPrefixLength {
+		return sdkKey
+	}
+	return sdkKey[:loggableKeyPrefixLength]
+}
+
+func (o *OutputLogger) LogPostInit(statsigOptions *Options, sdkKey string, initDetails InitializeDetails) {
 	if statsigOptions != nil && statsigOptions.LocalMode {
 		if initDetails.Success {
 			o.Log("Statsig SDK instance initialized in local mode. No data will be fetched from the Statsig servers.", nil)
@@ -165,10 +173,13 @@ func (o *OutputLogger) LogPostInit(statsigOptions *Options, initDetails Initiali
 		return
 	}
 
-	o.Distribution("initialization", initDetails.Duration.Seconds(), map[string]interface{}{
+	metadata := getStatsigMetadata()
+	o.Distribution("initialization", float64(initDetails.Duration.Milliseconds()), map[string]interface{}{
 		"source":          initDetails.Source.String(),
-		"store_populated": initDetails.StorePopulated,
-		"init_success":    initDetails.Success,
+		"store_populated": fmt.Sprintf("%t", initDetails.StorePopulated),
+		"init_success":    fmt.Sprintf("%t", initDetails.Success),
+		"sdk_key":         getLoggableSDKKey(sdkKey),
+		"sdk_version":     metadata.SDKVersion,
 		"init_source_api": initDetails.SourceAPI,
 	})
 
@@ -203,13 +214,15 @@ func (o *OutputLogger) LogConfigSyncUpdate(initialized bool, hasUpdate bool, lcu
 		})
 		return
 	}
-	lcutDiff := prevLcut - lcut
-	absLcutDiff := intAbs(lcutDiff)
-	o.Distribution("config_propagation_diff", float64(absLcutDiff), map[string]interface{}{
+	propagationDelay := getUnixMilli() - lcut
+	if propagationDelay < 0 {
+		propagationDelay = 0
+	}
+	o.Distribution("config_propagation_diff", float64(propagationDelay), map[string]interface{}{
 		"source":     source,
 		"source_api": api,
-		"lcut":       lcut,
-		"prev_lcut":  prevLcut,
+		"lcut":       fmt.Sprintf("%d", lcut),
+		"prev_lcut":  fmt.Sprintf("%d", prevLcut),
 	})
 }
 

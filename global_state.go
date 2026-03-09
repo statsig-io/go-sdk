@@ -27,7 +27,7 @@ func InitializeGlobalOutputLogger(options OutputLoggerOptions, observabilityClie
 	defer global.mu.Unlock()
 	global.logger = &OutputLogger{
 		options:             options,
-		observabilityClient: observabilityClient,
+		observabilityClient: wrapObservabilityClientWithTags(observabilityClient),
 	}
 	global.logger.Initialize()
 }
