@@ -94,6 +94,7 @@ func (c *Client) init(context *initContext) {
 	c.evaluator.store.mu.RLock()
 	defer c.evaluator.store.mu.RUnlock()
 	c.logger.samplingKeySet.StartResetThread()
+	c.logger.dedupeKeySet.StartResetThread()
 	context.setSuccess(c.evaluator.store.source != SourceUninitialized)
 	context.setSource(c.evaluator.store.source)
 	context.setStorePopulated(c.evaluator.store.lastSyncTime != 0)
@@ -102,6 +103,7 @@ func (c *Client) init(context *initContext) {
 func (c *Client) initInBackground() {
 	c.evaluator.store.startPolling()
 	c.logger.samplingKeySet.StartResetThread()
+	c.logger.dedupeKeySet.StartResetThread()
 }
 
 // Checks the value of a Feature Gate for the given user
@@ -209,9 +211,9 @@ func (c *Client) GetExperimentByGroupName(experimentName string, groupName strin
 	return c.errorBoundary.captureGetConfig(func(context *evalContext) DynamicConfig {
 		return c.getExperimentByGroupNameImpl(experimentName, groupName)
 	}, &evalContext{
-		Caller:              "getExperimentByGroupName",
-		ConfigName:          experimentName,
-		IsExperiment:        true,
+		Caller:       "getExperimentByGroupName",
+		ConfigName:   experimentName,
+		IsExperiment: true,
 	})
 }
 
@@ -219,9 +221,9 @@ func (c *Client) GetExperimentByGroupIDAdvanced(experimentName string, groupId s
 	return c.errorBoundary.captureGetConfig(func(context *evalContext) DynamicConfig {
 		return c.getExperimentByGroupIDAdvancedImpl(experimentName, groupId)
 	}, &evalContext{
-		Caller:              "getExperimentByGroupIDAdvanced",
-		ConfigName:          experimentName,
-		IsExperiment:        true,
+		Caller:       "getExperimentByGroupIDAdvanced",
+		ConfigName:   experimentName,
+		IsExperiment: true,
 	})
 }
 
