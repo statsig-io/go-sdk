@@ -81,10 +81,12 @@ func GetOptionLoggingCopy(options Options) map[string]interface{} {
 			}
 			if field.Name == "StatsigLoggerOptions" && !fieldValue.IsZero() {
 				statsigLoggerOptions := map[string]interface{}{
-					"DisableInitDiagnostics": fieldValue.Interface().(StatsigLoggerOptions).DisableInitDiagnostics,
-					"DisableSyncDiagnostics": fieldValue.Interface().(StatsigLoggerOptions).DisableSyncDiagnostics,
-					"DisableApiDiagnostics":  fieldValue.Interface().(StatsigLoggerOptions).DisableApiDiagnostics,
-					"DisableAllLogging":      fieldValue.Interface().(StatsigLoggerOptions).DisableAllLogging,
+					"DisableInitDiagnostics":    fieldValue.Interface().(StatsigLoggerOptions).DisableInitDiagnostics,
+					"DisableSyncDiagnostics":    fieldValue.Interface().(StatsigLoggerOptions).DisableSyncDiagnostics,
+					"DisableApiDiagnostics":     fieldValue.Interface().(StatsigLoggerOptions).DisableApiDiagnostics,
+					"DisableAllLogging":         fieldValue.Interface().(StatsigLoggerOptions).DisableAllLogging,
+					"DedupeSetMaxSize":          fieldValue.Interface().(StatsigLoggerOptions).DedupeSetMaxSize,
+					"SamplingSetMaxSize":        fieldValue.Interface().(StatsigLoggerOptions).SamplingSetMaxSize,
 				}
 				loggingCopy[field.Name] = statsigLoggerOptions
 				break
@@ -151,6 +153,8 @@ type StatsigLoggerOptions struct {
 	DisableSyncDiagnostics bool
 	DisableApiDiagnostics  bool
 	DisableAllLogging      bool
+	DedupeSetMaxSize       int
+	SamplingSetMaxSize     int
 }
 
 type IPCountryOptions struct {

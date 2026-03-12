@@ -68,6 +68,8 @@ func newLogger(transport *transport, options *Options, diagnostics *diagnostics,
 	if options.LoggingMaxBufferSize > 0 {
 		maxEvents = options.LoggingMaxBufferSize
 	}
+	dedupeSetMaxSize := getTTLSetMaxSizeWithValidation("DedupeSetMaxSize", options.StatsigLoggerOptions.DedupeSetMaxSize)
+	samplingSetMaxSize := getTTLSetMaxSizeWithValidation("SamplingSetMaxSize", options.StatsigLoggerOptions.SamplingSetMaxSize)
 	disabled := options.StatsigLoggerOptions.DisableAllLogging
 	log := &logger{
 		events:         make([]interface{}, 0),
@@ -78,8 +80,8 @@ func newLogger(transport *transport, options *Options, diagnostics *diagnostics,
 		diagnostics:    diagnostics,
 		options:        options,
 		errorBoundary:  errorBoundary,
-		samplingKeySet: NewTTLSet(),
-		dedupeKeySet:   NewTTLSet(),
+		samplingKeySet: NewTTLSetWithMaxSize(samplingSetMaxSize),
+		dedupeKeySet:   NewTTLSetWithMaxSize(dedupeSetMaxSize),
 		SDKConfigs:     sdkConfigs,
 	}
 
@@ -92,6 +94,16 @@ func (l *logger) backgroundFlush() {
 	for range l.tick.C {
 		l.flush(false)
 	}
+}
+
+func getTTLSetMaxSizeWithValidation(_ string, configuredMaxSize int) int {
+	if configuredMaxSize <= 0 {
+		return defaultTTLSetMaxSize
+	}
+	if configuredMaxSize < minTTLSetMaxSize {
+		return minTTLSetMaxSize
+	}
+	return configuredMaxSize
 }
 
 func (l *logger) logCustom(evt Event) {

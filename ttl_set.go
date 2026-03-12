@@ -6,8 +6,12 @@ import (
 	"time"
 )
 
+const defaultTTLSetMaxSize = 100000
+const minTTLSetMaxSize = 10000
+
 type TTLSet struct {
 	store                     map[string]struct{}
+	maxSize                   int
 	mu                        sync.RWMutex
 	resetInterval             time.Duration
 	shutdown                  bool
@@ -15,16 +19,39 @@ type TTLSet struct {
 }
 
 func NewTTLSet() *TTLSet {
+	return NewTTLSetWithMaxSize(defaultTTLSetMaxSize)
+}
+
+func NewTTLSetWithMaxSize(maxSize int) *TTLSet {
+	if maxSize <= 0 {
+		maxSize = defaultTTLSetMaxSize
+	}
+	maxSize = enforceMinTTLSetMaxSize(maxSize)
 	set := &TTLSet{
-		store:         make(map[string]struct{}),
+		store:         make(map[string]struct{}, maxSize),
+		maxSize:       maxSize,
 		resetInterval: time.Minute,
 	}
 
 	return set
 }
 
+func enforceMinTTLSetMaxSize(maxSize int) int {
+	if maxSize < minTTLSetMaxSize {
+		return minTTLSetMaxSize
+	}
+	return maxSize
+}
+
 func (s *TTLSet) Add(key string) {
 	s.mu.Lock()
+	if _, exists := s.store[key]; exists {
+		s.mu.Unlock()
+		return
+	}
+	if s.maxSize > 0 && len(s.store) >= s.maxSize {
+		s.store = make(map[string]struct{}, s.maxSize)
+	}
 	s.store[key] = struct{}{}
 	s.mu.Unlock()
 }
@@ -71,7 +98,7 @@ func (s *TTLSet) StartResetThread() {
 			}
 
 			s.mu.Lock()
-			s.store = make(map[string]struct{})
+			s.store = make(map[string]struct{}, s.maxSize)
 			s.mu.Unlock()
 		}
 	}()

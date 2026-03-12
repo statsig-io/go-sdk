@@ -1,6 +1,7 @@
 package statsig
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -96,5 +97,78 @@ func TestLog(t *testing.T) {
 	}
 	if evt3.Time/1000 < nowSecond-2 || evt3.Time/1000 > nowSecond+2 {
 		t.Errorf("Config exposure event time not set correctly.")
+	}
+}
+
+func TestLogger_DedupeTTLSetMaxSizeOption(t *testing.T) {
+	maxSize := minTTLSetMaxSize + 1
+	logger := newLogger(nil, &Options{
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DedupeSetMaxSize: maxSize,
+		},
+	}, nil, nil, newSDKConfigs())
+
+	if logger.dedupeKeySet.maxSize != maxSize {
+		t.Fatalf("expected dedupe set max size to be %d, got %d", maxSize, logger.dedupeKeySet.maxSize)
+	}
+
+	if logger.shouldDedupeExposure("key1") {
+		t.Errorf("first key should not be deduped")
+	}
+
+	if logger.shouldDedupeExposure("key2") {
+		t.Errorf("second key should not be deduped immediately")
+	}
+
+	if !logger.shouldDedupeExposure("key1") {
+		t.Errorf("key1 should be deduped")
+	}
+
+	for i := 0; i < minTTLSetMaxSize; i++ {
+		logger.shouldDedupeExposure(fmt.Sprintf("filler-key-%d", i))
+	}
+
+	if logger.shouldDedupeExposure("key1") {
+		t.Errorf("key1 should have been cleared after max size reached")
+	}
+}
+
+func TestLogger_SamplingTTLSetMaxSizeOption(t *testing.T) {
+	logger := newLogger(nil, &Options{
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			SamplingSetMaxSize: minTTLSetMaxSize + 2,
+		},
+	}, nil, nil, newSDKConfigs())
+
+	if logger.samplingKeySet.maxSize != minTTLSetMaxSize+2 {
+		t.Fatalf("expected sampling set max size to be %d, got %d", minTTLSetMaxSize+2, logger.samplingKeySet.maxSize)
+	}
+
+	logger.samplingKeySet.Add("sample1")
+	logger.samplingKeySet.Add("sample2")
+	if !logger.samplingKeySet.Contains("sample1") {
+		t.Errorf("sample1 should be tracked")
+	}
+	if !logger.samplingKeySet.Contains("sample2") {
+		t.Errorf("sample2 should be tracked")
+	}
+	if !logger.samplingKeySet.Contains("sample1") || !logger.samplingKeySet.Contains("sample2") {
+		t.Errorf("sampling set should include both sample keys")
+	}
+}
+
+func TestLogger_DedupeAndSamplingTTLSetMaxSizesAreIndependent(t *testing.T) {
+	logger := newLogger(nil, &Options{
+		StatsigLoggerOptions: StatsigLoggerOptions{
+			DedupeSetMaxSize:   minTTLSetMaxSize + 1,
+			SamplingSetMaxSize: minTTLSetMaxSize + 2,
+		},
+	}, nil, nil, newSDKConfigs())
+
+	if logger.dedupeKeySet.maxSize != minTTLSetMaxSize+1 {
+		t.Fatalf("expected dedupe set max size to be %d, got %d", minTTLSetMaxSize+1, logger.dedupeKeySet.maxSize)
+	}
+	if logger.samplingKeySet.maxSize != minTTLSetMaxSize+2 {
+		t.Fatalf("expected sampling set max size to be %d, got %d", minTTLSetMaxSize+2, logger.samplingKeySet.maxSize)
 	}
 }

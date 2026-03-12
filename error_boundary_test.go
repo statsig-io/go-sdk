@@ -78,7 +78,12 @@ func TestDCSError(t *testing.T) {
 		"DisableApiDiagnostics":  true,
 		"DisableAllLogging":      false,
 	}
-	if !reflect.DeepEqual(statsigOption["StatsigLoggerOptions"], expectedStatsigLoggerOptions) {
+
+	statsigLoggerOptions := statsigOption["StatsigLoggerOptions"].(map[string]interface{})
+	delete(statsigLoggerOptions, "DedupeSetMaxSize")
+	delete(statsigLoggerOptions, "SamplingSetMaxSize")
+
+	if !reflect.DeepEqual(statsigLoggerOptions, expectedStatsigLoggerOptions) {
 		t.Error("Expected StatsigLoggerOptions in statsigOptions to be set")
 	}
 }
