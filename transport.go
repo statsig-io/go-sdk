@@ -418,12 +418,12 @@ func (t *transport) logDownloadConfigSpecsRequestError(endpoint string, baseAPI 
 		return
 	}
 
-	Logger().LogError(fmt.Errorf(
+	Logger().LogError(&TransportError{Err: fmt.Errorf(
 		"failed to build download_config_specs request (base_api=%s, endpoint=%s): %w",
 		baseAPI,
 		endpoint,
 		err,
-	))
+	)})
 }
 
 func (t *transport) updateRequestForRetry(r *http.Request, context *initContext) *http.Request {
