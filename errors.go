@@ -27,9 +27,9 @@ type TransportError struct {
 
 func (e *TransportError) Error() string {
 	if e.RequestMetadata != nil {
-		return fmt.Sprintf("Failed request to %s after %d retries: %s", e.RequestMetadata.Endpoint, e.RequestMetadata.Retries, e.Err.Error())
+		return sanitize(fmt.Sprintf("Failed request to %s after %d retries: %s", e.RequestMetadata.Endpoint, e.RequestMetadata.Retries, e.Err.Error()))
 	} else {
-		return e.Err.Error()
+		return sanitize(e.Err.Error())
 	}
 }
 
